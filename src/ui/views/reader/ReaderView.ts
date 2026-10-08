@@ -1,4 +1,4 @@
-import type { Chapter, ChapterRef, Series } from '../../../engine/index.ts';
+import type { Chapter, ChapterRef, ReadingStyle, Series } from '../../../engine/index.ts';
 import { ErrorPanel } from '../../components/ErrorPanel.ts';
 import type { AppContext } from '../../core/AppContext.ts';
 import type { Component } from '../../core/Component.ts';
@@ -12,6 +12,7 @@ interface Target {
   readonly url: string;
   readonly key: string;
   readonly seriesUrl: string;
+  readonly reading: ReadingStyle;
 }
 
 const refOf = (chapter: Chapter | undefined): ChapterRef | null => (chapter ? { url: chapter.url, key: chapter.key, title: chapter.title } : null);
@@ -43,7 +44,7 @@ export class ReaderView extends View {
       this.app.router.redirect(Routes.library());
       return;
     }
-    await this.load({ url: link.url, key: link.key, seriesUrl: link.seriesUrl });
+    await this.load({ url: link.url, key: link.key, seriesUrl: link.seriesUrl, reading: link.source.reading });
   }
 
   override destroy(): void {
@@ -83,6 +84,7 @@ export class ReaderView extends View {
       startPage: this.startPage(target, pages.length),
       previous: at > 0 ? refOf(chapters[at - 1]) : null,
       next: at >= 0 ? refOf(chapters[at + 1]) : null,
+      natural: target.reading,
     });
   }
 

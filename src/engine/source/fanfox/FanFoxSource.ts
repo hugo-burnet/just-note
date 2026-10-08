@@ -1,6 +1,7 @@
 import { SourceError } from '../../errors.ts';
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../model.ts';
 import type { SourceIO } from '../../ports.ts';
+import type { ReadingStyle } from '../../reader/ReadingStyle.ts';
 import { looksBlocked } from '../../text.ts';
 import { Source } from '../Source.ts';
 import { FanFoxChapterReader } from './FanFoxChapterReader.ts';
@@ -12,6 +13,8 @@ export class FanFoxSource extends Source {
   readonly id = 'fanfox';
   readonly name = 'FanFox';
   readonly home = `${FanFoxUrls.origin}/`;
+  /** Manga: page by page, from right to left. */
+  readonly reading: ReadingStyle = { mode: 'paged', rtl: true };
 
   private readonly series = new FanFoxSeriesParser();
   private readonly chapters: FanFoxChapterReader;

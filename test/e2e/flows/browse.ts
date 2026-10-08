@@ -88,6 +88,32 @@ export async function browseAndSettings({ browser, stage, runner }: Context): Pr
     await page.getByText('Language', { exact: true }).waitFor();
   });
 
+  await step('settings: reading starts on Auto, a choice is kept, and an older version\'s yes or no is carried over', async () => {
+    const chosen = (group: 'Mode' | 'Direction', label: string) =>
+      page.getByRole('radiogroup', { name: group }).getByRole('radio', { name: label, exact: true, checked: true });
+    const pick = (group: 'Mode' | 'Direction', label: string) =>
+      page.getByRole('radiogroup', { name: group }).getByRole('radio', { name: label, exact: true }).click();
+    await chosen('Mode', 'Auto').waitFor();
+    await chosen('Direction', 'Auto').waitFor();
+    await pick('Mode', 'Pages');
+    await page.reload();
+    await chosen('Mode', 'Pages').waitFor();
+
+    // Before the direction could be left to the site it was saved as a yes or no.
+    await page.evaluate(() => localStorage.setItem('jr:settings', JSON.stringify({ rtl: true, mode: 'scroll' })));
+    await page.reload();
+    await chosen('Mode', 'Scroll').waitFor();
+    await chosen('Direction', 'Right to left').waitFor();
+    await settle(page);
+    await shot(page, '38-settings-reading');
+
+    await pick('Mode', 'Auto');
+    await pick('Direction', 'Auto');
+    await page.reload();
+    await chosen('Mode', 'Auto').waitFor();
+    await chosen('Direction', 'Auto').waitFor();
+  });
+
   await step('the proxy answers the connection test', async () => {
     await page.getByRole('button', { name: 'Test connection' }).click();
     await page.getByText('Connected', { exact: true }).waitFor();
@@ -130,7 +156,7 @@ export async function browseAndSettings({ browser, stage, runner }: Context): Pr
 
   await step('the reader stays dark in the light theme', async () => {
     await page.locator('a.chapter', { hasText: 'Ch.001' }).click();
-    await page.locator('.reader .frame').first().waitFor();
+    await page.locator('.paged img.single').waitFor();
     assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.reader') as Element).colorScheme), 'dark');
     assert.equal(await page.locator('meta[name=theme-color]').getAttribute('content'), '#0b0c10');
     await settle(page);

@@ -66,6 +66,14 @@ The reader is the product, so it is the most restrained screen.
   the next page is decoded before it replaces the current one, so nothing flashes.
 - **Direction** (left to right or right to left) only exists for turned pages. A column
   always reads downwards, and its slider always runs from the left.
+- **Each site is read the way it is meant to be.** A source says how its content is read
+  (`Source.reading`): FanFox is turned pages from right to left, like the printed manga it
+  comes from; WEBTOON is one long column. *Auto*, the default for both the mode and the
+  direction, follows the site. Choosing *Scroll*, *Pages*, *Left to right* or *Right to
+  left* overrides it on every site, and *Auto* gives the decision back. A choice made in
+  the reading options applies at once, on the page being read (the page is kept when a
+  chapter turns from pages into a column and back). The settings of the first versions
+  stored the direction as a yes or no; it is read as a choice of direction.
 - **Your place is kept** without writing at every scroll event: after a pause, when the
   page is hidden, and when you leave. A chapter left on its last page counts as finished
   and is read again from the start; one left anywhere else resumes where you stopped.
@@ -87,6 +95,6 @@ in an adapter.
   which creates elements and sets text; there is no `innerHTML` anywhere.
 - **No framework.** Screens are classes with an owner of listeners and timers
   (`Component`), so leaving a screen never leaves anything running. The whole app is
-  about 75 kB of JavaScript (24 kB gzipped) and 28 kB of CSS.
+  about 77 kB of JavaScript (24 kB gzipped) and 28 kB of CSS.
 - **Everything must also work in a WebView**: relative asset paths, hash addresses, no
   dependency on a service worker for the app to function (it only adds offline use).

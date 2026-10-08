@@ -1,4 +1,5 @@
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../model.ts';
+import type { ReadingStyle } from '../reader/ReadingStyle.ts';
 import type { DomDocument, HtmlParser, SourceIO, TextRequest, Transport } from '../ports.ts';
 
 export interface LoadedDocument {
@@ -18,6 +19,8 @@ export abstract class Source {
   abstract readonly name: string;
   /** A listing page to start browsing from. */
   abstract readonly home: string;
+  /** How what this site publishes is meant to be read: pages of a manga, or a long column. */
+  abstract readonly reading: ReadingStyle;
 
   protected readonly transport: Transport;
   protected readonly parser: HtmlParser;

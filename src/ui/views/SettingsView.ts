@@ -57,13 +57,15 @@ export class SettingsView extends View {
         ]),
         this.group('settings.reading', [
           this.row(i18n.t('reader.mode'), this.segmented(i18n.t('reader.mode'), current.mode, [
+            { value: 'auto', label: i18n.t('reader.auto') },
             { value: 'scroll', label: i18n.t('reader.scroll') },
             { value: 'paged', label: i18n.t('reader.paged') },
-          ], (mode) => settings.set({ mode }))),
-          this.row(i18n.t('reader.direction'), this.segmented(i18n.t('reader.direction'), current.rtl ? 'rtl' : 'ltr', [
+          ], (mode) => settings.set({ mode })), i18n.t('reader.autoHint')),
+          this.row(i18n.t('reader.direction'), this.segmented(i18n.t('reader.direction'), current.direction, [
+            { value: 'auto', label: i18n.t('reader.auto') },
             { value: 'ltr', label: i18n.t('reader.ltr') },
             { value: 'rtl', label: i18n.t('reader.rtl') },
-          ], (direction) => settings.set({ rtl: direction === 'rtl' }))),
+          ], (direction) => settings.set({ direction }))),
         ]),
         this.connection(),
         this.data(),

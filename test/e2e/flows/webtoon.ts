@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { devices } from 'playwright';
 import type { Context } from '../Context.ts';
 import { EPISODE_COUNT, SERIES_URL } from '../PretendWebtoon.ts';
-import { addByLink, counter, leaveReader, settle, waitCounter } from './helpers.ts';
+import { addByLink, chooseReading, counter, dismissSheet, leaveReader, openReadingOptions, settle, waitCounter, waitShown } from './helpers.ts';
 
 /** Reading WEBTOON: a series whose list of episodes comes in pages, and episodes read as one long column. */
 export async function readWebtoon({ browser, stage, web, runner }: Context): Promise<void> {
@@ -40,8 +40,39 @@ export async function readWebtoon({ browser, stage, web, runner }: Context): Pro
     await shot(page, '21-webtoon-reader');
   });
 
-  await step('a column reads downwards even when pages are set to read right to left', async () => {
+  await step('a column reads downwards, and its slider runs left to right', async () => {
     assert.equal(await page.locator('.slider').getAttribute('dir'), 'ltr');
+  });
+
+  await step('a column reads downwards even when the user asks for right to left', async () => {
+    await openReadingOptions(page);
+    await chooseReading(page, 'Direction', 'Right to left');
+    await dismissSheet(page);
+    assert.equal(await page.locator('.reader .frame').count(), 4, 'still a column');
+    assert.equal(await page.locator('.slider').getAttribute('dir'), 'ltr');
+  });
+
+  await step('the user can still ask for pages: the episode becomes a book, and the direction is theirs', async () => {
+    await openReadingOptions(page);
+    await chooseReading(page, 'Mode', 'Pages');
+    await dismissSheet(page);
+    await page.locator('.paged img.single').waitFor();
+    await waitShown(page, 1);
+    assert.equal(await page.locator('.reader .frame').count(), 0);
+    assert.equal(await page.locator('.slider').getAttribute('dir'), 'rtl');
+    await page.keyboard.press('ArrowLeft');
+    await waitCounter(page, '2 / 4');
+    await waitShown(page, 2);
+  });
+
+  await step('Auto gives both choices back to the site: a column again, on the same page', async () => {
+    await openReadingOptions(page);
+    await chooseReading(page, 'Mode', 'Auto');
+    await chooseReading(page, 'Direction', 'Auto');
+    await dismissSheet(page);
+    await page.locator('.reader .frame').first().waitFor();
+    assert.equal(await page.locator('.slider').getAttribute('dir'), 'ltr');
+    await waitCounter(page, '2 / 4');
   });
 
   await step('at the end of an episode the next one is a tap away', async () => {

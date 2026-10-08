@@ -8,6 +8,7 @@ class StubSource extends Source {
   readonly id = 'stub';
   readonly name = 'Stub';
   readonly home = 'https://stub.test/';
+  readonly reading = { mode: 'scroll', rtl: false } as const;
   readonly calls = { series: 0, chapter: 0, list: 0 };
   failNext = false;
 

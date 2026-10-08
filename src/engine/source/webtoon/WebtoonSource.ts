@@ -1,6 +1,7 @@
 import { SourceError } from '../../errors.ts';
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../model.ts';
 import type { SourceIO } from '../../ports.ts';
+import type { ReadingStyle } from '../../reader/ReadingStyle.ts';
 import { looksBlocked } from '../../text.ts';
 import { Source } from '../Source.ts';
 import { WebtoonEpisodes } from './WebtoonEpisodes.ts';
@@ -18,6 +19,8 @@ export class WebtoonSource extends Source {
   readonly id = 'webtoon';
   readonly name = 'WEBTOON';
   readonly home: string;
+  /** A webtoon is one long column, read downwards. */
+  readonly reading: ReadingStyle = { mode: 'scroll', rtl: false };
 
   private readonly language: string;
   private readonly series = new WebtoonSeriesParser();

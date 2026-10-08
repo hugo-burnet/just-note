@@ -7,6 +7,12 @@ page, and what you already read stays available offline. Built for a phone first
 
 Sites it reads: **FanFox** (MangaFox) and **WEBTOON**. English and French.
 
+Each site is read the way it is meant to be: FanFox as turned pages from right to left,
+like a printed manga; WEBTOON as one long column. *Settings → Reading* (or the options
+inside the reader) starts on **Auto**, which follows the site; choosing *Scroll*, *Pages*,
+*Left to right* or *Right to left* overrides it for every site, and *Auto* gives the
+decision back.
+
 ```
  phone / browser                                  a proxy you deploy               the site
 ┌─────────────────────────────┐   /api/html     ┌────────────────────────┐      ┌───────────────┐
@@ -28,7 +34,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 130 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 153 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox and WEBTOON sites served by the test itself (made-up titles,
   generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -128,16 +134,19 @@ it), so a site cannot be readable in one and refused by the other.
    visitors with an anti-bot challenge, which neither the proxy nor the probe can pass:
    it cannot be read from the web app.
 2. Write a `Source` subclass in `src/engine/source/<site>/` (recognise a link, read a
-   series, a listing, a chapter). Look at `webtoon/` for a small one.
+   series, a listing, a chapter). Look at `webtoon/` for a small one. It also says how
+   its content is meant to be read, which is what *Auto* stands for in the settings:
+   `readonly reading = { mode: 'paged', rtl: true }` for a manga (turned pages, right to
+   left), `{ mode: 'scroll', rtl: false }` for a webtoon (one column).
 3. Describe the site in `src/engine/source/<site>/module.ts`: its id and name, its
    hosts (pages **and** image servers), the Referer its image servers expect, and how to
    make the source. See `webtoon/module.ts`.
 4. List the module in `src/engine/sites.ts`.
 5. Add one entry for it to `SAMPLES` in `test/engine/sites.test.ts` (a series link and a
    chapter link). The conformance tests then check that its links are recognised in one
-   canonical form, that it claims nothing that is not its own, and that the proxy allows
-   everything it reads. Then test its parsing on small fixtures, like
-   `test/engine/WebtoonSource.test.ts`.
+   canonical form, that it claims nothing that is not its own, that it says how it is
+   read, and that the proxy allows everything it reads. Then test its parsing on small
+   fixtures, like `test/engine/WebtoonSource.test.ts`.
 
 Prefer URLs and `<meta>` tags to CSS class names when reading a page: they survive
 redesigns better.
@@ -152,7 +161,7 @@ the app on it without registering the service worker, and `npx cap add android`.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 130 unit tests
+npm run check        # types (app and worker) and the 153 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

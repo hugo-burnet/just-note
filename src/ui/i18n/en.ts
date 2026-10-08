@@ -63,6 +63,8 @@ export const en = {
   'reader.previous': 'Previous chapter',
   'reader.next': 'Next chapter',
   'reader.options': 'Reading options',
+  'reader.auto': 'Auto',
+  'reader.autoHint': 'Auto follows the site: pages for manga, one long column for webtoons.',
   'reader.mode': 'Mode',
   'reader.scroll': 'Scroll',
   'reader.paged': 'Pages',

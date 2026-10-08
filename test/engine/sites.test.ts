@@ -62,6 +62,14 @@ test('sites: the source a module makes is the one it describes, and starts from 
   }
 });
 
+test('sites: a source says how it is meant to be read', () => {
+  for (const site of SITES) {
+    const { mode, rtl } = site.create(io).reading;
+    assert.ok(mode === 'scroll' || mode === 'paged', `${site.id}: mode ${String(mode)}`);
+    assert.equal(typeof rtl, 'boolean', `${site.id}: direction`);
+  }
+});
+
 test('sites: its links are recognised, in one canonical form, and a chapter knows its series', () => {
   for (const site of SITES) {
     const source = site.create(io);

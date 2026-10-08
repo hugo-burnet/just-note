@@ -26,6 +26,24 @@ export async function scrollToFrame(page: Page, index: number): Promise<void> {
   await page.waitForFunction((i) => (document.querySelectorAll<HTMLImageElement>('.reader .frame img')[i]?.naturalWidth ?? 0) > 0, index);
 }
 
+/** Waits until the page shown in turned-page mode is the nth image of the chapter, and drawn. */
+export const waitShown = (page: Page, n: number): Promise<unknown> =>
+  page.waitForFunction((wanted) => {
+    const image = document.querySelector<HTMLImageElement>('.paged img.single');
+    return image !== null && image.naturalWidth > 0 && new RegExp(`/${wanted}\\.(png|jpe?g)`).test(decodeURIComponent(image.currentSrc));
+  }, n);
+
+/** Opens the reading options from the reader's controls. */
+export async function openReadingOptions(page: Page): Promise<void> {
+  await revealChrome(page);
+  await page.getByRole('button', { name: 'Reading options' }).click();
+  await page.locator('.reader-options').waitFor();
+}
+
+/** Picks `label` in the group `group` of the reading options. */
+export const chooseReading = (page: Page, group: 'Mode' | 'Direction', label: string): Promise<void> =>
+  page.getByRole('radiogroup', { name: group }).getByRole('radio', { name: label, exact: true }).click();
+
 /** Opens the "add by link" sheet from the library and submits `link` in it. */
 export async function addByLink(page: Page, link: string): Promise<void> {
   await page.locator('input[name=link]').fill(link);

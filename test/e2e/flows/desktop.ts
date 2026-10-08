@@ -54,5 +54,17 @@ export async function onDesktop({ browser, stage, runner }: Context): Promise<vo
     await page.locator('.series-title').waitFor();
   });
 
+  await step('a manga opens as pages: one, in the middle, that fits the screen', async () => {
+    await page.goto(`${stage.appUrl}#/`);
+    await page.locator('.card', { hasText: 'Moonlight Courier' }).click();
+    await page.locator('.series-title').waitFor();
+    await page.locator('a.chapter').last().click();
+    await page.locator('.paged img.single').waitFor();
+    await settle(page);
+    const box = await page.locator('.paged img.single').boundingBox();
+    assert.ok(box && box.height <= 800 && Math.abs(box.x + box.width / 2 - 640) < 2, JSON.stringify(box));
+    await shot(page, '43-desktop-pages');
+  });
+
   await desktop.close();
 }

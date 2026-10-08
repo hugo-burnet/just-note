@@ -3,14 +3,17 @@ import type { KeyValueStore } from './ports.ts';
 export type Language = 'auto' | 'en' | 'fr';
 export type Theme = 'auto' | 'dark' | 'light';
 export type ReadingMode = 'scroll' | 'paged';
+/** What the user picks: "auto" lets each site decide (see ReadingStyle). */
+export type ModeChoice = ReadingMode | 'auto';
+export type DirectionChoice = 'auto' | 'ltr' | 'rtl';
 export type ChapterOrder = 'asc' | 'desc';
 
 export interface SettingsValues {
   lang: Language;
   theme: Theme;
-  mode: ReadingMode;
-  /** Paged mode: right to left, like a printed manga. */
-  rtl: boolean;
+  mode: ModeChoice;
+  /** Which way pages turn: right to left like a printed manga, or left to right. */
+  direction: DirectionChoice;
   /** desc: newest first. */
   chapterOrder: ChapterOrder;
   /** Where the proxy lives; empty means the same address as the app. */
@@ -20,8 +23,8 @@ export interface SettingsValues {
 export const DEFAULT_SETTINGS: SettingsValues = {
   lang: 'auto',
   theme: 'auto',
-  mode: 'scroll',
-  rtl: true,
+  mode: 'auto',
+  direction: 'auto',
   chapterOrder: 'desc',
   proxyBase: '',
 };
@@ -29,6 +32,8 @@ export const DEFAULT_SETTINGS: SettingsValues = {
 export type SettingsListener = (values: SettingsValues) => void;
 
 const KEY = 'jr:settings';
+const MODES: readonly ModeChoice[] = ['auto', 'scroll', 'paged'];
+const DIRECTIONS: readonly DirectionChoice[] = ['auto', 'ltr', 'rtl'];
 
 /**
  * The user's preferences. `defaults` lets the platform tell where it differs
@@ -81,9 +86,14 @@ export class Settings {
    * version saved one just by testing the connection, which hid the address that
    * a build brings along; it is forgotten when loaded.)
    */
-  private tidy(values: Partial<SettingsValues>): Partial<SettingsValues> {
+  private tidy(values: Partial<SettingsValues> & { rtl?: unknown }): Partial<SettingsValues> {
     const kept = { ...values };
     if (typeof kept.proxyBase !== 'string' || kept.proxyBase.trim() === '') delete kept.proxyBase;
+    // Before the direction could be left to the site it was a yes or no.
+    if (typeof kept.rtl === 'boolean' && kept.direction === undefined) kept.direction = kept.rtl ? 'rtl' : 'ltr';
+    delete kept.rtl;
+    if (kept.mode !== undefined && !MODES.includes(kept.mode)) delete kept.mode;
+    if (kept.direction !== undefined && !DIRECTIONS.includes(kept.direction)) delete kept.direction;
     return kept;
   }
 }

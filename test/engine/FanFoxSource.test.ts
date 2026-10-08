@@ -15,6 +15,10 @@ function fox(routes: Record<string, Route>) {
   return { source: new FanFoxSource(io), transport };
 }
 
+test('FanFox is read like a printed manga: turned pages, right to left', () => {
+  assert.deepEqual(fox({}).source.reading, { mode: 'paged', rtl: true });
+});
+
 test('getSeries reads the details and lists chapters oldest first', async () => {
   const { source } = fox({ [SERIES]: fixture('fanfox/series.html') });
   const series = await source.getSeries(SERIES);

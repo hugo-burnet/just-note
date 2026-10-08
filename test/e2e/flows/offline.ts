@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { devices } from 'playwright';
 import type { Context } from '../Context.ts';
 import { FANFOX_SERIES } from '../PretendFanFox.ts';
-import { addByLink, leaveReader, revealChrome, scrollToFrame, settle, waitCounter } from './helpers.ts';
+import { addByLink, leaveReader, revealChrome, settle, waitCounter, waitShown } from './helpers.ts';
 
 /** The installed app: it opens with no network, and what was read stays readable. */
 export async function offline({ browser, stage, runner }: Context): Promise<void> {
@@ -12,6 +12,14 @@ export async function offline({ browser, stage, runner }: Context): Promise<void
   const { step, shot } = { step: runner.step.bind(runner), shot: runner.shot.bind(runner) };
   const cached = (name: string): Promise<string[]> =>
     page.evaluate(async (cache) => (await (await caches.open(cache)).keys()).map((request) => decodeURIComponent(request.url)), name);
+  // FanFox opens as turned pages, right to left: the left arrow goes forward. Each page has to be drawn before the next is asked for.
+  const readPages = async (count: number): Promise<void> => {
+    await page.locator('.paged img.single').waitFor();
+    for (let n = 1; n <= count; n++) {
+      await waitShown(page, n);
+      if (n < count) await page.keyboard.press('ArrowLeft');
+    }
+  };
 
   await step('the app installs its service worker and keeps its own files', async () => {
     await page.goto(stage.appUrl);
@@ -31,8 +39,7 @@ export async function offline({ browser, stage, runner }: Context): Promise<void
     await page.getByRole('button', { name: 'Paste a link' }).click();
     await addByLink(page, FANFOX_SERIES);
     await page.locator('a.chapter', { hasText: 'Ch.001' }).click();
-    await page.locator('.reader .frame').first().waitFor();
-    for (let i = 0; i < 3; i++) await scrollToFrame(page, i);
+    await readPages(3);
     await leaveReader(page);
     await page.locator('.series-title').waitFor();
   });
@@ -62,8 +69,7 @@ export async function offline({ browser, stage, runner }: Context): Promise<void
     await page.locator('.series-title').waitFor();
     assert.equal(await page.locator('a.chapter').count(), 5);
     await page.locator('a.chapter', { hasText: 'Ch.001' }).click();
-    await page.locator('.reader .frame').first().waitFor();
-    for (let i = 0; i < 3; i++) await scrollToFrame(page, i);
+    await readPages(3);
     await settle(page);
     await revealChrome(page);
     await leaveReader(page);

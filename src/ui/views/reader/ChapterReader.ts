@@ -1,5 +1,5 @@
-import { ReaderGestures, ReaderSession } from '../../../engine/index.ts';
-import type { ChapterRef, Direction, ReadingMode } from '../../../engine/index.ts';
+import { ReaderGestures, ReaderSession, ReadingStyles } from '../../../engine/index.ts';
+import type { ChapterRef, Direction, ReadingMode, ReadingStyle } from '../../../engine/index.ts';
 import type { AppContext } from '../../core/AppContext.ts';
 import { Component } from '../../core/Component.ts';
 import { h } from '../../core/dom.ts';
@@ -20,6 +20,8 @@ export interface ChapterReaderOptions {
   readonly startPage: number;
   readonly previous: ChapterRef | null;
   readonly next: ChapterRef | null;
+  /** How the site wants to be read: what "auto" in the settings stands for. */
+  readonly natural: ReadingStyle;
 }
 
 /** The controls show for a moment when a chapter opens, then leave the page alone. */
@@ -52,9 +54,9 @@ export class ChapterReader extends Component {
     super(h('div', { class: 'reader-live' }));
     this.app = app;
     this.options = options;
-    const settings = app.settings.get();
-    this.rtl = settings.rtl;
-    this.mode = settings.mode;
+    const style = ReadingStyles.resolve(app.settings.get(), options.natural);
+    this.mode = style.mode;
+    this.rtl = style.rtl;
     this.session = new ReaderSession({ pageCount: options.pages.length, startPage: options.startPage, previous: options.previous, next: options.next });
     this.saver = new ProgressSaver(() => this.save());
     this.chrome = new ReaderChrome({
@@ -160,9 +162,12 @@ export class ChapterReader extends Component {
     this.chrome.setDirection(this.reversed());
   }
 
-  private setDirection(rtl: boolean): void {
+  /** The settings changed (from the options sheet): read the way they say now, on the page being read. */
+  private applyReading(): void {
+    const { mode, rtl } = ReadingStyles.resolve(this.app.settings.get(), this.options.natural);
     this.rtl = rtl;
-    this.surface.setDirection(rtl);
+    if (mode !== this.mode) this.setMode(mode);
+    else this.surface.setDirection(rtl);
     this.chrome.setDirection(this.reversed());
   }
 
@@ -173,7 +178,7 @@ export class ChapterReader extends Component {
 
   private openOptions(): void {
     const { i18n, sheets } = this.app;
-    const content = new ReaderOptions(this.app, { mode: (mode) => this.setMode(mode), direction: (rtl) => this.setDirection(rtl) });
+    const content = new ReaderOptions(this.app, () => this.applyReading());
     const sheet = sheets.present({ title: i18n.t('reader.options'), body: content.root });
     void sheet.closed.then(() => content.destroy());
   }

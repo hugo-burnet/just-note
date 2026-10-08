@@ -64,6 +64,8 @@ export const fr: Readonly<Record<MessageKey, string>> = {
   'reader.previous': 'Chapitre précédent',
   'reader.next': 'Chapitre suivant',
   'reader.options': 'Options de lecture',
+  'reader.auto': 'Auto',
+  'reader.autoHint': 'Auto suit le site : des pages pour les mangas, une longue colonne pour les webtoons.',
   'reader.mode': 'Mode',
   'reader.scroll': 'Défilement',
   'reader.paged': 'Pages',

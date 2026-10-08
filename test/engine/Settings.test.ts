@@ -30,13 +30,55 @@ test('an empty proxy address is no choice: the default applies, even for one an 
   assert.equal(reloaded.get().theme, 'dark', 'the rest of what was saved stays');
 });
 
+test('reading is left to the site until the user chooses', () => {
+  const settings = new Settings(new MemoryStore());
+  assert.equal(settings.get().mode, 'auto');
+  assert.equal(settings.get().direction, 'auto');
+  settings.set({ mode: 'paged', direction: 'rtl' });
+  assert.equal(settings.get().mode, 'paged');
+  assert.equal(settings.get().direction, 'rtl');
+  settings.set({ mode: 'auto', direction: 'auto' });
+  assert.equal(settings.get().mode, 'auto', 'Auto can be chosen again');
+  assert.equal(settings.get().direction, 'auto');
+});
+
+test('the yes or no of an earlier version becomes a direction, and the old key goes', () => {
+  for (const [rtl, direction] of [[true, 'rtl'], [false, 'ltr']] as const) {
+    const store = new MemoryStore();
+    store.set('jr:settings', JSON.stringify({ rtl, mode: 'scroll', theme: 'light' }));
+    const settings = new Settings(store);
+    assert.equal(settings.get().direction, direction, `rtl: ${rtl}`);
+    assert.equal(settings.get().mode, 'scroll', 'the rest of what was saved stays');
+    assert.equal(settings.get().theme, 'light');
+    assert.ok(!('rtl' in settings.get()), 'rtl is no setting any more');
+
+    settings.set({ lang: 'fr' });
+    const stored = JSON.parse(String(store.get('jr:settings'))) as Record<string, unknown>;
+    assert.ok(!('rtl' in stored), 'and it is not written back');
+    assert.equal(stored.direction, direction, 'what the old key said is kept, as a direction');
+    assert.equal(new Settings(store).get().direction, direction);
+  }
+  const both = new MemoryStore();
+  both.set('jr:settings', JSON.stringify({ rtl: true, direction: 'ltr' }));
+  assert.equal(new Settings(both).get().direction, 'ltr', 'a direction already chosen wins over the old key');
+});
+
+test('a reading choice that is not one is forgotten, and the site decides again', () => {
+  const store = new MemoryStore();
+  store.set('jr:settings', JSON.stringify({ mode: 'sideways', direction: 'up', theme: 'dark' }));
+  const settings = new Settings(store);
+  assert.equal(settings.get().mode, 'auto');
+  assert.equal(settings.get().direction, 'auto');
+  assert.equal(settings.get().theme, 'dark');
+});
+
 test('changes are kept and announced, until someone stops listening', () => {
   const store = new MemoryStore();
   const settings = new Settings(store);
   const heard: SettingsValues[] = [];
   const stop = settings.subscribe((values) => heard.push(values));
 
-  settings.set({ theme: 'dark', rtl: false });
+  settings.set({ theme: 'dark', direction: 'ltr' });
   assert.equal(heard.length, 1);
   assert.equal(heard[0]?.theme, 'dark');
   assert.equal(new Settings(store).get().theme, 'dark');

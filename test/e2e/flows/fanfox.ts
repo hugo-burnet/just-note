@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { devices } from 'playwright';
 import type { Context } from '../Context.ts';
 import { FANFOX_SERIES, fanfoxChapter } from '../PretendFanFox.ts';
-import { addByLink, counter, dismissSheet, leaveReader, revealChrome, scrollToFrame, settle, waitCounter } from './helpers.ts';
+import { addByLink, chooseReading, counter, dismissSheet, leaveReader, openReadingOptions, revealChrome, scrollToFrame, settle, waitCounter, waitShown } from './helpers.ts';
 
 /** Reading a series of FanFox on a phone: from the empty shelf to a finished chapter. */
 export async function readFanFox({ browser, stage, web, runner }: Context): Promise<void> {
@@ -43,20 +43,23 @@ export async function readFanFox({ browser, stage, web, runner }: Context): Prom
     await shot(page, '03-series');
   });
 
-  await step('a chapter opens in a column; its images load', async () => {
+  await step('a chapter opens as pages, the way a manga is read; its images load', async () => {
     await page.locator('a.chapter', { hasText: 'Ch.002' }).click();
-    await page.locator('.reader .frame').first().waitFor();
-    assert.equal(await page.locator('.reader .frame').count(), 4);
-    await page.waitForFunction(() => (document.querySelector<HTMLImageElement>('.reader .frame img')?.naturalWidth ?? 0) > 0);
+    await page.locator('.paged img.single').waitFor();
+    await waitShown(page, 1);
+    assert.equal(await page.locator('.reader .frame').count(), 0, 'not a column');
     assert.equal(await counter(page), '1 / 4');
     assert.equal(await page.locator('nav.dock').getAttribute('data-visible'), 'false');
     await settle(page);
-    await shot(page, '04-reader-scroll');
+    await shot(page, '04-reader-pages');
   });
 
-  await step('the counter follows the scroll', async () => {
-    await scrollToFrame(page, 2);
+  await step('pages run from right to left: the left arrow goes forward', async () => {
+    await page.keyboard.press('ArrowLeft');
+    await waitCounter(page, '2 / 4');
+    await page.keyboard.press('ArrowLeft');
     await waitCounter(page, '3 / 4');
+    await waitShown(page, 3);
   });
 
   await step('the controls leave by themselves, and come back with a tap in the middle', async () => {
@@ -91,26 +94,48 @@ export async function readFanFox({ browser, stage, web, runner }: Context): Prom
     await page.locator('.view-library').waitFor();
   });
 
-  await step('paged mode keeps the page and reads right to left', async () => {
+  await step('the options start on Auto; Scroll makes a column of the chapter, on the page being read', async () => {
     await page.locator('.card').first().click();
     await page.locator('a.chapter', { hasText: 'Ch.002' }).click();
     await waitCounter(page, '3 / 4');
-    await revealChrome(page);
-    await page.getByRole('button', { name: 'Reading options' }).click();
-    await page.getByRole('radio', { name: 'Pages' }).click();
+    await openReadingOptions(page);
+    for (const group of ['Mode', 'Direction'] as const) {
+      await page.getByRole('radiogroup', { name: group }).getByRole('radio', { name: 'Auto', exact: true, checked: true }).waitFor();
+    }
     await settle(page);
     await shot(page, '07-reader-options');
+    await chooseReading(page, 'Mode', 'Scroll');
+    await dismissSheet(page);
+    await page.locator('.reader .frame').first().waitFor();
+    assert.equal(await page.locator('.reader .frame').count(), 4);
+    await waitCounter(page, '3 / 4');
+    await scrollToFrame(page, 2);
+    await settle(page);
+    await shot(page, '08-reader-scroll');
+  });
+
+  await step('in the column the counter follows the scroll', async () => {
+    await scrollToFrame(page, 1);
+    await waitCounter(page, '2 / 4');
+  });
+
+  await step('Auto gives the choice back to the site: pages again, on the page that was being read', async () => {
+    await openReadingOptions(page);
+    await chooseReading(page, 'Mode', 'Auto');
     await dismissSheet(page);
     await page.locator('.paged img.single').waitFor();
-    await page.waitForFunction(() => (document.querySelector<HTMLImageElement>('.paged img.single')?.naturalWidth ?? 0) > 0);
-    assert.equal(await counter(page), '3 / 4');
-    await shot(page, '08-reader-paged');
-    await page.keyboard.press('ArrowLeft');
-    await waitCounter(page, '4 / 4');
+    assert.equal(await page.locator('.reader .frame').count(), 0);
+    await waitCounter(page, '2 / 4');
+    await waitShown(page, 2);
+    await shot(page, '09-reader-pages-again');
   });
 
   await step('tapping an edge turns the page (the left one is forward when reading right to left)', async () => {
-    await page.keyboard.press('ArrowRight');
+    await page.touchscreen.tap(20, 400);
+    await waitCounter(page, '3 / 4');
+    await page.touchscreen.tap(20, 400);
+    await waitCounter(page, '4 / 4');
+    await page.touchscreen.tap(390, 400);
     await waitCounter(page, '3 / 4');
     await page.touchscreen.tap(20, 400);
     await waitCounter(page, '4 / 4');
@@ -120,6 +145,16 @@ export async function readFanFox({ browser, stage, web, runner }: Context): Prom
     await page.keyboard.press('ArrowLeft');
     await page.waitForFunction(() => document.querySelector('.reader-title strong')?.textContent === 'Vol.01 Ch.003');
     assert.equal(await counter(page), '1 / 3');
+  });
+
+  await step('Left to right turns the keys around, whatever the site', async () => {
+    await openReadingOptions(page);
+    await chooseReading(page, 'Direction', 'Left to right');
+    await dismissSheet(page);
+    await page.keyboard.press('ArrowRight');
+    await waitCounter(page, '2 / 3');
+    await page.keyboard.press('ArrowLeft');
+    await waitCounter(page, '1 / 3');
     await leaveReader(page);
     await page.locator('.series-title').waitFor();
     assert.match(page.url(), /#\/series/);

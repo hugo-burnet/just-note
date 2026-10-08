@@ -23,6 +23,10 @@ const seriesRoutes = (): Record<string, Route> => ({
   [listPageUrl(4)]: seriesPage({ episodes: episodes(3, 2, 1), pages: [3, 4] }),
 });
 
+test('WEBTOON is read as one long column, downwards', () => {
+  assert.deepEqual(webtoon({}).source.reading, { mode: 'scroll', rtl: false });
+});
+
 test('getSeries reads the details and walks the paginator to the last page', async () => {
   const { source, transport } = webtoon(seriesRoutes());
   const series = await source.getSeries(SERIES_URL);
