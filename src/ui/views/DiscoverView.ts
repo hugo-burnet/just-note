@@ -10,6 +10,7 @@ import { icon } from '../core/icons.ts';
 import { Routes } from '../core/Routes.ts';
 import type { Route } from '../core/Routes.ts';
 import { View } from '../core/View.ts';
+import { languageName } from '../i18n/languages.ts';
 
 /**
  * Finding something to read: what a source shows on its home page, or what it
@@ -59,7 +60,8 @@ export class DiscoverView extends View {
       type: 'search',
       name: 'q',
       value: query,
-      placeholder: i18n.t('discover.search', { source: source.name }),
+      // The chip above already says which site: the visible hint stays short enough for a phone.
+      placeholder: i18n.t('discover.placeholder'),
       'aria-label': i18n.t('discover.search', { source: source.name }),
       enterkeyhint: 'search',
       autocapitalize: 'off',
@@ -89,10 +91,13 @@ export class DiscoverView extends View {
 
   private async load(source: Source, query: string): Promise<void> {
     const { i18n, catalog } = this.app;
-    const title = h('h2', { class: 'section-title' }, query ? i18n.t('discover.results', { query }) : i18n.t('discover.popular', { source: source.name }));
+    // The catalogue is browsed in the language chosen, when the site has it; the title says which one it is.
+    const language = source.languageFor(this.app.seriesLanguage());
+    const named = `${source.name} · ${languageName(language)}`;
+    const title = h('h2', { class: 'section-title' }, query ? i18n.t('discover.results', { query }) : i18n.t('discover.popular', { source: named }));
     this.results.replaceChildren(title, skeletonGrid(6));
     try {
-      const items = await catalog.list(query ? source.searchUrl(query) : source.home);
+      const items = await catalog.list(query ? source.searchUrl(query, language) : source.home(language));
       if (this.isDestroyed) return;
       if (items.length === 0) {
         const empty = new EmptyState({ icon: 'search', title: i18n.t('discover.empty'), text: '' });

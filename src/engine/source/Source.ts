@@ -17,8 +17,8 @@ export interface LoadedDocument {
 export abstract class Source {
   abstract readonly id: string;
   abstract readonly name: string;
-  /** A listing page to start browsing from. */
-  abstract readonly home: string;
+  /** The languages the site publishes in, its default first. Most sites publish in one. */
+  abstract readonly languages: readonly string[];
   /** How what this site publishes is meant to be read: pages of a manga, or a long column. */
   abstract readonly reading: ReadingStyle;
 
@@ -33,8 +33,25 @@ export abstract class Source {
   /** What a link points at on this site, in canonical form; null when it is not ours. */
   abstract resolve(input: string): SourceTarget | null;
 
-  /** Address of the site's search results for `query` (a listing). */
-  abstract searchUrl(query: string): string;
+  /** The language the site is browsed in when `wanted` is asked for: that one if the site has it, else its default. */
+  languageFor(wanted?: string): string {
+    return wanted !== undefined && this.languages.includes(wanted) ? wanted : (this.languages[0] ?? 'en');
+  }
+
+  /** A listing page to start browsing from, in the language asked for when the site has it. */
+  home(language?: string): string {
+    return this.homeIn(this.languageFor(language));
+  }
+
+  /** Address of the site's search results for `query` (a listing), in the same way. */
+  searchUrl(query: string, language?: string): string {
+    return this.searchIn(query, this.languageFor(language));
+  }
+
+  /** `language` is always one of the site's own. */
+  protected abstract homeIn(language: string): string;
+
+  protected abstract searchIn(query: string, language: string): string;
 
   abstract getSeries(url: string): Promise<Series>;
 

@@ -4,6 +4,7 @@ import type { AppContext } from '../core/AppContext.ts';
 import type { Component } from '../core/Component.ts';
 import { h } from '../core/dom.ts';
 import { View } from '../core/View.ts';
+import { languageName } from '../i18n/languages.ts';
 import { CONTENT_CACHES } from '../../platform/web/cacheNames.ts';
 
 /** Appearance, reading, connection, data: grouped like the settings of a phone. */
@@ -51,11 +52,16 @@ export class SettingsView extends View {
           ], (theme) => settings.set({ theme }))),
           this.row(i18n.t('settings.language'), this.segmented(i18n.t('settings.language'), current.lang, [
             { value: 'auto', label: i18n.t('settings.languageAuto') },
-            { value: 'en', label: 'English' },
-            { value: 'fr', label: 'Français' },
+            { value: 'en', label: languageName('en') },
+            { value: 'fr', label: languageName('fr') },
           ], (lang) => settings.set({ lang }))),
         ]),
         this.group('settings.reading', [
+          this.row(i18n.t('settings.seriesLanguage'), this.segmented(i18n.t('settings.seriesLanguage'), current.seriesLang, [
+            { value: 'auto', label: i18n.t('settings.languageAuto') },
+            { value: 'en', label: languageName('en') },
+            { value: 'fr', label: languageName('fr') },
+          ], (seriesLang) => settings.set({ seriesLang })), i18n.t('settings.seriesLanguageHint')),
           this.row(i18n.t('reader.mode'), this.segmented(i18n.t('reader.mode'), current.mode, [
             { value: 'auto', label: i18n.t('reader.auto') },
             { value: 'scroll', label: i18n.t('reader.scroll') },

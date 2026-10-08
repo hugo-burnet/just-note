@@ -9,7 +9,10 @@ export type DirectionChoice = 'auto' | 'ltr' | 'rtl';
 export type ChapterOrder = 'asc' | 'desc';
 
 export interface SettingsValues {
+  /** The language of the app. */
   lang: Language;
+  /** The language of the series, for the sites that publish in several: auto follows the app. */
+  seriesLang: Language;
   theme: Theme;
   mode: ModeChoice;
   /** Which way pages turn: right to left like a printed manga, or left to right. */
@@ -22,6 +25,7 @@ export interface SettingsValues {
 
 export const DEFAULT_SETTINGS: SettingsValues = {
   lang: 'auto',
+  seriesLang: 'auto',
   theme: 'auto',
   mode: 'auto',
   direction: 'auto',
@@ -32,6 +36,7 @@ export const DEFAULT_SETTINGS: SettingsValues = {
 export type SettingsListener = (values: SettingsValues) => void;
 
 const KEY = 'jr:settings';
+const LANGUAGES: readonly Language[] = ['auto', 'en', 'fr'];
 const MODES: readonly ModeChoice[] = ['auto', 'scroll', 'paged'];
 const DIRECTIONS: readonly DirectionChoice[] = ['auto', 'ltr', 'rtl'];
 
@@ -92,6 +97,7 @@ export class Settings {
     // Before the direction could be left to the site it was a yes or no.
     if (typeof kept.rtl === 'boolean' && kept.direction === undefined) kept.direction = kept.rtl ? 'rtl' : 'ltr';
     delete kept.rtl;
+    if (kept.seriesLang !== undefined && !LANGUAGES.includes(kept.seriesLang)) delete kept.seriesLang;
     if (kept.mode !== undefined && !MODES.includes(kept.mode)) delete kept.mode;
     if (kept.direction !== undefined && !DIRECTIONS.includes(kept.direction)) delete kept.direction;
     return kept;

@@ -42,6 +42,18 @@ test('reading is left to the site until the user chooses', () => {
   assert.equal(settings.get().direction, 'auto');
 });
 
+test('series follow the language of the app until the user chooses another', () => {
+  const store = new MemoryStore();
+  const settings = new Settings(store);
+  assert.equal(settings.get().seriesLang, 'auto');
+  settings.set({ seriesLang: 'fr' });
+  assert.equal(new Settings(store).get().seriesLang, 'fr');
+  store.set('jr:settings', JSON.stringify({ seriesLang: 'klingon', lang: 'fr' }));
+  const reloaded = new Settings(store);
+  assert.equal(reloaded.get().seriesLang, 'auto', 'a language that is none of the known ones is forgotten');
+  assert.equal(reloaded.get().lang, 'fr');
+});
+
 test('the yes or no of an earlier version becomes a direction, and the old key goes', () => {
   for (const [rtl, direction] of [[true, 'rtl'], [false, 'ltr']] as const) {
     const store = new MemoryStore();

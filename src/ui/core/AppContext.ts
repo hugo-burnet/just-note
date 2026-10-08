@@ -41,6 +41,8 @@ export interface AppContext {
   readonly router: Router;
   readonly toasts: Toaster;
   readonly sheets: SheetHost;
+  /** The language series are browsed in: the one chosen in the settings, or the app's own. */
+  seriesLanguage(): string;
   /** Opens a pasted or shared link; tells the user and returns false when no source knows it. */
   openLink(input: string): boolean;
   /** Checks the proxy answers (settings screen). */

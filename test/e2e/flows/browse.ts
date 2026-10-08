@@ -78,13 +78,13 @@ export async function browseAndSettings({ browser, stage, runner }: Context): Pr
 
   await step('settings: switching language rewrites the interface, and back', async () => {
     await page.goto(`${stage.appUrl}#/settings`);
-    await page.getByRole('radio', { name: 'Français' }).click();
+    await page.getByRole('radiogroup', { name: 'Language', exact: true }).getByRole('radio', { name: 'Français' }).click();
     await page.getByText('Langue', { exact: true }).waitFor();
     assert.equal(await dock('Réglages').count(), 1, 'the dock follows the language');
     assert.equal(await page.evaluate(() => document.documentElement.lang), 'fr');
     await settle(page);
     await shot(page, '33-settings-fr');
-    await page.locator('.row', { hasText: 'Langue' }).getByRole('radio', { name: 'Auto' }).click();
+    await page.getByRole('radiogroup', { name: 'Langue', exact: true }).getByRole('radio', { name: 'Auto' }).click();
     await page.getByText('Language', { exact: true }).waitFor();
   });
 

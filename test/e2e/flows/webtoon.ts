@@ -103,10 +103,41 @@ export async function readWebtoon({ browser, stage, web, runner }: Context): Pro
     await page.goto(`${stage.appUrl}#/discover?src=webtoon`);
     await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 3);
     assert.equal(await page.locator('.chip[aria-pressed="true"]').innerText(), 'WEBTOON');
+    assert.match(await page.locator('.section-title').innerText(), /WEBTOON · English/i, 'the catalogue says which language it is in');
     await page.locator('input[type=search]').fill('moons');
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 1);
     assert.equal(await page.locator('.grid .card-title').innerText(), 'Paper Moons');
+  });
+
+  await step('with the app in French, WEBTOON opens its French catalogue, and says so', async () => {
+    await page.goto(`${stage.appUrl}#/settings`);
+    await page.getByRole('radiogroup', { name: 'Language', exact: true }).getByRole('radio', { name: 'Français' }).click();
+    await page.goto(`${stage.appUrl}#/discover?src=webtoon`);
+    await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 2);
+    assert.deepEqual(await page.locator('.grid .card-title').allInnerTexts(), ['Lune de Papier', 'Sel et Tonnerre']);
+    assert.match(await page.locator('.section-title').innerText(), /WEBTOON · Français/i);
+    await settle(page);
+    await shot(page, '23-webtoon-francais');
+    await page.locator('input[type=search]').fill('lune');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 1);
+    assert.equal(await page.locator('.grid .card-title').innerText(), 'Lune de Papier');
+    assert.equal(web.hitsFor('/fr/search?keyword=lune').length, 1, 'the search went to the French catalogue');
+  });
+
+  await step('the language of the series can be chosen apart from the app\'s; a site with no French says it is English', async () => {
+    await page.goto(`${stage.appUrl}#/settings`);
+    await page.getByRole('radiogroup', { name: 'Langue des séries', exact: true }).getByRole('radio', { name: 'English' }).click();
+    await page.goto(`${stage.appUrl}#/discover?src=webtoon`);
+    await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 3);
+    assert.match(await page.locator('.section-title').innerText(), /WEBTOON · English/i);
+
+    await page.goto(`${stage.appUrl}#/settings`);
+    await page.getByRole('radiogroup', { name: 'Langue des séries', exact: true }).getByRole('radio', { name: 'Français' }).click();
+    await page.goto(`${stage.appUrl}#/discover?src=fanfox`);
+    await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 3);
+    assert.match(await page.locator('.section-title').innerText(), /FanFox · English/i, 'FanFox has no French: its own language is used, and shown');
   });
 
   await phone.close();

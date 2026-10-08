@@ -40,6 +40,7 @@ export const fr: Readonly<Record<MessageKey, string>> = {
 
   'discover.title': 'Explorer',
   'discover.search': 'Chercher sur {source} ou coller un lien',
+  'discover.placeholder': 'Chercher ou coller un lien',
   'discover.results': 'Résultats pour « {query} »',
   'discover.popular': 'Sur {source}',
   'discover.empty': 'Aucun résultat.',
@@ -86,6 +87,8 @@ export const fr: Readonly<Record<MessageKey, string>> = {
   'settings.themeLight': 'Clair',
   'settings.language': 'Langue',
   'settings.languageAuto': 'Auto',
+  'settings.seriesLanguage': 'Langue des séries',
+  'settings.seriesLanguageHint': "Auto suit l'app. Les sites qui publient en plusieurs langues s'ouvrent dans celle-ci ; les autres gardent la leur.",
   'settings.reading': 'Lecture',
   'settings.connection': 'Connexion',
   'settings.proxy': 'Adresse du proxy',

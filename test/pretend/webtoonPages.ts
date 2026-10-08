@@ -75,20 +75,20 @@ export interface PretendCard {
   readonly title: string;
 }
 
-/** A listing (home, genre, search results): cards linking to series. */
-export function listingPage(cards: readonly PretendCard[]): string {
+/** A listing (home, genre, search results) of one language's catalogue: cards linking to series. */
+export function listingPage(cards: readonly PretendCard[], language = 'en'): string {
   const items = cards
     .map(
       (card) => `
-  <li><a class="card_item" href="${WEBTOON}/en/fantasy/${card.slug}/list?title_no=${card.titleNo}">
+  <li><a class="card_item" href="${WEBTOON}/${language}/fantasy/${card.slug}/list?title_no=${card.titleNo}">
     <img src="https://webtoons-static.pstatic.net/image/bg_transparency.png" data-url="https://webtoon-phinf.pstatic.net/20250101_1/${card.slug}/thumbnail/cover.jpg?type=q90" alt="">
     <div class="info"><strong class="title">${card.title}</strong><div class="author">Someone</div></div>
   </a></li>`,
     )
     .join('');
   return `<!doctype html><html><body>
-<a href="/en/genres/fantasy">Fantasy</a>
+<a href="/${language}/genres/fantasy">Fantasy</a>
 <ul class="card_lst">${items}</ul>
-<a href="/en/fantasy/lantern-keeper/ep-1/viewer?title_no=5001&amp;episode_no=1">Start with episode 1</a>
+<a href="/${language}/fantasy/lantern-keeper/ep-1/viewer?title_no=5001&amp;episode_no=1">Start with episode 1</a>
 </body></html>`;
 }

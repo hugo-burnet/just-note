@@ -5,7 +5,13 @@ to: a library, your place in every series, reading as a scrolling column or page
 page, and what you already read stays available offline. Built for a phone first
 (a PWA today, an APK with Capacitor later), and it does not look like a website.
 
-Sites it reads: **FanFox** (MangaFox) and **WEBTOON**. English and French.
+Sites it reads: **FanFox** (MangaFox), which publishes in English only, and **WEBTOON**, in
+English and French. The app itself is in English and French.
+
+The language of the series is not the language of the app: WEBTOON opens its catalogue in
+the language of the app, unless *Settings → Reading → Series language* says otherwise, and
+Discover names the language it is showing. The text of a manga is part of its pictures, so
+what a site publishes in English stays English whatever the settings say.
 
 Each site is read the way it is meant to be: FanFox as turned pages from right to left,
 like a printed manga; WEBTOON as one long column. *Settings → Reading* (or the options
@@ -34,7 +40,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 153 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 157 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox and WEBTOON sites served by the test itself (made-up titles,
   generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -137,7 +143,9 @@ it), so a site cannot be readable in one and refused by the other.
    series, a listing, a chapter). Look at `webtoon/` for a small one. It also says how
    its content is meant to be read, which is what *Auto* stands for in the settings:
    `readonly reading = { mode: 'paged', rtl: true }` for a manga (turned pages, right to
-   left), `{ mode: 'scroll', rtl: false }` for a webtoon (one column).
+   left), `{ mode: 'scroll', rtl: false }` for a webtoon (one column). It also lists the
+   languages the site publishes in, its default first (`readonly languages = ['en']`), and
+   gives its home and search addresses for each of them (`homeIn`, `searchIn`).
 3. Describe the site in `src/engine/source/<site>/module.ts`: its id and name, its
    hosts (pages **and** image servers), the Referer its image servers expect, and how to
    make the source. See `webtoon/module.ts`.
@@ -161,7 +169,7 @@ the app on it without registering the service worker, and `npx cap add android`.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 153 unit tests
+npm run check        # types (app and worker) and the 157 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

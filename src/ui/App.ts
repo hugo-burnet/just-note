@@ -86,6 +86,11 @@ export class App implements AppContext {
     return true;
   }
 
+  seriesLanguage(): string {
+    const { seriesLang } = this.settings.get();
+    return seriesLang === 'auto' ? this.i18n.current : seriesLang;
+  }
+
   checkProxy(): Promise<boolean> {
     return this.transport.isHealthy();
   }

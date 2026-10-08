@@ -56,9 +56,29 @@ test('sites: the source a module makes is the one it describes, and starts from 
     const source = site.create(io);
     assert.equal(source.id, site.id);
     assert.equal(source.name, site.name);
-    assert.ok(hostIn(source.home, site.hosts), `${site.id}: home ${source.home}`);
+    assert.ok(hostIn(source.home(), site.hosts), `${site.id}: home ${source.home()}`);
     assert.ok(hostIn(source.searchUrl('some words'), site.hosts), `${site.id}: search ${source.searchUrl('some words')}`);
-    assert.equal(source.resolve(source.home)?.kind, 'list', `${site.id}: its home page lists series`);
+    assert.equal(source.resolve(source.home())?.kind, 'list', `${site.id}: its home page lists series`);
+  }
+});
+
+test('sites: a source says which languages it publishes in, and browses in each of them', () => {
+  for (const site of SITES) {
+    const source = site.create(io);
+    assert.ok(source.languages.length > 0, `${site.id} has a language`);
+    assert.equal(new Set(source.languages).size, source.languages.length, `${site.id}: languages are distinct`);
+    for (const language of source.languages) {
+      assert.match(language, /^[a-z]{2,3}(-[a-z]+)?$/, `${site.id}: ${language}`);
+      assert.equal(source.languageFor(language), language);
+      const home = source.home(language);
+      assert.ok(hostIn(home, site.hosts), `${site.id}: home in ${language}: ${home}`);
+      assert.equal(source.resolve(home)?.kind, 'list', `${site.id}: its home in ${language} lists series`);
+      assert.ok(hostIn(source.searchUrl('some words', language), site.hosts), `${site.id}: search in ${language}`);
+    }
+    // A language the site does not have is not an error: the site's own is used.
+    assert.equal(source.languageFor('xx'), source.languages[0]);
+    assert.equal(source.home('xx'), source.home(), `${site.id}: home in a language it has not`);
+    assert.equal(source.searchUrl('words', 'xx'), source.searchUrl('words'), `${site.id}: search in a language it has not`);
   }
 });
 
@@ -109,7 +129,8 @@ test('sites: the proxy allows everything a site reads, and sends the site\'s Ref
   for (const site of SITES) {
     const source = site.create(io);
     const sample = SAMPLES[site.id];
-    for (const url of [source.home, source.searchUrl('x'), sample?.series ?? '', sample?.chapter ?? '']) {
+    const browsing = source.languages.flatMap((language) => [source.home(language), source.searchUrl('x', language)]);
+    for (const url of [...browsing, sample?.series ?? '', sample?.chapter ?? '']) {
       const target = policy.parse(url);
       assert.equal(target.site.id, site.id, url);
       assert.equal(target.site.referer, site.referer, url);

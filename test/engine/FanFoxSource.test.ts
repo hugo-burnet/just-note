@@ -19,6 +19,15 @@ test('FanFox is read like a printed manga: turned pages, right to left', () => {
   assert.deepEqual(fox({}).source.reading, { mode: 'paged', rtl: true });
 });
 
+test('FanFox only publishes in English: asking for another language changes nothing', () => {
+  const { source } = fox({});
+  assert.deepEqual(source.languages, ['en']);
+  assert.equal(source.home(), 'https://fanfox.net/');
+  assert.equal(source.home('fr'), source.home());
+  assert.equal(source.searchUrl('moon', 'fr'), source.searchUrl('moon'));
+  assert.equal(source.languageFor('fr'), 'en');
+});
+
 test('getSeries reads the details and lists chapters oldest first', async () => {
   const { source } = fox({ [SERIES]: fixture('fanfox/series.html') });
   const series = await source.getSeries(SERIES);

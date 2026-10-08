@@ -39,6 +39,7 @@ export const en = {
 
   'discover.title': 'Discover',
   'discover.search': 'Search {source} or paste a link',
+  'discover.placeholder': 'Search or paste a link',
   'discover.results': 'Results for “{query}”',
   'discover.popular': 'On {source}',
   'discover.empty': 'Nothing found.',
@@ -85,6 +86,8 @@ export const en = {
   'settings.themeLight': 'Light',
   'settings.language': 'Language',
   'settings.languageAuto': 'Auto',
+  'settings.seriesLanguage': 'Series language',
+  'settings.seriesLanguageHint': 'Auto follows the app. Sites that publish in several languages open in this one; the others keep their own.',
   'settings.reading': 'Reading',
   'settings.connection': 'Connection',
   'settings.proxy': 'Proxy address',

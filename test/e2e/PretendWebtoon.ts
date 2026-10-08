@@ -15,6 +15,11 @@ const CARDS = [
   { slug: 'paper-moons', titleNo: 7002, title: 'Paper Moons' },
   { slug: 'salt-and-thunder', titleNo: 7003, title: 'Salt and Thunder' },
 ];
+// The French catalogue of the made-up site: other series, other titles.
+const FRENCH_CARDS = [
+  { slug: 'lune-de-papier', titleNo: 8002, title: 'Lune de Papier' },
+  { slug: 'sel-et-tonnerre', titleNo: 8003, title: 'Sel et Tonnerre' },
+];
 
 // Newest first, as the site lists them.
 const episodes: PretendEpisode[] = Array.from({ length: EPISODES }, (_, i) => EPISODES - i).map((no) => ({
@@ -46,6 +51,10 @@ export class PretendWebtoon implements Pretender {
     if (pathname === '/en/' || pathname === '/en/search') {
       const wanted = (searchParams.get('keyword') ?? '').toLowerCase();
       return page(listingPage(CARDS.filter((card) => card.title.toLowerCase().includes(wanted))));
+    }
+    if (pathname === '/fr/' || pathname === '/fr/search') {
+      const wanted = (searchParams.get('keyword') ?? '').toLowerCase();
+      return page(listingPage(FRENCH_CARDS.filter((card) => card.title.toLowerCase().includes(wanted)), 'fr'));
     }
     return page('not found', 404);
   }

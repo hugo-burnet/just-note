@@ -7,7 +7,7 @@ import { makeIO, MemoryStore } from './helpers.ts';
 class StubSource extends Source {
   readonly id = 'stub';
   readonly name = 'Stub';
-  readonly home = 'https://stub.test/';
+  readonly languages = ['en'];
   readonly reading = { mode: 'scroll', rtl: false } as const;
   readonly calls = { series: 0, chapter: 0, list: 0 };
   failNext = false;
@@ -16,7 +16,11 @@ class StubSource extends Source {
     return input.startsWith('https://stub.test/') ? { kind: 'series', url: input } : null;
   }
 
-  searchUrl(query: string): string {
+  protected homeIn(): string {
+    return 'https://stub.test/';
+  }
+
+  protected searchIn(query: string): string {
     return `https://stub.test/search?q=${query}`;
   }
 

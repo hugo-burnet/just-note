@@ -6,9 +6,9 @@ import { episodeUrl, imageUrl, listingPage, listPageUrl, SERIES_COVER, SERIES_UR
 import type { Route } from './helpers.ts';
 import { makeIO } from './helpers.ts';
 
-function webtoon(routes: Record<string, Route>, language?: string) {
+function webtoon(routes: Record<string, Route>) {
   const { io, transport } = makeIO(routes);
-  return { source: new WebtoonSource(io, { language }), transport };
+  return { source: new WebtoonSource(io), transport };
 }
 
 const episodes = (...numbers: number[]): PretendEpisode[] =>
@@ -112,12 +112,23 @@ test('getList: nothing found is fine, a human check is not', async () => {
   await assert.rejects(() => webtoon({ [url]: '<title>Attention Required! | Cloudflare</title>' }).source.getList(url), { code: 'blocked' });
 });
 
-test('the language chosen decides where browsing and searching start', () => {
-  const english = webtoon({}).source;
-  assert.equal(english.home, 'https://www.webtoons.com/en/');
-  assert.equal(english.searchUrl('moon'), 'https://www.webtoons.com/en/search?keyword=moon');
-  const french = webtoon({}, 'fr').source;
-  assert.equal(french.home, 'https://www.webtoons.com/fr/');
-  assert.equal(french.searchUrl('lune'), 'https://www.webtoons.com/fr/search?keyword=lune');
-  assert.equal(french.id, 'webtoon');
+test('the language asked for decides where browsing and searching start, English when none is', () => {
+  const { source } = webtoon({});
+  assert.deepEqual(source.languages, ['en', 'fr']);
+  assert.equal(source.home(), 'https://www.webtoons.com/en/');
+  assert.equal(source.searchUrl('moon'), 'https://www.webtoons.com/en/search?keyword=moon');
+  assert.equal(source.home('fr'), 'https://www.webtoons.com/fr/');
+  assert.equal(source.searchUrl('lune', 'fr'), 'https://www.webtoons.com/fr/search?keyword=lune');
+  assert.equal(source.home('de'), 'https://www.webtoons.com/en/', 'a language the app has no catalogue for falls back to the default');
+  assert.equal(source.searchUrl('moon', 'de'), 'https://www.webtoons.com/en/search?keyword=moon');
+});
+
+test('a series and an episode of the French catalogue are read like the others', async () => {
+  const series = 'https://www.webtoons.com/fr/fantasy/lantern-keeper/list?title_no=5001';
+  const episode = 'https://www.webtoons.com/fr/fantasy/lantern-keeper/ep-2/viewer?title_no=5001&episode_no=2';
+  const { source } = webtoon({ [episode]: viewerPage(2, 3) });
+  assert.equal(source.resolve(series)?.kind, 'series');
+  assert.equal(source.resolve(series)?.url, series, 'the language stays in the address');
+  assert.equal(source.resolve(episode)?.seriesUrl, series);
+  assert.equal((await source.getChapter(episode)).pages.length, 3);
 });

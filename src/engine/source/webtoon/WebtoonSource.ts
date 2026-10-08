@@ -9,28 +9,24 @@ import { looksAgeGated, WebtoonSeriesParser } from './WebtoonSeriesParser.ts';
 import { WebtoonUrls } from './WebtoonUrls.ts';
 import { WebtoonViewer } from './WebtoonViewer.ts';
 
-export interface WebtoonOptions {
-  /** Language of the site to browse and search: en, fr, es, de... */
-  language?: string;
-}
-
-/** WEBTOON (webtoons.com). */
+/**
+ * WEBTOON (webtoons.com). The site has one catalogue per language, all on the same
+ * addresses but for their first segment: a link in any of them is read the same way.
+ */
 export class WebtoonSource extends Source {
   readonly id = 'webtoon';
   readonly name = 'WEBTOON';
-  readonly home: string;
+  /** The catalogues the app can browse (the site has more); English is the default. */
+  readonly languages = ['en', 'fr'];
   /** A webtoon is one long column, read downwards. */
   readonly reading: ReadingStyle = { mode: 'scroll', rtl: false };
 
-  private readonly language: string;
   private readonly series = new WebtoonSeriesParser();
   private readonly viewer = new WebtoonViewer();
   private readonly episodes: WebtoonEpisodes;
 
-  constructor(io: SourceIO, options: WebtoonOptions = {}) {
+  constructor(io: SourceIO) {
     super(io);
-    this.language = options.language ?? 'en';
-    this.home = WebtoonUrls.home(this.language);
     this.episodes = new WebtoonEpisodes(this.series, (url) => this.load(url));
   }
 
@@ -38,8 +34,12 @@ export class WebtoonSource extends Source {
     return WebtoonUrls.resolve(input);
   }
 
-  searchUrl(query: string): string {
-    return WebtoonUrls.search(this.language, query);
+  protected homeIn(language: string): string {
+    return WebtoonUrls.home(language);
+  }
+
+  protected searchIn(query: string, language: string): string {
+    return WebtoonUrls.search(language, query);
   }
 
   async getSeries(url: string): Promise<Series> {

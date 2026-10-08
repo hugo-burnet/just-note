@@ -12,7 +12,8 @@ import { FanFoxUrls } from './FanFoxUrls.ts';
 export class FanFoxSource extends Source {
   readonly id = 'fanfox';
   readonly name = 'FanFox';
-  readonly home = `${FanFoxUrls.origin}/`;
+  /** The site only publishes in English. */
+  readonly languages = ['en'];
   /** Manga: page by page, from right to left. */
   readonly reading: ReadingStyle = { mode: 'paged', rtl: true };
 
@@ -28,7 +29,11 @@ export class FanFoxSource extends Source {
     return FanFoxUrls.resolve(input);
   }
 
-  searchUrl(query: string): string {
+  protected homeIn(): string {
+    return `${FanFoxUrls.origin}/`;
+  }
+
+  protected searchIn(query: string): string {
     return FanFoxUrls.search(query);
   }
 
