@@ -1,0 +1,8 @@
+# The proxy for the app hosted on GitHub Pages: `npx wrangler deploy`.
+# Set CORS_ORIGIN to the origin Pages serves the app from (no path).
+name = "just-read-proxy"
+main = "proxy/worker.ts"
+compatibility_date = "2025-09-01"
+
+[vars]
+CORS_ORIGIN = "https://hugo-burnet.github.io"
