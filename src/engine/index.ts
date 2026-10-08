@@ -15,6 +15,8 @@ export { DEFAULT_SETTINGS, Settings } from './Settings.ts';
 export type { ChapterOrder, Language, ReadingMode, SettingsValues, Theme } from './Settings.ts';
 export { FanFoxSource } from './source/fanfox/FanFoxSource.ts';
 export { Source } from './source/Source.ts';
+export { SITES } from './sites.ts';
+export type { SiteInfo, SiteModule } from './source/Site.ts';
 export { SourceRegistry } from './source/SourceRegistry.ts';
 export type { ResolvedLink } from './source/SourceRegistry.ts';
 export { WebtoonSource } from './source/webtoon/WebtoonSource.ts';

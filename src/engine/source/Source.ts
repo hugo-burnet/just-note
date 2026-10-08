@@ -10,8 +10,8 @@ export interface LoadedDocument {
 /**
  * A source teaches the app one website: it recognises the site's links and turns
  * its pages into series, chapters and images. Adding a site means writing a
- * subclass and listing it in the SourceRegistry (plus the site's hosts in the
- * proxy). Everything it needs from outside arrives through the two ports.
+ * subclass, a module that describes the site (see Site.ts) and listing it in
+ * sites.ts. Everything it needs from outside arrives through the two ports.
  */
 export abstract class Source {
   abstract readonly id: string;

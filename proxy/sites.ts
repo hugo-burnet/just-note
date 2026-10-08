@@ -1,20 +1,9 @@
-// The sites the proxy knows: the hosts that belong to each one (pages and image
-// CDNs, subdomains included) and the Referer their CDN expects to see.
-export interface Site {
-  readonly id: string;
-  readonly hosts: readonly string[];
-  readonly referer: string;
-}
+import { SITES as MODULES } from '../src/engine/sites.ts';
+import type { SiteInfo } from '../src/engine/source/Site.ts';
 
-export const SITES: readonly Site[] = [
-  {
-    id: 'fanfox',
-    hosts: ['fanfox.net', 'mangafox.me', 'mangafox.la', 'mangahere.org', 'mfcdn.net'],
-    referer: 'https://fanfox.net/',
-  },
-  {
-    id: 'webtoon',
-    hosts: ['webtoons.com', 'pstatic.net'],
-    referer: 'https://www.webtoons.com/',
-  },
-];
+/** What the proxy needs of a site: its hosts (pages and image servers, subdomains included) and the Referer its image servers expect. */
+export type Site = Pick<SiteInfo, 'id' | 'hosts' | 'referer'>;
+
+// The same list the app reads its sources from: a site cannot be readable in the app
+// and refused by the proxy.
+export const SITES: readonly Site[] = MODULES.map(({ id, hosts, referer }) => ({ id, hosts, referer }));

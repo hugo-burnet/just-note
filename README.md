@@ -118,11 +118,26 @@ test/           unit tests, fixtures, the end-to-end run
 
 ### Adding a site
 
-1. Write a `Source` subclass in `src/engine/source/<site>/` (recognise a link, read a
+Every site is a module, and one list (`src/engine/sites.ts`) feeds both the app (which
+makes its sources from it) and the proxy (which takes its allowlist and Referers from
+it), so a site cannot be readable in one and refused by the other.
+
+1. Check that the site can be read at all: run the **Probe** workflow (Actions tab →
+   *Run workflow*, one address per line). It fetches the pages the way the proxy does and
+   prints them in its log. A site that answers `403` with *Just a moment…* checks its
+   visitors with an anti-bot challenge, which neither the proxy nor the probe can pass:
+   it cannot be read from the web app.
+2. Write a `Source` subclass in `src/engine/source/<site>/` (recognise a link, read a
    series, a listing, a chapter). Look at `webtoon/` for a small one.
-2. Register it in `src/ui/App.ts`.
-3. Add its hosts, and those of its image CDNs, to `proxy/sites.ts`.
-4. Test it on small fixtures, like `test/engine/WebtoonSource.test.ts`.
+3. Describe the site in `src/engine/source/<site>/module.ts`: its id and name, its
+   hosts (pages **and** image servers), the Referer its image servers expect, and how to
+   make the source. See `webtoon/module.ts`.
+4. List the module in `src/engine/sites.ts`.
+5. Add one entry for it to `SAMPLES` in `test/engine/sites.test.ts` (a series link and a
+   chapter link). The conformance tests then check that its links are recognised in one
+   canonical form, that it claims nothing that is not its own, and that the proxy allows
+   everything it reads. Then test its parsing on small fixtures, like
+   `test/engine/WebtoonSource.test.ts`.
 
 Prefer URLs and `<meta>` tags to CSS class names when reading a page: they survive
 redesigns better.

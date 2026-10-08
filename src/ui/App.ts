@@ -1,4 +1,4 @@
-import { Catalog, FanFoxSource, Library, Settings, SourceRegistry, WebtoonSource } from '../engine/index.ts';
+import { Catalog, Library, Settings, SITES, SourceRegistry } from '../engine/index.ts';
 import type { ResolvedLink } from '../engine/index.ts';
 import type { Connection, Platform } from '../platform/Platform.ts';
 import { AppSheets } from './components/AppSheets.ts';
@@ -52,10 +52,8 @@ export class App implements AppContext {
     this.library = new Library(platform.store);
     this.transport = platform.connect(() => this.settings.get().proxyBase);
     this.clipboard = platform.clipboard;
-    this.registry = new SourceRegistry([
-      new FanFoxSource({ transport: this.transport, parser: platform.parser }),
-      new WebtoonSource({ transport: this.transport, parser: platform.parser }),
-    ]);
+    const io = { transport: this.transport, parser: platform.parser };
+    this.registry = new SourceRegistry(SITES.map((site) => site.create(io)));
     this.catalog = new Catalog(this.registry, this.library);
     this.toasts = new ToastHost(elements.toasts);
     this.sheets = new AppSheets(this, document.body);
