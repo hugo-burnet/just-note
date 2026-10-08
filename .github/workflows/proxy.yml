@@ -1,6 +1,8 @@
 name: Proxy
 
 # Deploys the proxy (proxy/worker.ts) to Cloudflare Workers, and again whenever it changes.
+# That includes src/engine/: the proxy takes the hosts it may reach from the list of sites
+# there, so a site added to the app is refused by a Worker that was not deployed again.
 #
 # One-time setup, in Settings → Secrets and variables → Actions → New repository secret:
 #   CLOUDFLARE_API_TOKEN    a token made from Cloudflare's "Edit Cloudflare Workers" template
@@ -12,6 +14,7 @@ on:
   push:
     paths:
       - 'proxy/**'
+      - 'src/engine/**'
       - 'wrangler.toml'
       - '.github/workflows/proxy.yml'
   workflow_dispatch:

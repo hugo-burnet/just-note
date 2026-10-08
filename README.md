@@ -89,7 +89,8 @@ is nothing to compile for them. Only the app goes through Vite.
      *Edit Cloudflare Workers* template (dash.cloudflare.com/profile/api-tokens) and add it
      to the repository as the secret `CLOUDFLARE_API_TOKEN`; then run the *Proxy* workflow
      from the Actions tab. `.github/workflows/proxy.yml` also redeploys the Worker whenever
-     `proxy/` changes; or
+     `proxy/` or `src/engine/` changes (the list of sites there is what the Worker may
+     reach, so adding a site means deploying it again); or
    - run `npx wrangler login` and `npx wrangler deploy`; or
    - in the Cloudflare dashboard: *Workers & Pages → Create → Import a repository*, pick
      this repository, name the Worker `just-read-proxy` (it must match `wrangler.toml`)
