@@ -26,9 +26,12 @@ export const SECURITY_HEADERS: Record<string, string> = {
 // assets/, so those can be cached for good; everything else is revalidated.
 export class StaticFiles {
   private readonly root: string;
+  private readonly cacheControl: string | undefined;
 
-  constructor(directory: string) {
+  /** `cacheControl` replaces the policy below for every file (a test uses it to behave like GitHub Pages). */
+  constructor(directory: string, options: { cacheControl?: string } = {}) {
     this.root = normalize(directory.endsWith(sep) ? directory : directory + sep);
+    this.cacheControl = options.cacheControl;
   }
 
   async serve(req: IncomingMessage, res: ServerResponse, pathname: string): Promise<void> {
@@ -52,7 +55,7 @@ export class StaticFiles {
     const headers = {
       ...SECURITY_HEADERS,
       etag,
-      'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
+      'cache-control': this.cacheControl ?? (immutable ? 'public, max-age=31536000, immutable' : 'no-cache'),
     };
     if (req.headers['if-none-match'] === etag) {
       res.writeHead(304, headers);

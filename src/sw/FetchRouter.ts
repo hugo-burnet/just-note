@@ -32,8 +32,8 @@ export class FetchRouter {
     // nocache=1 never gets here: a one-off answer (it carries a token) is not worth keeping.
     this.pages = new NetworkFirst({ cacheName: options.pageCache, budget: new CacheBudget(MAX_PAGES), staleOnServerError: true });
     // Every page of the app is the same document, including "/?url=…" from the share sheet.
-    this.navigations = new NetworkFirst({ cacheName: shell, key: new Request(new URL('index.html', options.scope)), timeoutMs: SHELL_TIMEOUT_MS });
-    this.files = new NetworkFirst({ cacheName: shell, timeoutMs: SHELL_TIMEOUT_MS });
+    this.navigations = new NetworkFirst({ cacheName: shell, key: new Request(new URL('index.html', options.scope)), timeoutMs: SHELL_TIMEOUT_MS, revalidate: true });
+    this.files = new NetworkFirst({ cacheName: shell, timeoutMs: SHELL_TIMEOUT_MS, revalidate: true });
     this.hashed = new CacheFirst(shell);
   }
 

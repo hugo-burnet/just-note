@@ -36,7 +36,8 @@ export class Stage {
   }
 
   static async open(web: PretendWeb): Promise<Stage> {
-    const files = new StaticFiles(SITE);
+    // GitHub Pages lets a browser keep any file for ten minutes: the stage does the same.
+    const files = new StaticFiles(SITE, { cacheControl: 'max-age=600' });
     const app = createServer((req, res) => {
       const { pathname } = new URL(req.url ?? '/', 'http://localhost');
       if (pathname.startsWith(BASE_PATH)) void files.serve(req, res, `/${pathname.slice(BASE_PATH.length)}`);
@@ -48,13 +49,22 @@ export class Stage {
     const appOrigin = `http://127.0.0.1:${await listen(app)}`;
     const proxy = createAppServer({ api: new ProxyApi({ fetch: web.fetch, corsOrigin: appOrigin }) });
     const proxyOrigin = `http://127.0.0.1:${await listen(proxy)}`;
-    // The same build the Pages workflow makes: the proxy's address is baked in.
+    Stage.deploy(proxyOrigin, 'e2e-1');
+    return new Stage(`${appOrigin}${BASE_PATH}`, proxyOrigin, [app, proxy]);
+  }
+
+  /** The same build the Pages workflow makes: the proxy's address is baked in. */
+  private static deploy(proxyOrigin: string, version: string): void {
     execFileSync(process.execPath, [VITE, 'build', '--outDir', SITE, '--emptyOutDir'], {
       cwd: ROOT,
-      env: { ...process.env, VITE_PROXY_URL: proxyOrigin },
+      env: { ...process.env, VITE_PROXY_URL: proxyOrigin, APP_VERSION: version },
       stdio: 'pipe',
     });
-    return new Stage(`${appOrigin}${BASE_PATH}`, proxyOrigin, [app, proxy]);
+  }
+
+  /** Deploys again, as Pages does: the files of the old build are gone, the new ones take their place. */
+  redeploy(version: string): void {
+    Stage.deploy(this.proxyOrigin, version);
   }
 
   /**

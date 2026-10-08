@@ -10,6 +10,7 @@ import { browseAndSettings } from './flows/browse.ts';
 import { onDesktop } from './flows/desktop.ts';
 import { readFanFox } from './flows/fanfox.ts';
 import { offline } from './flows/offline.ts';
+import { update } from './flows/update.ts';
 import { readWebtoon } from './flows/webtoon.ts';
 import { Pictures } from './Pictures.ts';
 import { PretendFanFox } from './PretendFanFox.ts';
@@ -24,6 +25,7 @@ const FLOWS: ReadonlyArray<readonly [string, (context: Context) => Promise<void>
   ['webtoon', readWebtoon],
   ['browse', browseAndSettings],
   ['desktop', onDesktop],
+  ['update', update],
   ['offline', offline],
 ];
 
