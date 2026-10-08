@@ -1,0 +1,98 @@
+/* Behind a sheet or the reader, the page must not scroll. */
+html.sheet-open,
+html.reader-open {
+  overflow: hidden;
+}
+
+/* A sheet slides up from the bottom, can be dragged away, and dims what is behind. */
+.sheet-host {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  align-items: end;
+  pointer-events: none;
+}
+
+.sheet-host[data-open='true'] {
+  pointer-events: auto;
+}
+
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0;
+  transition: opacity var(--med) var(--ease);
+}
+
+.sheet-host[data-open='true'] .sheet-backdrop {
+  opacity: 1;
+}
+
+.sheet {
+  position: relative;
+  width: min(100%, 38rem);
+  margin: 0 auto;
+  padding: 0.5rem var(--pad-r) calc(var(--safe-bottom) + 1.25rem) var(--pad-l);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-m);
+  transform: translateY(105%);
+  transition: transform var(--med) var(--ease);
+}
+
+.sheet-host[data-open='true'] .sheet {
+  transform: translateY(var(--drag, 0px));
+}
+
+.sheet[data-dragging='true'] {
+  transition: none;
+}
+
+.sheet-grip {
+  display: block;
+  width: 2.75rem;
+  height: 0.3125rem;
+  margin: 0.375rem auto var(--s-4);
+  border-radius: var(--r-pill);
+  background: var(--line);
+  touch-action: none;
+}
+
+.sheet-title {
+  font: 700 var(--fs-xl) / 1.15 var(--font-display);
+  letter-spacing: -0.025em;
+}
+
+.sheet-text {
+  margin-top: var(--s-2);
+  color: var(--text-soft);
+}
+
+.sheet-body {
+  display: grid;
+  gap: var(--s-4);
+  margin-top: var(--s-5);
+}
+
+.sheet-actions {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-5);
+}
+
+.sheet-actions.split {
+  grid-template-columns: 1fr 1fr;
+}
+
+.source-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  align-items: center;
+  color: var(--text-faint);
+  font-size: var(--fs-s);
+}

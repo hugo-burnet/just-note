@@ -1,0 +1,66 @@
+/* What closes a chapter, and what stands in for one while it opens or when it fails. */
+.end-card {
+  display: grid;
+  gap: var(--s-4);
+  justify-items: center;
+  padding: var(--s-7) var(--pad-r) calc(var(--safe-bottom) + 7rem) var(--pad-l);
+  text-align: center;
+}
+
+.end-card h2 {
+  font: 700 var(--fs-2xl) / 1.1 var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+.end-card .btn {
+  min-width: min(100%, 18rem);
+}
+
+.reader .btn {
+  background: oklch(1 0 0 / 0.12);
+  color: var(--reader-text);
+}
+
+.reader .btn-primary {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--accent) 88%, white), var(--accent-strong));
+  color: var(--accent-ink);
+}
+
+.reader .muted {
+  color: var(--reader-soft);
+}
+
+.reader-notice {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--safe-top) 0 var(--safe-bottom);
+}
+
+.reader-notice > .icon-btn {
+  position: absolute;
+  top: calc(var(--safe-top) + var(--s-2));
+  left: var(--pad-l);
+}
+
+.reader-notice-body {
+  display: grid;
+  justify-items: center;
+}
+
+.reader-waiting {
+  display: grid;
+  gap: var(--s-4);
+  justify-items: center;
+}
+
+.reader-options {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.reader-options .row-label {
+  display: block;
+  margin-bottom: var(--s-2);
+}

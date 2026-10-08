@@ -1,0 +1,123 @@
+/* Empty shelves, errors, waiting. They are screens too: they get the same care. */
+.empty {
+  display: grid;
+  gap: var(--s-3);
+  justify-items: center;
+  padding: var(--s-7) var(--s-4);
+  text-align: center;
+  animation: rise var(--slow) var(--ease) both;
+}
+
+.empty-art {
+  display: grid;
+  place-items: center;
+  width: 6.5rem;
+  height: 6.5rem;
+  margin-bottom: var(--s-2);
+  border-radius: 2.25rem;
+  background:
+    radial-gradient(circle at 30% 25%, color-mix(in oklch, var(--accent) 38%, transparent), transparent 62%),
+    var(--bg-raised);
+  box-shadow:
+    var(--shadow-s),
+    inset 0 0 0 1px var(--line);
+  color: var(--accent);
+  transform: rotate(-4deg);
+}
+
+.empty h2 {
+  font: 700 var(--fs-xl) / 1.15 var(--font-display);
+  letter-spacing: -0.025em;
+}
+
+.empty p {
+  max-width: 24rem;
+  color: var(--text-soft);
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  justify-content: center;
+  margin-top: var(--s-3);
+}
+
+.error-panel {
+  display: grid;
+  gap: var(--s-3);
+  max-width: 30rem;
+  margin: var(--s-6) auto;
+  padding: var(--s-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  background: var(--bg-raised);
+  animation: rise var(--med) var(--ease) both;
+}
+
+.error-panel h2 {
+  font: 700 var(--fs-xl) / 1.15 var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.error-panel p {
+  color: var(--text-soft);
+}
+
+.error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.error-panel details {
+  color: var(--text-faint);
+  font-size: var(--fs-s);
+}
+
+.error-panel summary {
+  cursor: pointer;
+}
+
+.error-panel pre {
+  max-height: 14rem;
+  margin: var(--s-2) 0 0;
+  padding: var(--s-3);
+  overflow: auto;
+  border-radius: var(--r-s);
+  background: var(--bg);
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reader-status {
+  display: grid;
+  gap: var(--s-4);
+  align-content: center;
+  justify-items: center;
+  height: 100%;
+  padding: var(--s-5);
+  text-align: center;
+}
+
+/* Waiting: a small lantern that breathes. */
+.glow {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent) 0 28%, transparent 68%);
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}

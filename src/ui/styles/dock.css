@@ -1,0 +1,129 @@
+/* The tab bar is a floating pill. Only the current tab shows its name, and the
+   others make room for it by sliding. It steps aside while the keyboard is up. */
+.dock {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 0.875rem);
+  z-index: 40;
+  display: flex;
+  gap: 0.125rem;
+  padding: 0.375rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(26px) saturate(1.5);
+  backdrop-filter: blur(26px) saturate(1.5);
+  box-shadow: var(--shadow-m);
+  transform: translate(-50%, 0);
+  transition:
+    transform var(--med) var(--ease),
+    opacity var(--med) var(--ease);
+}
+
+.dock[data-visible='false'],
+body:has(input:focus) .dock {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 170%);
+}
+
+.dock-item {
+  display: flex;
+  align-items: center;
+  height: 2.875rem;
+  padding: 0 0.95rem;
+  border-radius: var(--r-pill);
+  color: var(--text-faint);
+  font-weight: 650;
+  transition:
+    color var(--fast) var(--ease),
+    background-color var(--med) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.dock-item:active {
+  transform: scale(0.94);
+}
+
+.dock-item svg {
+  flex: none;
+  transition: color var(--fast) var(--ease);
+}
+
+.dock-item[aria-current='page'] {
+  background: color-mix(in oklch, var(--text) 11%, transparent);
+  color: var(--text);
+}
+
+.dock-item[aria-current='page'] svg {
+  color: var(--accent);
+}
+
+.dock-label {
+  display: grid;
+  grid-template-columns: 0fr;
+  transition: grid-template-columns var(--med) var(--ease);
+}
+
+.dock-label > span {
+  overflow: hidden;
+  padding-left: 0;
+  white-space: nowrap;
+  opacity: 0;
+  transition:
+    padding var(--med) var(--ease),
+    opacity var(--med) var(--ease);
+}
+
+.dock-item[aria-current='page'] .dock-label {
+  grid-template-columns: 1fr;
+}
+
+.dock-item[aria-current='page'] .dock-label > span {
+  padding-left: 0.5rem;
+  opacity: 1;
+}
+
+#toasts {
+  position: fixed;
+  right: 0;
+  bottom: calc(var(--dock-h) + var(--safe-bottom) + 1rem);
+  left: 0;
+  z-index: 80;
+  display: grid;
+  gap: var(--s-2);
+  justify-items: center;
+  padding: 0 var(--gutter);
+  pointer-events: none;
+}
+
+/* Colours inverted on purpose: a toast has to stand out from whatever is behind it. */
+.toast {
+  max-width: 100%;
+  padding: 0.75rem 1.125rem;
+  border-radius: var(--r-pill);
+  background: var(--text);
+  box-shadow: var(--shadow-m);
+  color: var(--bg);
+  font-size: var(--fs-s);
+  font-weight: 650;
+  animation: toast-in var(--med) var(--spring) both;
+}
+
+.toast[data-leaving='true'] {
+  animation: toast-out var(--med) var(--ease) both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.92);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}

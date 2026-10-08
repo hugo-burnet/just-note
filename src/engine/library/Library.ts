@@ -12,6 +12,8 @@ export interface ReadingPosition {
 export interface LibraryEntry extends SeriesSummary {
   readonly addedAt: number;
   readonly updatedAt: number;
+  /** How many chapters the series had when it was last looked at. */
+  readonly chapterCount?: number;
   readonly position?: ReadingPosition;
 }
 
@@ -46,7 +48,7 @@ export class Library {
   }
 
   /** Adds the series, or refreshes what is known of it. Never touches the position. */
-  save(series: SeriesSummary): void {
+  save(series: SeriesSummary & { readonly chapters?: readonly unknown[] }): void {
     const old = this.entries[series.url];
     const now = this.now();
     this.entries[series.url] = {
@@ -54,6 +56,7 @@ export class Library {
       url: series.url,
       title: series.title,
       cover: series.cover,
+      chapterCount: series.chapters?.length ?? old?.chapterCount,
       addedAt: old?.addedAt ?? now,
       updatedAt: old?.updatedAt ?? now,
     };

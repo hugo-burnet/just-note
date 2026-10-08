@@ -1,0 +1,193 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.25rem, 1fr));
+  gap: var(--s-5) var(--s-3);
+}
+
+/* Cards come in one after the other, a few at a time. */
+.card {
+  position: relative;
+  display: block;
+  animation: rise var(--slow) var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+.cover {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--r-m);
+  background: var(--bg-high);
+  box-shadow: var(--shadow-s);
+}
+
+.cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.09);
+  pointer-events: none;
+}
+
+.cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition:
+    opacity var(--med) var(--ease),
+    transform var(--slow) var(--ease);
+}
+
+.cover[data-state='ready'] img {
+  opacity: 1;
+}
+
+.cover[data-state='loading'] {
+  background: linear-gradient(100deg, var(--bg-raised) 30%, var(--bg-high) 50%, var(--bg-raised) 70%) 0 0 / 220% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+
+.cover-initials {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: color-mix(in oklch, var(--text) 38%, transparent);
+  font: 800 2.25rem / 1 var(--font-display);
+  letter-spacing: -0.05em;
+}
+
+a.card:active .cover img {
+  transform: scale(1.05);
+}
+
+.card-title {
+  display: -webkit-box;
+  margin-top: 0.625rem;
+  overflow: hidden;
+  font: 650 var(--fs-m) / 1.25 var(--font-display);
+  letter-spacing: -0.01em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.card-meta {
+  margin-top: 0.125rem;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: var(--fs-s);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  z-index: 2;
+  height: 0.25rem;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: oklch(0 0 0 / 0.5);
+}
+
+.progress > i {
+  display: block;
+  width: calc(var(--p, 0) * 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+/* "Continue reading": the cover, blurred, becomes the card's light. */
+.continue {
+  position: relative;
+  display: flex;
+  gap: var(--s-4);
+  align-items: center;
+  padding: var(--s-4);
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-s);
+}
+
+.continue-backdrop {
+  position: absolute;
+  inset: -40%;
+  z-index: -1;
+  width: 180%;
+  height: 180%;
+  object-fit: cover;
+  opacity: 0.38;
+  filter: blur(36px) saturate(1.7);
+}
+
+.continue .cover {
+  width: 4.25rem;
+  flex: none;
+  border-radius: var(--r-s);
+}
+
+.continue-text {
+  display: grid;
+  flex: 1;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.continue-title {
+  overflow: hidden;
+  font: 700 var(--fs-xl) / 1.15 var(--font-display);
+  letter-spacing: -0.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.continue-meta {
+  color: var(--text-soft);
+  font-size: var(--fs-s);
+}
+
+.continue .progress {
+  position: static;
+  margin-top: var(--s-2);
+}
+
+.continue-play {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 10px 24px -10px color-mix(in oklch, var(--accent) 80%, transparent);
+}
+
+.card-skeleton .cover {
+  animation: shimmer 1.5s linear infinite;
+}
+
+.line-skeleton {
+  height: 0.875rem;
+  margin-top: 0.625rem;
+  border-radius: var(--r-pill);
+  background: linear-gradient(100deg, var(--bg-raised) 30%, var(--bg-high) 50%, var(--bg-raised) 70%) 0 0 / 220% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -220% 0;
+  }
+}

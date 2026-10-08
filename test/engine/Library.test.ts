@@ -39,6 +39,16 @@ test('saving again refreshes the details but keeps the place and the date added'
   assert.deepEqual(lib.position(series(1).url), { chapter: 'c', key: 'c002', title: 'Ch.2', page: 5 });
 });
 
+test('the number of chapters is kept, and survives a save that does not know it', () => {
+  const lib = library().make();
+  lib.save({ ...series(1), chapters: [1, 2, 3] });
+  assert.equal(lib.get(series(1).url)?.chapterCount, 3);
+  lib.save(series(1));
+  assert.equal(lib.get(series(1).url)?.chapterCount, 3);
+  lib.save({ ...series(1), chapters: [1, 2, 3, 4] });
+  assert.equal(lib.get(series(1).url)?.chapterCount, 4);
+});
+
 test('a position is ignored for a series that is not in the library', () => {
   const lib = library().make();
   lib.setPosition('https://site.test/unknown/', { chapter: 'c', key: 'c1', title: 't', page: 0 });

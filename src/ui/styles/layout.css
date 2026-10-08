@@ -1,0 +1,149 @@
+#app {
+  position: relative;
+  z-index: 2;
+  min-height: 100dvh;
+}
+
+.wrap {
+  width: min(100%, var(--max-w));
+  margin-inline: auto;
+  padding-left: var(--pad-l);
+  padding-right: var(--pad-r);
+}
+
+/* A screen. The dock floats over the bottom of the root screens, so they leave room for it. */
+.view {
+  position: relative;
+  min-height: 100dvh;
+  padding-bottom: calc(var(--dock-h) + var(--safe-bottom) + var(--s-6));
+}
+
+.view-series,
+.view-read {
+  padding-bottom: var(--s-7);
+}
+
+/* How a screen arrives: pushed from the right, returned to from the left, or just faded in. */
+.view[data-motion='push'] {
+  animation: push-in var(--med) var(--ease) both;
+}
+
+.view[data-motion='pop'] {
+  animation: pop-in var(--med) var(--ease) both;
+}
+
+.view[data-motion='fade'] {
+  animation: fade-in var(--med) var(--ease) both;
+}
+
+@keyframes push-in {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.99);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+}
+
+.section {
+  margin-top: var(--s-6);
+}
+
+.section-title {
+  margin-bottom: var(--s-3);
+  font: 700 var(--fs-xl) / 1.15 var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.stack {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.row-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+/* The bar that stays on top of a screen. It is clear until the content slides under it. */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid transparent;
+  transition:
+    background var(--med) var(--ease),
+    border-color var(--med) var(--ease),
+    backdrop-filter var(--med) var(--ease);
+}
+
+.header[data-scrolled='true'] {
+  border-color: var(--line);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  backdrop-filter: blur(22px) saturate(1.4);
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: calc(var(--bar-h) + var(--safe-top));
+  padding-top: var(--safe-top);
+}
+
+.compact-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 650 var(--fs-l) / 1.2 var(--font-display);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity var(--med) var(--ease),
+    transform var(--med) var(--ease);
+}
+
+.header[data-collapsed='true'] .compact-title {
+  opacity: 1;
+  transform: none;
+}
+
+.header-actions {
+  display: flex;
+  gap: var(--s-2);
+  margin-left: auto;
+}
+
+.large-title {
+  padding: var(--s-1) 0 var(--s-4);
+  font: 700 var(--fs-3xl) / 1.04 var(--font-display);
+  letter-spacing: -0.035em;
+}
+
+.large-title-sentinel {
+  height: 1px;
+  margin-top: -1px;
+}

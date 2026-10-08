@@ -1,0 +1,114 @@
+/* The reader is always dark: pages are white, and a dark frame rests the eyes. */
+.reader {
+  --reader-text: oklch(0.96 0.01 85);
+  --reader-soft: oklch(0.74 0.02 275);
+  --reader-glass: oklch(0.2 0.014 275 / 0.78);
+  --reader-line: oklch(1 0 0 / 0.1);
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  background: var(--reader-bg);
+  color: var(--reader-text);
+}
+
+.reader-live,
+.chrome {
+  display: contents;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+}
+
+.stage[data-mode='scroll'] {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.strip {
+  width: min(100%, 52rem);
+  margin-inline: auto;
+}
+
+.frame {
+  position: relative;
+  background: oklch(0.17 0.01 275);
+}
+
+.frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.frame[data-state='loading'],
+.frame[data-state='failed'] {
+  aspect-ratio: 2 / 3;
+}
+
+.frame[data-state='loading'] img,
+.frame[data-state='failed'] img {
+  visibility: hidden;
+}
+
+.spinner,
+.frame[data-state='loading']::after,
+.paged[data-state='busy']::after {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 3px solid oklch(1 0 0 / 0.14);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  pointer-events: none;
+}
+
+.frame[data-state='loading']::after,
+.paged[data-state='busy']::after {
+  content: '';
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  margin: -0.875rem;
+}
+
+.retry {
+  display: none;
+}
+
+.frame[data-state='failed'] .retry,
+.paged[data-state='failed'] .retry {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  display: inline-flex;
+  transform: translate(-50%, -50%);
+}
+
+.paged {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  touch-action: manipulation;
+}
+
+.single {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  -webkit-user-drag: none;
+}
+
+.paged[data-state='failed'] .single {
+  display: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
