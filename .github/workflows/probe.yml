@@ -1,0 +1,53 @@
+name: Probe
+
+# Fetches a few pages the way the proxy does and prints what came back, so that a site
+# adapter can be written against the real thing, not a guess. Run it by hand from the
+# Actions tab ("Run workflow"), one address per line; the answers are in the log.
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'Addresses to fetch, one per line'
+        required: true
+      referer:
+        description: 'Referer to send (optional)'
+        required: false
+      lines:
+        description: 'How many lines of each page to print'
+        required: false
+        default: '300'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch
+        env:
+          URLS: ${{ inputs.urls }}
+          REFERER: ${{ inputs.referer }}
+          LINES: ${{ inputs.lines }}
+        run: |
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+          printf '%s\n' "$URLS" | while IFS= read -r url; do
+            [ -z "$url" ] && continue
+            echo "=============================================================="
+            echo "GET $url"
+            args=(-sS -L --max-time 40 -A "$UA" -H 'Accept-Language: fr-FR,fr;q=0.9,en;q=0.8' -D /tmp/headers -o /tmp/body -w '%{http_code} %{url_effective} %{content_type} %{size_download} bytes\n')
+            if [ -n "$REFERER" ]; then args+=(-e "$REFERER"); fi
+            curl "${args[@]}" "$url" || echo "curl failed with $?"
+            echo "--- headers"
+            tr -d '\r' < /tmp/headers
+            if grep -qaiE '^content-type: *(text|application/(json|javascript|xhtml))' /tmp/headers; then
+              echo "--- links"
+              grep -aoE 'href="[^"]+"' /tmp/body | sort -u | head -n 150
+              echo "--- sources"
+              grep -aoE '(src|data-src|data-original|data-url)="[^"]+"' /tmp/body | sort -u | head -n 60
+              echo "--- body, first $LINES lines (folded)"
+              fold -w 220 /tmp/body | head -n "$LINES"
+            else
+              echo "(not text: $(wc -c < /tmp/body) bytes)"
+            fi
+          done
