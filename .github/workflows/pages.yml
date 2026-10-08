@@ -35,7 +35,9 @@ jobs:
       - run: npm run check
       - run: npm run build
         env:
-          VITE_PROXY_URL: ${{ vars.PROXY_URL }}
+          # The variable wins when it is set; otherwise the Worker deployed from this
+          # repository (name in wrangler.toml, subdomain of the Cloudflare account).
+          VITE_PROXY_URL: ${{ vars.PROXY_URL || 'https://just-read-proxy.vvn47mb69j.workers.dev' }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
