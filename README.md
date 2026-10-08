@@ -21,6 +21,11 @@ refuse requests that do not carry the site's Referer. GitHub Pages only serves f
 so the proxy runs elsewhere (a Cloudflare Worker, or any Node host). It relays an
 allowlist of hosts only, so it is not an open proxy. A native build will not need it.
 
+It has to be *this* proxy. A public one found online (corsproxy.io and the like) will
+not do: it speaks another protocol (the app asks for `/api/html` and `/api/img`), it does
+not send the site's Referer, so the pages would come without their images, and whoever
+runs it sees everything you read and can alter what you are shown.
+
 ## Status: read this first
 
 - **Verified:** 130 unit tests, and an end-to-end run in a real Chromium against
@@ -55,9 +60,13 @@ is nothing to compile for them. Only the app goes through Vite.
 ## Publish it on GitHub Pages
 
 1. **Settings → Pages → Source: GitHub Actions.**
-2. **Deploy the proxy**, once: `npx wrangler deploy`. In `wrangler.toml`, set
-   `CORS_ORIGIN` to the origin Pages serves the app from (no path, for example
-   `https://you.github.io`).
+2. **Deploy the proxy**, once. In `wrangler.toml`, set `CORS_ORIGIN` to the origin Pages
+   serves the app from (no path, for example `https://you.github.io`), then either:
+   - run `npx wrangler login` and `npx wrangler deploy`; or
+   - with no command line, in the Cloudflare dashboard: *Workers & Pages → Create →
+     Import a repository*, pick this repository, name the Worker `just-read-proxy` (it
+     must match `wrangler.toml`) and keep the default deploy command. Cloudflare then
+     redeploys it at every push.
 3. **Settings → Secrets and variables → Actions → Variables:** add `PROXY_URL` with the
    address of that Worker. It becomes the default *Proxy address* of the app (users can
    change it in Settings).
