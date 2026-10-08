@@ -1,0 +1,42 @@
+name: Proxy
+
+# Deploys the proxy (proxy/worker.ts) to Cloudflare Workers, and again whenever it changes.
+#
+# One-time setup, in Settings → Secrets and variables → Actions → New repository secret:
+#   CLOUDFLARE_API_TOKEN    a token made from Cloudflare's "Edit Cloudflare Workers" template
+#                           (dash.cloudflare.com/profile/api-tokens)
+#   CLOUDFLARE_ACCOUNT_ID   optional: only if that token can see more than one account
+# Without the token this workflow does nothing. Run it by hand from the Actions tab
+# ("Run workflow") once the secret is in.
+on:
+  push:
+    paths:
+      - 'proxy/**'
+      - 'wrangler.toml'
+      - '.github/workflows/proxy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Nothing to deploy yet
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "The secret CLOUDFLARE_API_TOKEN is not set. See the top of .github/workflows/proxy.yml."
+      - uses: actions/checkout@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+      - uses: actions/setup-node@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          node-version: 22
+      - uses: cloudflare/wrangler-action@v3
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

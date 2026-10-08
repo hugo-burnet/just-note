@@ -62,11 +62,15 @@ is nothing to compile for them. Only the app goes through Vite.
 1. **Settings → Pages → Source: GitHub Actions.**
 2. **Deploy the proxy**, once. In `wrangler.toml`, set `CORS_ORIGIN` to the origin Pages
    serves the app from (no path, for example `https://you.github.io`), then either:
+   - with nothing installed (works from a phone): make a Cloudflare API token from the
+     *Edit Cloudflare Workers* template (dash.cloudflare.com/profile/api-tokens) and add it
+     to the repository as the secret `CLOUDFLARE_API_TOKEN`; then run the *Proxy* workflow
+     from the Actions tab. `.github/workflows/proxy.yml` also redeploys the Worker whenever
+     `proxy/` changes; or
    - run `npx wrangler login` and `npx wrangler deploy`; or
-   - with no command line, in the Cloudflare dashboard: *Workers & Pages → Create →
-     Import a repository*, pick this repository, name the Worker `just-read-proxy` (it
-     must match `wrangler.toml`) and keep the default deploy command. Cloudflare then
-     redeploys it at every push.
+   - in the Cloudflare dashboard: *Workers & Pages → Create → Import a repository*, pick
+     this repository, name the Worker `just-read-proxy` (it must match `wrangler.toml`)
+     and keep the default deploy command.
 3. **Settings → Secrets and variables → Actions → Variables:** add `PROXY_URL` with the
    address of that Worker. It becomes the default *Proxy address* of the app (users can
    change it in Settings).
