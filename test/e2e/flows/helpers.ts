@@ -14,11 +14,26 @@ export async function revealChrome(page: Page): Promise<void> {
   await page.locator('.chrome[data-visible="true"]').waitFor();
 }
 
-/** Leaves the reader with its back button (`label` is its name in the language of the app). */
-export async function leaveReader(page: Page, label = 'Back'): Promise<void> {
-  await revealChrome(page);
-  await page.locator('.chrome').getByRole('button', { name: label }).click();
+/**
+ * Presses a button of the reader's controls, bringing them back first. The controls leave by
+ * themselves a moment after a chapter opens: one that is looked at just before that and
+ * clicked just after finds nothing to press. Then they are brought back and it is tried again
+ * (they leave that way only once).
+ */
+export async function pressChrome(page: Page, name: string): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    await revealChrome(page);
+    try {
+      await page.locator('.chrome').getByRole('button', { name }).click({ timeout: 2000 });
+      return;
+    } catch (error) {
+      if (attempt === 3) throw error;
+    }
+  }
 }
+
+/** Leaves the reader with its back button (`label` is its name in the language of the app). */
+export const leaveReader = (page: Page, label = 'Back'): Promise<void> => pressChrome(page, label);
 
 /** Scrolls the nth image of a chapter read in a column to the top, and waits for it to be drawn. */
 export async function scrollToFrame(page: Page, index: number): Promise<void> {
@@ -35,8 +50,7 @@ export const waitShown = (page: Page, n: number): Promise<unknown> =>
 
 /** Opens the reading options from the reader's controls. */
 export async function openReadingOptions(page: Page): Promise<void> {
-  await revealChrome(page);
-  await page.getByRole('button', { name: 'Reading options' }).click();
+  await pressChrome(page, 'Reading options');
   await page.locator('.reader-options').waitFor();
 }
 
