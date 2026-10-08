@@ -15,6 +15,10 @@ const SAMPLES: Readonly<Record<string, { series: string; chapter: string }>> = {
     series: 'https://www.webtoons.com/en/fantasy/lantern-keeper/list?title_no=5001',
     chapter: 'https://www.webtoons.com/en/fantasy/lantern-keeper/ep-2/viewer?title_no=5001&episode_no=2',
   },
+  lelscan: {
+    series: 'https://lelscans.net/lecture-ligne-lanterne-des-marees.php',
+    chapter: 'https://lelscans.net/scan-lanterne-des-marees/2.5/3',
+  },
 };
 
 const io = { transport: new FakeTransport({}), parser: new LinkedomParser() };

@@ -67,8 +67,8 @@ The reader is the product, so it is the most restrained screen.
 - **Direction** (left to right or right to left) only exists for turned pages. A column
   always reads downwards, and its slider always runs from the left.
 - **Each site is read the way it is meant to be.** A source says how its content is read
-  (`Source.reading`): FanFox is turned pages from right to left, like the printed manga it
-  comes from; WEBTOON is one long column. *Auto*, the default for both the mode and the
+  (`Source.reading`): FanFox and LelScan are turned pages from right to left, like the
+  printed manga they come from; WEBTOON is one long column. *Auto*, the default for both the mode and the
   direction, follows the site. Choosing *Scroll*, *Pages*, *Left to right* or *Right to
   left* overrides it on every site, and *Auto* gives the decision back. A choice made in
   the reading options applies at once, on the page being read (the page is kept when a

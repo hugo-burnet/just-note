@@ -16,6 +16,7 @@ export type { ChapterRef, StepOutcome } from './reader/ReaderSession.ts';
 export { DEFAULT_SETTINGS, Settings } from './Settings.ts';
 export type { ChapterOrder, DirectionChoice, Language, ModeChoice, ReadingMode, SettingsValues, Theme } from './Settings.ts';
 export { FanFoxSource } from './source/fanfox/FanFoxSource.ts';
+export { LelScanSource } from './source/lelscan/LelScanSource.ts';
 export { Source } from './source/Source.ts';
 export { SITES } from './sites.ts';
 export type { SiteInfo, SiteModule } from './source/Site.ts';

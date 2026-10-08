@@ -5,16 +5,17 @@ to: a library, your place in every series, reading as a scrolling column or page
 page, and what you already read stays available offline. Built for a phone first
 (a PWA today, an APK with Capacitor later), and it does not look like a website.
 
-Sites it reads: **FanFox** (MangaFox), which publishes in English only, and **WEBTOON**, in
-English and French. The app itself is in English and French.
+Sites it reads: **FanFox** (MangaFox), which publishes in English only; **WEBTOON**, in
+English and French; and **LelScan**, French scans of a few dozen series. The app itself is
+in English and French.
 
 The language of the series is not the language of the app: WEBTOON opens its catalogue in
 the language of the app, unless *Settings → Reading → Series language* says otherwise, and
 Discover names the language it is showing. The text of a manga is part of its pictures, so
 what a site publishes in English stays English whatever the settings say.
 
-Each site is read the way it is meant to be: FanFox as turned pages from right to left,
-like a printed manga; WEBTOON as one long column. *Settings → Reading* (or the options
+Each site is read the way it is meant to be: FanFox and LelScan as turned pages from right
+to left, like a printed manga; WEBTOON as one long column. *Settings → Reading* (or the options
 inside the reader) starts on **Auto**, which follows the site; choosing *Scroll*, *Pages*,
 *Left to right* or *Right to left* overrides it for every site, and *Auto* gives the
 decision back.
@@ -40,17 +41,27 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 157 unit tests, and an end-to-end run in a real Chromium against
-  *pretend* FanFox and WEBTOON sites served by the test itself (made-up titles,
-  generated images). It covers a phone and a desktop screen, both themes, both
+- **Verified:** 172 unit tests, and an end-to-end run in a real Chromium against
+  *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
+  titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
   offline with its servers switched off. The app and the proxy run on two different
   origins there, as they do on GitHub Pages with a Worker.
-- **Not verified: the two adapters against the real sites.** They were written from
-  what is known of the sites and tested on synthetic pages shaped like them (the
-  machine this was built on could not reach either site). Expect the first real run
-  to need an adjustment. When a page cannot be read, the error screen has a
-  **Copy details** button: paste its content to get the adapter fixed.
+- **Not verified: the adapters against the real sites, a whole chapter at least.**
+  FanFox and WEBTOON were written from what is known of the sites and tested on
+  synthetic pages shaped like them (the machine this was built on could not reach
+  them). LelScan was written from its real pages, which the *Probe* workflow fetched
+  (the series list, a series, chapters, a decimal chapter, images), and WEBTOON's French
+  home page and search were fetched the same way; but no chapter has gone through the
+  app on a real site yet. Expect the first real run to need an adjustment. When a page
+  cannot be read, the error screen has a **Copy details** button: paste its content to
+  get the adapter fixed.
+- Some sites cannot be read from a web app at all: the ones that check their visitors
+  with an anti-bot challenge (Cloudflare's *Just a moment…*) answer the proxy with a page
+  that only a real browser can pass. Scan-Manga is one.
+- LelScan has no search of its own: searching filters its list of series. A chapter takes
+  one request per page (the images are not named alike from one series to the next), so a
+  long chapter takes a few seconds to open.
 - If an image host is missing from the allowlist the app says *Blocked address* and
   names the host; add it with `PROXY_EXTRA_HOSTS`.
 - Chapters whose page list is built from one-off token requests (an older FanFox
@@ -169,7 +180,7 @@ the app on it without registering the service worker, and `npx cap add android`.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 157 unit tests
+npm run check        # types (app and worker) and the 172 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

@@ -14,10 +14,10 @@ export async function revealChrome(page: Page): Promise<void> {
   await page.locator('.chrome[data-visible="true"]').waitFor();
 }
 
-/** Leaves the reader with its back button. */
-export async function leaveReader(page: Page): Promise<void> {
+/** Leaves the reader with its back button (`label` is its name in the language of the app). */
+export async function leaveReader(page: Page, label = 'Back'): Promise<void> {
   await revealChrome(page);
-  await page.locator('.chrome').getByRole('button', { name: 'Back' }).click();
+  await page.locator('.chrome').getByRole('button', { name: label }).click();
 }
 
 /** Scrolls the nth image of a chapter read in a column to the top, and waits for it to be drawn. */
