@@ -87,12 +87,17 @@ export class SettingsView extends View {
       spellcheck: 'false',
       'aria-label': i18n.t('settings.proxy'),
     });
-    this.listen(input, 'change', () => settings.set({ proxyBase: input.value.trim() }));
+    const store = (): void => {
+      settings.set({ proxyBase: input.value.trim() });
+      // What the box shows is what is used: an emptied box shows the default again.
+      input.value = settings.get().proxyBase;
+    };
+    this.listen(input, 'change', store);
 
     const status = h('span', { class: 'row-status', role: 'status' });
     const test = h('button', { class: 'row-action pressable', type: 'button' }, h('span', null, i18n.t('settings.testProxy')), status);
     this.listen(test, 'click', async () => {
-      settings.set({ proxyBase: input.value.trim() });
+      store();
       status.textContent = '…';
       status.textContent = (await this.app.checkProxy()) ? i18n.t('settings.proxyOk') : i18n.t('settings.proxyFail');
     });

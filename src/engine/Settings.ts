@@ -52,7 +52,7 @@ export class Settings {
   }
 
   set(patch: Partial<SettingsValues>): void {
-    this.overrides = { ...this.overrides, ...patch };
+    this.overrides = this.tidy({ ...this.overrides, ...patch });
     try {
       this.store.set(KEY, JSON.stringify(this.overrides));
     } catch {
@@ -70,9 +70,20 @@ export class Settings {
   private load(): Partial<SettingsValues> {
     try {
       const value: unknown = JSON.parse(this.store.get(KEY) ?? 'null');
-      return value && typeof value === 'object' ? (value as Partial<SettingsValues>) : {};
+      return value && typeof value === 'object' ? this.tidy(value as Partial<SettingsValues>) : {};
     } catch {
       return {};
     }
+  }
+
+  /**
+   * An empty proxy address is no choice at all: the default applies. (An earlier
+   * version saved one just by testing the connection, which hid the address that
+   * a build brings along; it is forgotten when loaded.)
+   */
+  private tidy(values: Partial<SettingsValues>): Partial<SettingsValues> {
+    const kept = { ...values };
+    if (typeof kept.proxyBase !== 'string' || kept.proxyBase.trim() === '') delete kept.proxyBase;
+    return kept;
   }
 }

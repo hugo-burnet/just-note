@@ -69,6 +69,13 @@ test('proxy transport: what the proxy says went wrong is kept', async () => {
   });
 });
 
+test('proxy transport: a failure says which address was asked', async () => {
+  const { transport } = setup(() => new Response('<h1>404</h1>', { status: 404 }), 'https://wrong.test/');
+  await assert.rejects(transport.text(SITE), (error: unknown) => error instanceof TransportError && error.proxy === 'https://wrong.test');
+  const down = new ProxyTransport(() => 'https://down.test', async () => Promise.reject(new TypeError('fetch failed')));
+  await assert.rejects(down.text(SITE), (error: unknown) => error instanceof TransportError && error.proxy === 'https://down.test');
+});
+
 test('proxy transport: a server that is not our proxy is recognised by what it does not answer', async () => {
   const { transport } = setup(() => new Response('<h1>404</h1>', { status: 404 }));
   await assert.rejects(transport.text(SITE), (error: unknown) => error instanceof TransportError && error.code === 'no_proxy');

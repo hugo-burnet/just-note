@@ -12,6 +12,7 @@ interface ErrorLike {
   status?: number;
   upstreamStatus?: number;
   host?: string;
+  proxy?: string;
   debug?: unknown;
 }
 
@@ -46,7 +47,7 @@ export class ErrorPresenter {
       const status = failure.upstreamStatus;
       name = status === 403 || status === 503 ? 'refused' : status === 404 ? 'notFound' : 'upstream';
     }
-    const params = { host: failure.host ?? '', status: failure.upstreamStatus ?? '' };
+    const params = { host: failure.host ?? '', status: failure.upstreamStatus ?? '', proxy: failure.proxy ?? '' };
     const title = name ? this.i18n.lookup(`error.${name}.title`, params) : undefined;
     const hint = name ? this.i18n.lookup(`error.${name}.hint`, params) : undefined;
     return {
@@ -66,6 +67,7 @@ export class ErrorPresenter {
         status: failure.status,
         upstreamStatus: failure.upstreamStatus,
         host: failure.host,
+        proxy: failure.proxy,
         debug: failure.debug,
         page: location.hash,
         agent: navigator.userAgent,

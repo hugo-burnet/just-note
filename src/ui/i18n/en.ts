@@ -107,7 +107,7 @@ export const en = {
   'error.offline.title': "You're offline",
   'error.offline.hint': 'Reconnect and try again. Chapters you already read may still open.',
   'error.noProxy.title': "Can't reach the app's server",
-  'error.noProxy.hint': "The proxy that fetches pages isn't answering. Check its address in Settings: it has to be your own Just Read proxy.",
+  'error.noProxy.hint': "The proxy that fetches pages isn't answering (the app asked {proxy}). Check its address in Settings: it has to be your own Just Read proxy.",
   'error.hostNotAllowed.title': 'Blocked address',
   'error.hostNotAllowed.hint': "The proxy doesn't allow {host}. Add it with PROXY_EXTRA_HOSTS on the server.",
   'error.refused.title': 'The site refused the request',

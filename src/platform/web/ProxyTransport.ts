@@ -35,7 +35,7 @@ export class ProxyTransport implements Transport {
     try {
       res = await this.fetcher(`${this.base()}/api/html?${query}`);
     } catch {
-      throw new TransportError(navigator.onLine === false ? 'offline' : 'network', 'Could not reach the proxy.');
+      throw new TransportError(navigator.onLine === false ? 'offline' : 'network', 'Could not reach the proxy.', { proxy: this.where() });
     }
     if (!res.ok) throw await this.failure(res);
     return { text: await res.text(), url: res.headers.get('x-final-url') ?? url };
@@ -58,6 +58,11 @@ export class ProxyTransport implements Transport {
     return this.proxyBase().trim().replace(/\/+$/, '');
   }
 
+  /** For messages: the address asked, which is the app's own when the setting is empty. */
+  private where(): string {
+    return this.base() || (typeof location === 'undefined' ? '' : location.origin);
+  }
+
   private async failure(res: Response): Promise<TransportError> {
     let body: ProxyFailure = {};
     try {
@@ -70,6 +75,7 @@ export class ProxyTransport implements Transport {
       status: res.status,
       upstreamStatus: body.upstreamStatus,
       host: body.host,
+      proxy: this.where(),
     });
   }
 }

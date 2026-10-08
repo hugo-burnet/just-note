@@ -25,6 +25,13 @@ test('errors: each failure of the proxy or of a source has words of its own', ()
   for (const [error, title] of cases) assert.equal(presenter.describe(error).title, title);
 });
 
+test('errors: a proxy that does not answer is named, so that a wrong address is easy to spot', () => {
+  const hint = presenter.describe(new TransportError('no_proxy', 'HTTP 404', { status: 404, proxy: 'https://you.github.io' })).hint;
+  assert.match(hint, /the app asked https:\/\/you\.github\.io\)/);
+  const report = JSON.parse(presenter.report(new TransportError('no_proxy', 'HTTP 404', { proxy: 'https://you.github.io' }))) as Record<string, unknown>;
+  assert.equal(report.proxy, 'https://you.github.io');
+});
+
 test('errors: what the site answered decides between refused, not found and the rest', () => {
   const upstream = (status: number): TransportError => new TransportError('upstream_status', 'x', { upstreamStatus: status });
   assert.equal(presenter.describe(upstream(403)).title, 'The site refused the request');

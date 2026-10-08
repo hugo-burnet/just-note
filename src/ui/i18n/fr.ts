@@ -108,7 +108,7 @@ export const fr: Readonly<Record<MessageKey, string>> = {
   'error.offline.title': 'Tu es hors ligne',
   'error.offline.hint': 'Reconnecte-toi et réessaie. Les chapitres déjà lus peuvent encore s’ouvrir.',
   'error.noProxy.title': "Impossible de joindre le serveur de l'app",
-  'error.noProxy.hint': "Le proxy qui récupère les pages ne répond pas. Vérifie son adresse dans les réglages : ce doit être ton propre proxy Just Read.",
+  'error.noProxy.hint': "Le proxy qui récupère les pages ne répond pas (l'app a interrogé {proxy}). Vérifie son adresse dans les réglages : ce doit être ton propre proxy Just Read.",
   'error.hostNotAllowed.title': 'Adresse bloquée',
   'error.hostNotAllowed.hint': "Le proxy n'autorise pas {host}. Ajoute-le avec PROXY_EXTRA_HOSTS côté serveur.",
   'error.refused.title': 'Le site a refusé la requête',
