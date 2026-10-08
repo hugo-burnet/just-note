@@ -38,6 +38,7 @@ export class ChapterReader extends Component {
   private readonly chrome: ReaderChrome;
   private readonly saver: ProgressSaver;
   private surface: ReadingSurface;
+  private mode: ReadingMode;
   private rtl: boolean;
 
   private readonly handlers: SurfaceHandlers = {
@@ -53,6 +54,7 @@ export class ChapterReader extends Component {
     this.options = options;
     const settings = app.settings.get();
     this.rtl = settings.rtl;
+    this.mode = settings.mode;
     this.session = new ReaderSession({ pageCount: options.pages.length, startPage: options.startPage, previous: options.previous, next: options.next });
     this.saver = new ProgressSaver(() => this.save());
     this.chrome = new ReaderChrome({
@@ -70,8 +72,8 @@ export class ChapterReader extends Component {
         options: () => this.openOptions(),
       },
     });
-    this.chrome.setDirection(this.rtl);
-    this.surface = this.buildSurface(settings.mode);
+    this.chrome.setDirection(this.reversed());
+    this.surface = this.buildSurface(this.mode);
     this.root.append(this.surface.root, this.chrome.root);
 
     this.own(() => this.surface.destroy());
@@ -151,15 +153,22 @@ export class ChapterReader extends Component {
   }
 
   private setMode(mode: ReadingMode): void {
+    this.mode = mode;
     this.surface.destroy();
     this.surface = this.buildSurface(mode);
     this.root.prepend(this.surface.root);
+    this.chrome.setDirection(this.reversed());
   }
 
   private setDirection(rtl: boolean): void {
     this.rtl = rtl;
     this.surface.setDirection(rtl);
-    this.chrome.setDirection(rtl);
+    this.chrome.setDirection(this.reversed());
+  }
+
+  /** A column always reads downwards: only turned pages can run from right to left. */
+  private reversed(): boolean {
+    return this.rtl && this.mode === 'paged';
   }
 
   private openOptions(): void {

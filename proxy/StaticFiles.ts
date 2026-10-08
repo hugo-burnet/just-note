@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { extname, join, normalize, sep } from 'node:path';
+import { HEADER_POLICY } from './ContentPolicy.ts';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -15,21 +16,8 @@ const MIME: Record<string, string> = {
   '.ico': 'image/x-icon',
 };
 
-// The app never injects third-party markup, but it parses it: keep the policy tight.
 export const SECURITY_HEADERS: Record<string, string> = {
-  'content-security-policy': [
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self'",
-    "font-src 'self'",
-    "img-src 'self' https: data: blob:",
-    "connect-src 'self' https:",
-    "manifest-src 'self'",
-    "worker-src 'self'",
-    "base-uri 'none'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-  ].join('; '),
+  'content-security-policy': HEADER_POLICY,
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'same-origin',
 };

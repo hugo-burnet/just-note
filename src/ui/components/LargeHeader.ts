@@ -40,7 +40,8 @@ export class LargeHeader extends Component {
       if (frame === 0) frame = requestAnimationFrame(update);
     }, { passive: true });
     this.own(() => cancelAnimationFrame(frame));
-    update();
+    // Once the screen is on display: before that nothing has a size.
+    frame = requestAnimationFrame(update);
   }
 
   override destroy(): void {

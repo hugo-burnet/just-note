@@ -1,6 +1,8 @@
 // Shared by the service worker (which fills the caches) and the settings screen
 // (which can empty them).
-export const SHELL_CACHE = 'jr-shell-v2';
+
+/** The files of the app: each build has a cache named after this prefix and its own hash. */
+export const SHELL_PREFIX = 'jr-shell-';
 export const IMAGE_CACHE = 'jr-img';
 export const PAGE_CACHE = 'jr-api';
 

@@ -12,6 +12,7 @@ import './ui/styles/reader-chrome.css';
 import './ui/styles/reader-states.css';
 import './ui/styles/states.css';
 
+import { registerServiceWorker } from './platform/web/registerServiceWorker.ts';
 import { WebPlatform } from './platform/web/WebPlatform.ts';
 import { App } from './ui/App.ts';
 
@@ -19,3 +20,4 @@ import { App } from './ui/App.ts';
 const outlet = document.getElementById('app');
 const toasts = document.getElementById('toasts');
 if (outlet && toasts) new App(new WebPlatform(import.meta.env.VITE_PROXY_URL), { outlet, toasts }).start();
+registerServiceWorker();

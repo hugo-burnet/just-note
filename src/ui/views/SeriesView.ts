@@ -43,7 +43,7 @@ export class SeriesView extends View {
       this.clear();
       const panel = new ErrorPanel(this.app, error, { retry: () => void this.load(true) });
       this.shown.push(panel);
-      this.root.append(h('div', { class: 'wrap' }, this.topBar()), h('div', { class: 'wrap' }, panel.root));
+      this.root.append(this.topBar(), h('div', { class: 'wrap' }, panel.root));
     }
   }
 
