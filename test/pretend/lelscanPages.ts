@@ -90,6 +90,12 @@ const hotCards = (): string =>
 <h3><a href="${chapterAddress(series, latest)}" title="Scan ${series.title} ${latest}">${series.title} ${latest}</a></h3></li>`;
   }).join('\n');
 
+// Links to a series that are not cards: a breadcrumb ("Lecture en ligne X") and a footer list ("X lecture en ligne").
+const breadcrumb = (series: PretendSeries, number: string): string =>
+  `<div id="breadcrumb"><a href="${LELSCAN}/"><span itemprop="title">Lelscan</span></a> » <a href="${seriesAddress(series)}"><span itemprop="title">Lecture en ligne ${series.title}</span></a> » <span itemprop="title">${number}</span></div>`;
+
+const footer = (): string => `<div id="footer">${SERIES.map((series) => `<a href="${seriesAddress(series)}">${series.title} lecture en ligne</a>`).join(' ')}</div>`;
+
 /** One page of a chapter, as the site shows it: the image, the page links, and the two lists. */
 export function chapterPage(series: PretendSeries, number: string, page: number): string {
   const count = series.chapters.find((chapter) => chapter.number === number)?.pages ?? 1;
@@ -107,9 +113,11 @@ export function chapterPage(series: PretendSeries, number: string, page: number)
 <select onchange="window.open(this.options[this.selectedIndex].value,'_top')">${chapterOptions(series, number)}</select>
 <select onchange="window.open(this.options[this.selectedIndex].value,'_top')">${seriesOptions(series)}</select>
 </form></h2></div>
+${breadcrumb(series, number)}
 <div id="navigation"><strong>Pages:</strong> <a href="${previous}">Prec</a>${links}<a href="${next}">Suiv</a></div>
 <table><tr><td><a href="${next}" title="Suivant"><img src="${imagePath(series, number, page)}" alt="Lecture en ligne ${series.title} ${number} page ${page}" /></a></td>
 <td><ul class="manga_hot">${hotCards()}</ul></td></tr></table>
+${footer()}
 </body></html>`;
 }
 

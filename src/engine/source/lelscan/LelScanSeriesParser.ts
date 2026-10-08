@@ -40,16 +40,32 @@ export class LelScanSeriesParser {
     };
   }
 
-  /** The series the site lists, the ones it shows first (most recently updated) coming first. */
+  /**
+   * The series the site lists: in the order its pages show them (the most recently updated
+   * first), under the names the <select> gives them. A link to a series can also be a menu
+   * entry or a breadcrumb, whose text is not the name ("Scan X", "X lecture en ligne").
+   */
   parseList(doc: DomDocument, pageUrl: string): SeriesSummary[] {
-    const found = new Map<string, SeriesSummary>();
-    const add = (href: string | null, title: string): void => {
+    const seriesAt = (href: string | null): string | null => {
       const target = LelScanUrls.resolve(absolute(href, pageUrl) ?? '');
-      if (target?.kind !== 'series' || !title || found.has(target.url)) return;
-      found.set(target.url, { url: target.url, title: title.slice(0, 120), cover: LelScanUrls.cover(LelScanUrls.slugOf(target.url)) });
+      return target?.kind === 'series' ? target.url : null;
     };
-    for (const link of doc.querySelectorAll('a[href]')) add(link.getAttribute('href'), this.cardTitle(link));
-    for (const option of doc.querySelectorAll('option[value]')) add(option.getAttribute('value'), clean(option.textContent));
+    const names = new Map<string, string>();
+    for (const option of doc.querySelectorAll('option[value]')) {
+      const url = seriesAt(option.getAttribute('value'));
+      if (url && !names.has(url)) names.set(url, clean(option.textContent));
+    }
+
+    const found = new Map<string, SeriesSummary>();
+    const add = (url: string, fallback: string): void => {
+      const title = names.get(url) || fallback;
+      if (title && !found.has(url)) found.set(url, { url, title: title.slice(0, 120), cover: LelScanUrls.cover(LelScanUrls.slugOf(url)) });
+    };
+    for (const link of doc.querySelectorAll('a[href]')) {
+      const url = seriesAt(link.getAttribute('href'));
+      if (url) add(url, this.cardTitle(link));
+    }
+    for (const url of names.keys()) add(url, '');
     return [...found.values()];
   }
 
@@ -84,7 +100,10 @@ export class LelScanSeriesParser {
       .replace(/\s+scan$/i, '');
   }
 
+  /** What a link to a series says, with the words the site adds around the name taken off. */
   private cardTitle(link: DomNode): string {
-    return clean(link.querySelector('img')?.getAttribute('alt') || link.getAttribute('title')?.replace(/\s+scan$/i, '') || link.textContent);
+    return clean(link.querySelector('img')?.getAttribute('alt') || link.getAttribute('title') || link.textContent)
+      .replace(/^(?:lecture en ligne|scan)\s+/i, '')
+      .replace(/\s+(?:lecture en ligne|scan)$/i, '');
   }
 }
