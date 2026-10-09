@@ -1,0 +1,18 @@
+/* The report of Settings → Diagnostic: the markup of a page, to read and to copy. */
+.diag-output {
+  max-height: 45vh;
+  margin: 0;
+  padding: var(--s-3);
+  overflow: auto;
+  border-radius: var(--r-m);
+  background: var(--bg-high);
+  color: var(--text-soft);
+  font: 0.72rem/1.45 ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diag-output[hidden],
+.row-action[hidden] {
+  display: none;
+}

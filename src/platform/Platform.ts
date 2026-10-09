@@ -6,6 +6,21 @@ export interface Clipboard {
   writeText(text: string): Promise<boolean>;
 }
 
+/** What the user may be told while a page is being checked by a WebView (the words are the app's, in its language). */
+export interface DialogLabels {
+  readonly statusLabel?: string;
+  readonly cancelLabel?: string;
+}
+
+/**
+ * Fetches any https page the way a browser would, past an anti-bot check if there is one, and
+ * answers with a report to copy (see PageDigest.ts). It is how a site that cannot be read is
+ * looked at from the phone, as the Probe workflow looks at it from GitHub.
+ */
+export interface PageProbe {
+  fetch(address: string, labels?: DialogLabels): Promise<string>;
+}
+
 /** How the app reaches the sites, and whether that works right now. */
 export interface Connection extends Transport {
   isHealthy(): Promise<boolean>;
@@ -24,6 +39,8 @@ export interface Platform {
   readonly defaults: Partial<SettingsValues>;
   /** Whether the sites are reached through a proxy the user can point elsewhere (the browser), or directly (the installed app). */
   readonly usesProxy: boolean;
+  /** null where there is no WebView of the app's own to pass an anti-bot check with (the browser). */
+  readonly probe: PageProbe | null;
   /** `proxyBase` reads the setting each time, so a change applies at once. */
   connect(proxyBase: () => string): Connection;
 }

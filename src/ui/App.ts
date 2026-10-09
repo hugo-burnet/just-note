@@ -39,6 +39,7 @@ export class App implements AppContext {
   readonly transport: Connection;
   readonly clipboard: Platform['clipboard'];
   readonly usesProxy: boolean;
+  readonly probe: Platform['probe'];
   readonly i18n = new I18n();
   readonly errors = new ErrorPresenter(this.i18n);
   readonly colors = new ColorSampler();
@@ -54,6 +55,7 @@ export class App implements AppContext {
     this.transport = platform.connect(() => this.settings.get().proxyBase);
     this.clipboard = platform.clipboard;
     this.usesProxy = platform.usesProxy;
+    this.probe = platform.probe;
     const io = { transport: this.transport, parser: platform.parser };
     this.registry = new SourceRegistry(SITES.map((site) => site.create(io)));
     this.catalog = new Catalog(this.registry, this.library);

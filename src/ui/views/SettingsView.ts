@@ -1,3 +1,4 @@
+import { DiagnosticPanel } from '../components/DiagnosticPanel.ts';
 import { LargeHeader } from '../components/LargeHeader.ts';
 import { Segmented } from '../components/Segmented.ts';
 import type { AppContext } from '../core/AppContext.ts';
@@ -5,6 +6,7 @@ import type { Component } from '../core/Component.ts';
 import { h } from '../core/dom.ts';
 import { View } from '../core/View.ts';
 import { languageName } from '../i18n/languages.ts';
+import type { PageProbe } from '../../platform/Platform.ts';
 import { CONTENT_CACHES } from '../../platform/web/cacheNames.ts';
 
 /** Appearance, reading, connection, data: grouped like the settings of a phone. */
@@ -74,6 +76,7 @@ export class SettingsView extends View {
           ], (direction) => settings.set({ direction }))),
         ]),
         ...(this.app.usesProxy ? [this.connection()] : []),
+        ...(this.app.probe ? [this.diagnostic(this.app.probe)] : []),
         this.data(),
         h('p', { class: 'fineprint selectable' }, i18n.t('settings.privacy')),
         h('p', { class: 'fineprint' }, `${i18n.t('app.name')} ${__APP_VERSION__}`),
@@ -112,6 +115,12 @@ export class SettingsView extends View {
     return this.group('settings.connection', [this.row(i18n.t('settings.proxy'), input, i18n.t('settings.proxyHint')), test]);
   }
 
+  private diagnostic(probe: PageProbe): HTMLElement {
+    const panel = new DiagnosticPanel(this.app, probe);
+    this.parts.push(panel);
+    return this.group('settings.diagnostic', [panel.root]);
+  }
+
   private data(): HTMLElement {
     const { i18n, library, sheets, toasts } = this.app;
     const cache = h('button', { class: 'row-action pressable', type: 'button' }, i18n.t('settings.clearCache'));
@@ -144,7 +153,7 @@ export class SettingsView extends View {
     return h('div', { class: 'row' }, h('span', { class: 'row-label' }, label), control, hint ? h('p', { class: 'row-hint' }, hint) : null);
   }
 
-  private group(title: 'settings.appearance' | 'settings.reading' | 'settings.connection' | 'settings.data', rows: readonly HTMLElement[]): HTMLElement {
+  private group(title: 'settings.appearance' | 'settings.reading' | 'settings.connection' | 'settings.diagnostic' | 'settings.data', rows: readonly HTMLElement[]): HTMLElement {
     return h('section', null, h('h2', { class: 'group-title' }, this.app.i18n.t(title)), h('div', { class: 'group' }, rows));
   }
 }

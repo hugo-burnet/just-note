@@ -1,5 +1,5 @@
 import type { Catalog, Library, Settings, SourceRegistry, Transport } from '../../engine/index.ts';
-import type { Clipboard } from '../../platform/Platform.ts';
+import type { Clipboard, PageProbe } from '../../platform/Platform.ts';
 import type { ColorSampler } from '../components/ColorSampler.ts';
 import type { Sheet, SheetOptions } from '../components/Sheet.ts';
 import type { ErrorPresenter } from '../errors/ErrorPresenter.ts';
@@ -37,6 +37,8 @@ export interface AppContext {
   readonly clipboard: Clipboard;
   /** false in the installed app, which reads the sites itself: there is no proxy to configure. */
   readonly usesProxy: boolean;
+  /** Looks at any page from the phone, past an anti-bot check; null in a browser (see Platform). */
+  readonly probe: PageProbe | null;
   readonly i18n: I18n;
   readonly errors: ErrorPresenter;
   readonly colors: ColorSampler;

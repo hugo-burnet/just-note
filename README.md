@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 192 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 206 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -59,13 +59,16 @@ runs it sees everything you read and can alter what you are shown.
   cannot be read, the error screen has a **Copy details** button: paste its content to
   get the adapter fixed.
 - **Not verified: the APK on a phone.** It was written without a device; the CI only
-  shows that it builds, and the transport it uses is unit-tested with a fake network.
+  shows that it builds, and the transport it uses is unit-tested with a fake network. The
+  WebView plugin behind Settings → Diagnostic (Java, `android/`) has only been compiled.
   Expect the look of the system bars and the first real pages to need an adjustment.
 - Some sites cannot be read from a web app at all: the ones that check their visitors
   with an anti-bot challenge (Cloudflare's *Just a moment…*) answer the proxy with a page
-  that only a real browser can pass. Scan-Manga and SushiScan are two. The APK asks from
-  the phone, but it runs no JavaScript either, so it is refused the same way until it can
-  let a WebView pass the challenge and reuse the cookie (not done yet).
+  that only a real browser can pass. Scan-Manga and SushiScan are two (their mobile
+  sites too). The APK asks from the phone, but it runs no JavaScript either, so a check
+  may turn it away the same way. *Settings → Diagnostic* (APK only) lets a WebView of the app
+  pass the check and copies a report of what the site sends, which is what a module is
+  written from. Reading such a site in the reader through that WebView is not done yet.
 - LelScan has no search of its own: searching filters its list of series. A chapter takes
   one request per page (the images are not named alike from one series to the next), so a
   long chapter takes a few seconds to open.
@@ -198,13 +201,17 @@ of hosts, redirects checked one by one, the same size and type limits) and fails
 same codes, so the screens say the same things. Pictures are downloaded by the app and given
 to `<img>` as `blob:` addresses. What is read is kept in the WebView's Cache API under the
 service worker's cache names (so *Settings → Data* empties both), and the service worker is
-not registered. The proxy address setting is hidden. Not done yet: sharing a link to the
-app, its own launcher icon, and the Cloudflare challenge (above).
+not registered. The proxy address setting is hidden. *Settings → Diagnostic* is the Probe
+workflow, from the phone: it fetches any https address with the phone's own network, and
+through a WebView (`PageFetcherPlugin.java`, shown in front of the app so that a check which
+needs a tap can be answered) when an anti-bot check turns that away, and gives a report in
+the shape of the Probe's log to copy. Not done yet: sharing a link to the app, its own
+launcher icon, and reading a site behind a check in the reader.
 
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 192 unit tests
+npm run check        # types (app and worker) and the 206 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

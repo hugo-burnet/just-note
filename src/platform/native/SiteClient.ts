@@ -13,6 +13,11 @@ export interface Fetched {
   readonly url: URL;
 }
 
+/** Decides which addresses may be asked for, and what Referer goes with each. The proxy's HostPolicy is one. */
+export interface Policy {
+  parse(value: string | null): Target;
+}
+
 const ACCEPT: Readonly<Record<Kind, string>> = {
   text: 'text/html,application/xhtml+xml,text/javascript,*/*;q=0.8',
   image: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
@@ -27,9 +32,9 @@ const TIMEOUT_MS = 30_000;
  */
 export class SiteClient {
   private readonly http: NativeHttp;
-  private readonly policy: HostPolicy;
+  private readonly policy: Policy;
 
-  constructor(http: NativeHttp, policy: HostPolicy = new HostPolicy()) {
+  constructor(http: NativeHttp, policy: Policy = new HostPolicy()) {
     this.http = http;
     this.policy = policy;
   }
@@ -39,13 +44,20 @@ export class SiteClient {
     return this.parse(address).url;
   }
 
+  /** The answer, or a TransportError when the site refuses (any status but 2xx). */
   async get(address: string, kind: Kind, referer?: string): Promise<Fetched> {
+    const fetched = await this.exchange(address, kind, referer);
+    return this.answered(fetched.response, fetched.url);
+  }
+
+  /** The last answer of a chain of redirects, whatever its status: for callers that look at a refusal themselves. */
+  async exchange(address: string, kind: Kind, referer?: string): Promise<Fetched> {
     let { url, site } = this.parse(address);
     const wanted = referer ? this.allowed(referer) : undefined;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       const response = await this.request(url, kind, wanted ?? site.referer);
       const location = response.headers['location'];
-      if (response.status < 300 || response.status >= 400 || !location) return this.answered(response, url);
+      if (response.status < 300 || response.status >= 400 || !location) return { response, url };
       ({ url, site } = this.parse(this.followed(location, url)));
     }
     throw new TransportError('too_many_redirects', 'The source redirected too many times.', { host: url.hostname });

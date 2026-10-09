@@ -3,6 +3,7 @@ import './ui/styles/tokens.css';
 import './ui/styles/base.css';
 import './ui/styles/layout.css';
 import './ui/styles/controls.css';
+import './ui/styles/diagnostic.css';
 import './ui/styles/dock.css';
 import './ui/styles/cards.css';
 import './ui/styles/series.css';
