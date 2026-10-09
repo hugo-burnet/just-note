@@ -17,9 +17,12 @@ export interface PretendPicture {
   /** Where the page has to be scrolled to for it to be put in, and to be loaded. */
   readonly insertAt: number;
   readonly loadAt: number;
+  /** How long it takes to load once the scrolling has brought it into view. */
+  readonly latency: number;
+  reachedAt?: number;
 }
 
-export const picture = (n: number, insertAt: number, loadAt = insertAt): PretendPicture => ({
+export const picture = (n: number, insertAt: number, loadAt = insertAt, latency = 0): PretendPicture => ({
   src: `blob:https://m.example.test/${n}`,
   currentSrc: `blob:https://m.example.test/${n}`,
   complete: false,
@@ -27,7 +30,39 @@ export const picture = (n: number, insertAt: number, loadAt = insertAt): Pretend
   naturalHeight: 0,
   insertAt,
   loadAt,
+  latency,
 });
+
+/** A place the page keeps for a picture: it shows (unless it is hidden), holds the picture once the page has put it in, and scrolls to itself. */
+export class PretendSlot {
+  private readonly reader: PretendReader;
+  private readonly top: number;
+  private readonly holds: PretendPicture | undefined;
+  private readonly hidden: boolean;
+
+  constructor(reader: PretendReader, top: number, holds?: PretendPicture, hidden = false) {
+    this.reader = reader;
+    this.top = top;
+    this.holds = holds;
+    this.hidden = hidden;
+  }
+
+  getClientRects(): unknown[] {
+    return this.hidden ? [] : [{}];
+  }
+
+  matches(): boolean {
+    return false;
+  }
+
+  querySelector(selector: string): PretendPicture | null {
+    return selector === SELECTOR && this.holds && this.reader.inserted(this.holds) ? this.holds : null;
+  }
+
+  scrollIntoView(): void {
+    this.reader.moveTo(this.top);
+  }
+}
 
 export class PretendReader {
   clock = 0;
@@ -38,9 +73,9 @@ export class PretendReader {
   readonly notes: string[] = [];
   /** How far it said it had got, each time it said. */
   readonly progress: number[] = [];
-  /** How many places the page keeps for its pictures (what PLACES matches). */
-  places = 0;
-  /** Places that are more than numbers: what the script describes in its report. */
+  /** The places the page keeps for its pictures (what PLACES matches): there from the start, whatever has come in. */
+  slots: PretendSlot[] = [];
+  /** Places that are more than that: what the script describes in its report. */
   placeElements: unknown[] | undefined;
   /** How tall the page is (it scrolls to its end a screen at a time). */
   height = 6000;
@@ -59,12 +94,30 @@ export class PretendReader {
     this.pictures = pictures;
   }
 
+  /** Places that never hold a picture, as many as that. */
+  set places(count: number) {
+    this.slots = Array.from({ length: count }, () => new PretendSlot(this, 0));
+  }
+
+  /** Whether the scrolling has got far enough for the page to have put the picture in. */
+  inserted(one: PretendPicture): boolean {
+    return one.insertAt <= this.at + SCREEN;
+  }
+
+  /** Scrolls to `y`, in the reader's own box when it has one. */
+  moveTo(y: number): void {
+    if (this.inner) this.inner.scrollTop = y;
+    else this.scrolledTo = y;
+    this.reach();
+  }
+
   /** Something that happens on the page once the script has waited `ms` (its clock moves when it sleeps). */
   later(ms: number, run: () => void): void {
     this.scheduled.push({ at: ms, run });
   }
 
   private due(): void {
+    this.reach();
     for (const event of this.scheduled.filter((one) => one.at <= this.clock)) {
       this.scheduled.splice(this.scheduled.indexOf(event), 1);
       event.run();
@@ -104,7 +157,9 @@ export class PretendReader {
   /** What the scrolling has brought into view is loaded (the reader's own box counts, the page does not when it has one). */
   reach(): void {
     for (const one of this.pictures) {
-      if (one.loadAt <= this.at + SCREEN && !one.complete) Object.assign(one, { complete: true, naturalWidth: 800, naturalHeight: 1200 });
+      if (one.complete || one.loadAt > this.at + SCREEN) continue;
+      one.reachedAt ??= this.clock;
+      if (this.clock - one.reachedAt >= one.latency) Object.assign(one, { complete: true, naturalWidth: 800, naturalHeight: 1200 });
     }
   }
 
@@ -115,9 +170,8 @@ export class PretendReader {
       body: { scrollHeight: reader.height },
       querySelectorAll: (selector: string): unknown[] => {
         reader.selectors.push(selector);
-        // The places the page keeps for its pictures: there from the start, whatever has come in.
-        if (selector === PLACES) return reader.placeElements ?? Array.from({ length: reader.places }, () => picture(0, 0));
-        return reader.pictures.filter((one) => one.insertAt <= reader.at + SCREEN).map((one) => Object.assign(one, { parentElement: reader.parentOf() }));
+        if (selector === PLACES) return reader.placeElements ?? reader.slots;
+        return reader.pictures.filter((one) => reader.inserted(one)).map((one) => Object.assign(one, { parentElement: reader.parentOf() }));
       },
       createElement: () => ({
         width: 0,

@@ -21,19 +21,23 @@ export const BLOB_HOOK = `(function () {
 })();`;
 
 /**
- * Scrolls the page the way a reader does, a screen at a time (a page that loads its pictures as they
- * come into view only loads what it sees), until the pictures that `selector` matches are all
- * there and nothing changes any more; then gives the bytes of each, in the order they are in the
- * page, to the plugin. It tells the plugin how far it has got (`progress`, in percent: the user is looking at
- * a spinner), and ends with `done` (and a line on what it found), or with `fail` and the reason.
+ * Scrolls the page the way a reader does (a page that loads its pictures as they come into view only
+ * loads what it sees) until the pictures that `selector` matches are all there and nothing changes any
+ * more; then gives the bytes of each, in the order they are in the page, to the plugin. It tells the
+ * plugin how far it has got (`progress`, in percent: the user is looking at a spinner), and ends with
+ * `done` (and a line on what it found), or with `fail` and the reason.
  *
  * `slots` is a selector for the places the page keeps for its pictures, when it has them before it has
- * the pictures: the script goes on waiting while the pictures are fewer than the places. A page may keep
- * places for other things than pictures, so the wait has an end: places that promise more than ever came
- * are given a few seconds, and then the pictures there are are taken (the line it ends with says so, and
- * what the places are). Only a script that ran out of time on the way down, with fewer pictures than
- * places, fails: what came is the top of a chapter, not the chapter. Where there is no such selector, or it
- * matches nothing, a picture that has come is all there is to go by.
+ * the pictures. Those that show (a page may keep others, hidden) are the places: the script goes from one
+ * that has no picture yet to the next, waiting for each picture, which is a lot quicker than scrolling a
+ * screen at a time through pages that are metres long; and it goes on waiting while the pictures are
+ * fewer than the places. A page may keep places for other things than pictures, so both have an end:
+ * places that stay empty are scrolled through like any page, and places that promise more than ever
+ * came are given a few seconds, after which the pictures there are are taken (the line it ends with says
+ * so, and what the places are). Only a script that ran out of time on the way down, with fewer pictures
+ * than places, fails: what came is the top of a chapter, not the chapter. Where there is no such
+ * selector, or it matches nothing, a picture that has come is all there is to go by, and the page is
+ * scrolled a screen at a time.
  *
  * The pictures are read from the blobs the hook kept, else asked for by their address, else drawn
  * on a canvas (a picture whose address has been let go of is still on screen).
@@ -45,6 +49,8 @@ export function pictureScript(selector: string, slots = ''): string {
   var SELECTOR = ${JSON.stringify(selector)};
   var SLOTS = ${JSON.stringify(slots)};
   var STEP_MS = 250;
+  var POLL_MS = 50;
+  var HOP_MS = 6000;
   var QUIET_STEPS = 6;
   var SHORT_STEPS = 32;
   var BUDGET_MS = 45000;
@@ -53,18 +59,27 @@ export function pictureScript(selector: string, slots = ''): string {
   // Of the way to the end, the part that is the scrolling: the rest is reading the pictures.
   var SCROLLED = 85;
 
-  var shown = -1;
+  var reported = -1;
 
   function sleep(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
   // Only ever up, and only when it changes: the plugin writes it on the screen.
   function progress(percent) {
-    if (percent <= shown) return;
-    shown = percent;
+    if (percent <= reported) return;
+    reported = percent;
     bridge.progress(token, percent);
   }
   function pictures() { return Array.prototype.slice.call(document.querySelectorAll(SELECTOR)); }
   function loaded(img) { return img.complete && img.naturalWidth > 0; }
-  function places() { return SLOTS ? document.querySelectorAll(SLOTS).length : 0; }
+  // The places that show, in the order of the page: a page may keep others (a pager, say) that it hides.
+  function showing() {
+    if (!SLOTS) return [];
+    return Array.prototype.filter.call(document.querySelectorAll(SLOTS), function (el) { return el.getClientRects().length > 0; });
+  }
+  function places() { return showing().length; }
+  function filled(el) {
+    var img = el.matches(SELECTOR) ? el : el.querySelector(SELECTOR);
+    return !!img && loaded(img);
+  }
   function describe(el) {
     var tag = String(el.tagName || '').toLowerCase();
     var classes = typeof el.className === 'string' ? el.className.trim().split(/\\s+/).filter(Boolean).slice(0, 4) : [];
@@ -105,6 +120,43 @@ export function pictureScript(selector: string, slots = ''): string {
     window.scrollTo(0, y);
   }
 
+  // The quick way, for a page that keeps places for its pictures: to the first place with no picture in it,
+  // wait for the picture, on to the next. Nothing is scrolled through that has nothing to wait for. Two
+  // places in a row that stay empty are not what they were taken for: the page is then scrolled as any other.
+  // True when every place shows its picture.
+  async function hop(started) {
+    var gaveUp = [];
+    var strikes = 0;
+    for (var hops = 0; hops < 500 && Date.now() - started < BUDGET_MS; hops++) {
+      var list = showing();
+      var empty = list.filter(function (el) { return !filled(el); });
+      var next = empty.filter(function (el) { return gaveUp.indexOf(el) < 0; })[0];
+      if (list.length === 0) return false;
+      progress(Math.floor((SCROLLED * (list.length - empty.length)) / list.length));
+      if (!next) return gaveUp.length === 0;
+      next.scrollIntoView(true);
+      var until = Date.now() + HOP_MS;
+      var count = pictures().filter(loaded).length;
+      while (!filled(next) && Date.now() < until) {
+        await sleep(POLL_MS);
+        // Others coming in is no reason to give up on this one.
+        var now = pictures().filter(loaded).length;
+        if (now > count) {
+          count = now;
+          until = Date.now() + HOP_MS;
+        }
+      }
+      if (filled(next)) {
+        strikes = 0;
+      } else {
+        gaveUp.push(next);
+        strikes++;
+        if (strikes === 2) return false;
+      }
+    }
+    return false;
+  }
+
   // A long page takes long to scroll through, a screen at a time: the time allowed grows with it (up to a limit).
   function budget(height, view) {
     return Math.min(BUDGET_MAX_MS, BUDGET_MS + Math.ceil(height / (view * 0.8)) * STEP_MS);
@@ -112,9 +164,8 @@ export function pictureScript(selector: string, slots = ''): string {
 
   // How it ended: 'ready' (the pictures are all there), 'short' (the places promise more than ever came),
   // 'nothing' (no picture at all) or 'late' (out of time before the pictures were all there).
-  async function scroll() {
-    var started = Date.now();
-    var y = 0;
+  async function scroll(started, there) {
+    var y = there ? heightOf() : 0;
     var quiet = 0;
     var last = '';
     while (Date.now() - started < budget(heightOf(), viewOf())) {
@@ -172,7 +223,8 @@ export function pictureScript(selector: string, slots = ''): string {
   }
 
   async function main() {
-    var how = await scroll();
+    var started = Date.now();
+    var how = await scroll(started, SLOTS ? await hop(started) : false);
     var list = pictures();
     var wanted = places();
     var summary = 'pictures ' + list.length + ', places ' + wanted + ', page height ' + heightOf();

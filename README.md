@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 310 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 315 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -232,18 +232,19 @@ timed out) is the *human check* error.
 A reader that builds its pictures with scripts (Scan-Manga's shows each as a `blob:` address)
 is read in the same WebView, behind a spinner that says how far it has got (the page goes on behind it
 as if it were seen, but a page scrolling by itself, advertisements and all, is nothing to look at; it is only
-shown while the site's check is being passed, or when that is slow): the page is scrolled a screen at a time
-until the pictures its selector matches have all come in, and their bytes are taken from the blobs the page made
+shown while the site's check is being passed, or when that is slow): the page is scrolled until the pictures its
+selector matches have all come in (from one place the page keeps for a picture to the next when it has them,
+which is quick however long the chapter is; a screen at a time otherwise), and their bytes are taken from the blobs the page made
 (a script run before the page's own keeps them, as a page may let go of the address at once),
 else asked for, else drawn. The plugin keeps them and the app takes them one at a time; they
 are stored like any picture of the sites, under addresses of the site that never reach the
 network, and the list of a chapter is stored too, so a chapter read once opens again without
 the WebView. A source asks for this with `transport.render(url, { pictures: selector, slots })`
-(`slots` selects the places the page keeps for its pictures, there before the pictures are: the script
-waits for as many pictures as places, but for a few seconds only when they stay fewer, as a page may
-number other things the same way; one that runs out of time with fewer pictures than places fails, as
-the top of a chapter is not the chapter), which only the installed app has; a module that needs it
-says `nativeOnly` and is left out of the browser build.
+(`slots` selects the places the page keeps for its pictures, there before the pictures are; those that
+show are counted, a page may keep others hidden. The script waits for as many pictures as places, but for a
+few seconds only when they stay fewer, as a page may number other things the same way; one that runs out of
+time with fewer pictures than places fails, as the top of a chapter is not the chapter), which only the
+installed app has; a module that needs it says `nativeOnly` and is left out of the browser build.
 
 A chapter link pasted from Scan-Manga does not name its series (its address has no room for the
 series' number), so the reader asks the source to complete it (`Source.complete`): the page of
@@ -255,7 +256,7 @@ Not done yet: sharing a link to the app, and its own launcher icon.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 310 unit tests
+npm run check        # types (app and worker) and the 315 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg
