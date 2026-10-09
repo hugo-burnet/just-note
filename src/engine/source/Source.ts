@@ -32,6 +32,9 @@ export abstract class Source {
    */
   readonly betterCovers: boolean = false;
 
+  /** Whether this site's series pages say their genres: where they never do, there is nothing to filter its listings by. */
+  readonly genres: boolean = true;
+
   protected readonly transport: Transport;
   protected readonly parser: HtmlParser;
 

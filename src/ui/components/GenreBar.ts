@@ -18,6 +18,8 @@ export interface GenreBarOptions {
 export class GenreBar extends Component {
   private readonly options: GenreBarOptions;
   private readonly chips = new Map<HTMLElement, ShelfGenre>();
+  /** The genre just tapped, kept in sight once the row is drawn again. */
+  private tapped: string | null = null;
 
   constructor(options: GenreBarOptions) {
     super(h('div', { class: 'chips chips-scroll genre-bar', role: 'group', 'aria-label': options.i18n.t('library.genres') }));
@@ -27,8 +29,10 @@ export class GenreBar extends Component {
       const chip = (event.target as Element | null)?.closest<HTMLElement>('.chip-button');
       if (!chip) return;
       const genre = this.chips.get(chip);
-      if (genre) options.filter.cycle(genre.key);
-      else if (chip.classList.contains('genre-reset')) options.filter.clear();
+      if (genre) {
+        options.filter.cycle(genre.key);
+        this.tapped = genre.key;
+      } else if (chip.classList.contains('genre-reset')) options.filter.clear();
       else return;
       options.onChange();
     });
@@ -38,12 +42,19 @@ export class GenreBar extends Component {
   paint(items: readonly WithGenres[]): void {
     const { i18n, filter } = this.options;
     const scrolled = this.root.scrollLeft;
+    // The chip just tapped is drawn again: the new one takes its focus.
+    const focused = [...this.chips].find(([chip]) => chip === document.activeElement)?.[1].key;
     const genres = filter.genres(items);
     this.chips.clear();
     this.root.hidden = genres.length === 0;
     const reset = filter.active ? h('button', { class: 'chip chip-button genre-reset pressable', type: 'button' }, icon('close', 14), i18n.t('library.genresClear')) : null;
     this.root.replaceChildren(...(reset ? [reset] : []), ...genres.map((genre) => this.chip(genre)));
     this.root.scrollLeft = scrolled;
+    if (focused !== undefined) [...this.chips].find(([, genre]) => genre.key === focused)?.[0].focus({ preventScroll: true });
+    // "Show all" came or went at the start of the row, and the genre tapped changed size: it is brought back in sight.
+    const tapped = [...this.chips].find(([, genre]) => genre.key === this.tapped)?.[0];
+    this.tapped = null;
+    tapped?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   private chip(genre: ShelfGenre): HTMLElement {
