@@ -34,10 +34,30 @@ export interface FetchedText {
   readonly url: string;
 }
 
+/** What a page is shown for. */
+export interface RenderRequest {
+  /** A CSS selector for the pictures the page's scripts build: they are what is collected. */
+  readonly pictures: string;
+}
+
+/** A page as a real browser shows it once its scripts have run. */
+export interface RenderedPage {
+  readonly text: string;
+  /** Where the browser ended up. */
+  readonly url: string;
+  /** The pictures the page built (no address names them), in reading order: addresses for `imageSource`. */
+  readonly pictures: readonly string[];
+}
+
 export interface Transport {
   text(url: string, request?: TextRequest): Promise<FetchedText>;
   /** The address to give an <img> so that the site's image shows up. */
   imageSource(url: string): Promise<string>;
+  /**
+   * Shows the page in a browser of the app's own, scrolled as a reader would, and collects the pictures
+   * its scripts built. Only where there is one (the installed app); the proxy cannot.
+   */
+  render?(url: string, request: RenderRequest): Promise<RenderedPage>;
 }
 
 export interface KeyValueStore {

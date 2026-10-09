@@ -66,7 +66,11 @@ export class DiagnosticPanel extends Component {
       if (this.isDestroyed) return;
       this.status.textContent = i18n.t('diagnostic.progress', { n: index + 1, total: addresses.length });
       try {
-        reports.push(await this.probe.fetch(address, { statusLabel: i18n.t('challenge.checking'), cancelLabel: i18n.t('common.cancel') }));
+        reports.push(await this.probe.fetch(address, {
+          statusLabel: i18n.t('challenge.checking'),
+          readingLabel: i18n.t('challenge.reading'),
+          cancelLabel: i18n.t('common.cancel'),
+        }));
       } catch (error) {
         failed = true;
         reports.push(`Just Read page report\nfailed: ${describe(error)}\naddress: ${address}`);

@@ -84,6 +84,37 @@ test('probe: what the page asked for while it loaded, and what failed, is in the
   assert.match(report, /--- answered with an error \(1\)\n403 https:\/\/static\.example\.test\/img\/page\/2\.jpg\n/);
 });
 
+const reader = (extra: Partial<FetchedPage> = {}): FetchedPage => ({ ...passed, html: '<html><img class="page" src="blob:https://m.example.test/1f6c">', ...extra });
+
+test('probe: a page that shows blob: pictures is looked at once more with the script that takes them, and the report says what it took', async () => {
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, ...new Array<number>(2000).fill(7)]).toString('base64');
+  const webp = Buffer.from(['R', 'I', 'F', 'F'].map((c) => c.charCodeAt(0)).concat([1, 0, 0, 0], ['W', 'E', 'B', 'P'].map((c) => c.charCodeAt(0)), [1, 2, 3])).toString('base64');
+  const { probe, fetcher } = setup(challenged, reader({ pictures: [{ type: 'image/jpeg', data: jpeg }, { type: '', data: webp }] }));
+  const report = await probe.fetch(HOME, { statusLabel: 'Checking…', readingLabel: 'Loading…', cancelLabel: 'Cancel' });
+  assert.equal(fetcher.asked.length, 2);
+  assert.deepEqual(fetcher.asked[1]?.options, { statusLabel: 'Checking…', readingLabel: 'Loading…', cancelLabel: 'Cancel', pictures: 'img[src^="blob:"]' });
+  assert.match(report, /--- pictures the reader script collected \(2, \d+ KB in all\)\n1: image\/jpeg, really image\/jpeg, 2 KB\n2: \(no type\), really image\/webp, 0 KB\n/);
+});
+
+test('probe: a script that finds nothing, or fails, is a line of the report, not a failure of it', async () => {
+  const none = setup(challenged, reader({ pictures: [] }));
+  assert.match(await none.probe.fetch(HOME), /--- pictures the reader script collected \(0, 0 KB in all\)\n/);
+  const { probe, fetcher } = setup(challenged, reader());
+  const asked = fetcher.fetch.bind(fetcher);
+  fetcher.fetch = async (url, options) => {
+    if (options?.pictures) throw Object.assign(new Error('A picture did not load (1 of 2).'), { code: 'pictures' });
+    return asked(url, options);
+  };
+  assert.match(await probe.fetch(HOME), /--- pictures the reader script collected: failed \(pictures: A picture did not load \(1 of 2\)\.\)\n/);
+});
+
+test('probe: a page without blob: pictures is not looked at twice', async () => {
+  const { probe, fetcher } = setup(challenged);
+  const report = await probe.fetch(HOME);
+  assert.equal(fetcher.asked.length, 1);
+  assert.doesNotMatch(report, /reader script/);
+});
+
 test('probe: what the caller asks of the WebView wins over what the probe would ask', async () => {
   const { probe, fetcher } = setup(() => reply(403, '', { 'cf-mitigated': 'challenge' }));
   await probe.fetch(HOME, { settleMs: 0, scroll: false });

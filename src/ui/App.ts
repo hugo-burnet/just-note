@@ -54,13 +54,18 @@ export class App implements AppContext {
     this.library = new Library(platform.store);
     this.transport = platform.connect(
       () => this.settings.get().proxyBase,
-      () => ({ statusLabel: this.i18n.t('challenge.checking'), cancelLabel: this.i18n.t('common.cancel') }),
+      () => ({
+        statusLabel: this.i18n.t('challenge.checking'),
+        readingLabel: this.i18n.t('challenge.reading'),
+        cancelLabel: this.i18n.t('common.cancel'),
+      }),
     );
     this.clipboard = platform.clipboard;
     this.usesProxy = platform.usesProxy;
     this.probe = platform.probe;
     const io = { transport: this.transport, parser: platform.parser };
-    this.registry = new SourceRegistry(SITES.map((site) => site.create(io)));
+    // A site that only a WebView can read is offered where the app has one.
+    this.registry = new SourceRegistry(SITES.filter((site) => !site.nativeOnly || !platform.usesProxy).map((site) => site.create(io)));
     this.catalog = new Catalog(this.registry, this.library);
     this.toasts = new ToastHost(elements.toasts);
     this.sheets = new AppSheets(this, document.body);

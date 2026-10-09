@@ -3,12 +3,14 @@ package io.github.hugoburnet.justread;
 import android.app.Activity;
 import android.app.Dialog;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -17,14 +19,19 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -34,9 +41,20 @@ import org.json.JSONTokener;
  * "Just a moment...") the way a browser does, and hands back the page it let through, with
  * the cookies and the User-Agent that earned it. The WebView is shown, in front of the app, so
  * that a check which needs a tap can be answered; it closes by itself once the page is there.
+ *
+ * It can also run a script of the app's in the page (once the page is ready) that gives it the
+ * pictures the page's own scripts built, which have no address to ask for. They stay here, and the
+ * app takes them one at a time (picture) and says when it has them all (release): tens of
+ * megabytes do not cross the bridge well in one answer.
+ *
+ * A failure carries a code: "cancelled", "timeout", "pictures" (the page was passed, its pictures
+ * did not come) or "unreadable".
  */
 @CapacitorPlugin(name = "PageFetcher")
 public class PageFetcherPlugin extends Plugin {
+
+    // The pictures a page built, as {type, base64}.
+    private final List<String[]> captured = Collections.synchronizedList(new ArrayList<String[]>());
 
     @PluginMethod
     public void fetch(final PluginCall call) {
@@ -55,10 +73,35 @@ public class PageFetcherPlugin extends Plugin {
         final boolean scroll = call.getBoolean("scroll", false);
         final String status = call.getString("statusLabel", "Checking the site…");
         final String cancel = call.getString("cancelLabel", "Cancel");
-        activity.runOnUiThread(() -> new Session(activity, call, url, timeoutMs, settleMs, scroll, status, cancel).start());
+        final String startScript = call.getString("startScript");
+        final String script = call.getString("script");
+        activity.runOnUiThread(() -> new Session(activity, call, captured, url, timeoutMs, settleMs, scroll, startScript, script, status, cancel).start());
     }
 
-    /** One page, from the first request to the answer. Everything here runs on the UI thread. */
+    @PluginMethod
+    public void picture(PluginCall call) {
+        final Integer index = call.getInt("index");
+        String[] one = null;
+        synchronized (captured) {
+            if (index != null && index >= 0 && index < captured.size()) one = captured.get(index);
+        }
+        if (one == null) {
+            call.reject("There is no such picture.");
+            return;
+        }
+        JSObject result = new JSObject();
+        result.put("type", one[0]);
+        result.put("data", one[1]);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void release(PluginCall call) {
+        captured.clear();
+        call.resolve();
+    }
+
+    /** One page, from the first request to the answer. Everything here runs on the UI thread, but the page's script. */
     private static final class Session {
 
         // The check's own page carries a script from /cdn-cgi/challenge-platform/.../orchestrate: while it is
@@ -69,16 +112,23 @@ public class PageFetcherPlugin extends Plugin {
                 + "ready:document.readyState});})()";
         private static final long POLL_MS = 600;
         private static final long SETTLE_STEP_MS = 700;
+        // Scrolling a chapter, and reading each of its pictures, is given this long once the page is ready.
+        private static final long SCRIPT_TIMEOUT_MS = 90000;
         private static final int MAX_LOGGED = 500;
 
         private final Activity activity;
         private final PluginCall call;
+        private final List<String[]> captured;
         private final String url;
         private final long timeoutMs;
         private final long settleMs;
         private final boolean scroll;
+        private final String startScript;
+        private final String script;
         private final String statusLabel;
         private final String cancelLabel;
+        // What the script of the app must show to be heard by the page's bridge: other frames of the page can reach it too.
+        private final String token = UUID.randomUUID().toString();
         private final Handler handler = new Handler(Looper.getMainLooper());
         // What the page asks for, and what the site answers with an error: where a reader gets its pictures from.
         // Both are written from the WebView's own threads.
@@ -87,16 +137,31 @@ public class PageFetcherPlugin extends Plugin {
         private Dialog dialog;
         private WebView web;
         private boolean loaded = false;
-        private boolean finished = false;
+        private volatile boolean finished = false;
         private long startedAt;
 
-        Session(Activity activity, PluginCall call, String url, long timeoutMs, long settleMs, boolean scroll, String statusLabel, String cancelLabel) {
+        Session(
+            Activity activity,
+            PluginCall call,
+            List<String[]> captured,
+            String url,
+            long timeoutMs,
+            long settleMs,
+            boolean scroll,
+            String startScript,
+            String script,
+            String statusLabel,
+            String cancelLabel
+        ) {
             this.activity = activity;
             this.call = call;
+            this.captured = captured;
             this.url = url;
             this.timeoutMs = timeoutMs;
             this.settleMs = settleMs;
             this.scroll = scroll;
+            this.startScript = startScript;
+            this.script = script;
             this.statusLabel = statusLabel;
             this.cancelLabel = cancelLabel;
         }
@@ -129,6 +194,11 @@ public class PageFetcherPlugin extends Plugin {
                     }
                 }
             );
+            if (script != null) {
+                captured.clear();
+                web.addJavascriptInterface(new Pictures(), "JustReadPictures");
+            }
+            if (startScript != null) injectBeforeThePage();
 
             TextView label = new TextView(activity);
             label.setText(statusLabel);
@@ -136,7 +206,7 @@ public class PageFetcherPlugin extends Plugin {
             label.setTextSize(16);
             Button cancel = new Button(activity);
             cancel.setText(cancelLabel);
-            cancel.setOnClickListener(view -> finish(null, "Cancelled."));
+            cancel.setOnClickListener(view -> finish(null, "cancelled", "Cancelled."));
             LinearLayout bar = new LinearLayout(activity);
             bar.setGravity(Gravity.CENTER_VERTICAL);
             bar.setPadding(32, 16, 16, 16);
@@ -156,7 +226,7 @@ public class PageFetcherPlugin extends Plugin {
 
             dialog = new Dialog(activity, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
             dialog.setContentView(root);
-            dialog.setOnCancelListener(shown -> finish(null, "Cancelled."));
+            dialog.setOnCancelListener(shown -> finish(null, "cancelled", "Cancelled."));
             dialog.show();
 
             startedAt = SystemClock.elapsedRealtime();
@@ -164,12 +234,31 @@ public class PageFetcherPlugin extends Plugin {
             handler.postDelayed(poll, POLL_MS);
         }
 
+        // Runs `startScript` in the page before any script of the page does, on the site's own origins.
+        // Where the WebView cannot, the script is simply not run: what it prepares is a convenience.
+        private void injectBeforeThePage() {
+            if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) return;
+            String host = Uri.parse(url).getHost();
+            if (host == null) return;
+            String[] labels = host.split("\\.");
+            String domain = labels.length > 2 ? labels[labels.length - 2] + "." + labels[labels.length - 1] : host;
+            try {
+                WebViewCompat.addDocumentStartJavaScript(
+                    web,
+                    startScript,
+                    new HashSet<String>(Arrays.asList("https://" + host, "https://*." + domain))
+                );
+            } catch (IllegalArgumentException invalidRule) {
+                // Not the usual rules of the WebView: the script is not run.
+            }
+        }
+
         private final Runnable poll = new Runnable() {
             @Override
             public void run() {
                 if (finished) return;
                 if (SystemClock.elapsedRealtime() - startedAt > timeoutMs) {
-                    finish(null, "The site did not let the page through in time.");
+                    finish(null, "timeout", "The site did not let the page through in time.");
                     return;
                 }
                 if (!loaded) {
@@ -181,7 +270,8 @@ public class PageFetcherPlugin extends Plugin {
                     try {
                         JSONObject state = new JSONObject((String) new JSONTokener(value).nextValue());
                         if (!state.optBoolean("running", true) && "complete".equals(state.optString("ready"))) {
-                            settle();
+                            if (script != null) runScript();
+                            else settle();
                             return;
                         }
                     } catch (Exception notReadyYet) {
@@ -217,6 +307,12 @@ public class PageFetcherPlugin extends Plugin {
             );
         }
 
+        // The script of the app scrolls the page, then gives the pictures to Pictures, which ends with done or fail.
+        private void runScript() {
+            handler.postDelayed(() -> finish(null, "pictures", "The pictures did not come in time."), SCRIPT_TIMEOUT_MS);
+            web.evaluateJavascript("window.__justReadToken=" + JSONObject.quote(token) + ";" + script, null);
+        }
+
         private void collect() {
             web.evaluateJavascript("document.documentElement.outerHTML", value -> {
                 if (finished) return;
@@ -231,9 +327,10 @@ public class PageFetcherPlugin extends Plugin {
                     result.put("cookies", cookies == null ? "" : cookies);
                     result.put("requests", snapshot(requests));
                     result.put("failures", snapshot(failures));
-                    finish(result, null);
+                    if (script != null) result.put("pictures", captured.size());
+                    finish(result, null, null);
                 } catch (Exception failure) {
-                    finish(null, "The page could not be read: " + failure.getMessage());
+                    finish(null, "unreadable", "The page could not be read: " + failure.getMessage());
                 }
             });
         }
@@ -244,7 +341,7 @@ public class PageFetcherPlugin extends Plugin {
             }
         }
 
-        private void finish(JSObject result, String error) {
+        private void finish(JSObject result, String code, String error) {
             if (finished) return;
             finished = true;
             handler.removeCallbacksAndMessages(null);
@@ -257,7 +354,29 @@ public class PageFetcherPlugin extends Plugin {
             web.stopLoading();
             web.destroy();
             if (result != null) call.resolve(result);
-            else call.reject(error);
+            else call.reject(error, code);
+        }
+
+        /** What the script of the app calls, from the page: the WebView runs these on a thread of its own. */
+        private final class Pictures {
+
+            @JavascriptInterface
+            public void add(String presented, String type, String data) {
+                if (finished || !token.equals(presented)) return;
+                captured.add(new String[] { type, data });
+            }
+
+            @JavascriptInterface
+            public void done(String presented) {
+                if (!token.equals(presented)) return;
+                handler.post(() -> collect());
+            }
+
+            @JavascriptInterface
+            public void fail(String presented, String message) {
+                if (!token.equals(presented)) return;
+                handler.post(() -> finish(null, "pictures", "The pictures could not be read: " + message));
+            }
         }
     }
 }

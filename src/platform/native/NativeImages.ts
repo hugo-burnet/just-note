@@ -1,6 +1,5 @@
-import { IMAGE_TYPES, MAX_IMAGE_BYTES } from '../../../proxy/limits.ts';
-import { TransportError } from '../../engine/index.ts';
 import type { NativeResponse } from './NativeHttp.ts';
+import { imageFromBase64 } from './ImageBytes.ts';
 import type { ResponseStore } from './ResponseStore.ts';
 import type { Sites } from './SiteClient.ts';
 
@@ -48,6 +47,21 @@ export class NativeImages {
     return pending;
   }
 
+  /** Keeps a picture that was not downloaded (a page built it) where `source(address)` finds it. */
+  async keep(address: string, blob: Blob): Promise<void> {
+    await this.store.put(this.client.resolve(address).href, new Response(blob, { headers: { 'content-type': blob.type } }));
+    const pending = this.live.get(address);
+    if (pending) {
+      this.live.delete(address);
+      void pending.then((url) => this.blobs.revoke(url));
+    }
+  }
+
+  /** Whether a picture is kept, so that `source(address)` needs no network. */
+  async has(address: string): Promise<boolean> {
+    return (await this.store.get(this.client.resolve(address).href)) !== undefined;
+  }
+
   private async load(address: string): Promise<string> {
     const key = this.client.resolve(address).href;
     const kept = await this.store.get(key);
@@ -68,11 +82,5 @@ export class NativeImages {
 }
 
 function decode(response: NativeResponse): Blob {
-  const type = (response.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
-  if (!IMAGE_TYPES.has(type)) throw new TransportError('not_an_image', 'The source did not return an image.');
-  if (response.body.length * 0.75 > MAX_IMAGE_BYTES) throw new TransportError('too_large', 'The source sent more data than allowed.');
-  const binary = atob(response.body);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type });
+  return imageFromBase64(response.body, (response.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase() ?? '');
 }

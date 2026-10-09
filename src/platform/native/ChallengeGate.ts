@@ -1,5 +1,5 @@
 import { TransportError } from '../../engine/index.ts';
-import type { DialogLabels } from '../Platform.ts';
+import type { DialogLabels, FetchOptions } from '../Platform.ts';
 import { isChallenge } from './Challenge.ts';
 import type { CredentialJar } from './CredentialJar.ts';
 import type { FetchedPage, PageFetcher } from './PageFetcher.ts';
@@ -9,6 +9,11 @@ import type { Fetched, Kind, SiteClient, Sites } from './SiteClient.ts';
 // let pictures through: asking the user again for each of the pictures of a chapter would be no help.
 const PICTURE_WINDOW_MS = 5 * 60_000;
 const ROUNDS = 3;
+
+/** Shows a page in the WebView of the app and gives back the pictures its scripts built. */
+export interface PageRenderer {
+  render(address: string, selector: string): Promise<FetchedPage>;
+}
 
 /** One at a time: the WebView is a full-screen dialog, and two cannot be answered together. */
 class Queue {
@@ -28,7 +33,7 @@ class Queue {
  * the phone's own network is used again and the WebView is only needed when the clearance runs out.
  * A page that the phone is still turned away from is read from the WebView's own copy instead.
  */
-export class ChallengeGate implements Sites {
+export class ChallengeGate implements Sites, PageRenderer {
   private readonly client: SiteClient;
   private readonly jar: CredentialJar;
   private readonly fetcher: PageFetcher;
@@ -60,18 +65,35 @@ export class ChallengeGate implements Sites {
     }
   }
 
+  /**
+   * The page as the WebView shows it once its scripts have run, with the pictures they built (those
+   * that `selector` matches, in the order they are in the page). It is the WebView that passes a check
+   * on the way, and what it earns is kept as for any other page.
+   */
+  render(address: string, selector: string): Promise<FetchedPage> {
+    const url = this.client.resolve(address);
+    return this.queue.run(() => this.visit(url, { ...this.dialog(), pictures: selector }));
+  }
+
   /** The page as the WebView shows it once the site let it through; nothing when another request got through while this one waited. */
   private async pass(url: URL, kind: Kind, version: number): Promise<FetchedPage | undefined> {
     if (this.jar.version !== version) return undefined;
     if (kind === 'image' && this.jar.earnedWithin(url.hostname, PICTURE_WINDOW_MS)) {
       throw new TransportError('upstream_status', 'The source answered 403.', { upstreamStatus: 403, host: url.hostname });
     }
+    return this.visit(url, this.dialog());
+  }
+
+  private async visit(url: URL, options: FetchOptions): Promise<FetchedPage> {
     let page: FetchedPage;
     try {
-      page = await this.fetcher.fetch(url.href, this.dialog());
-    } catch {
-      // The user cancelled, or the site never let the WebView through.
-      throw new TransportError('blocked', 'The site asked for a human check that was not passed.', { host: url.hostname });
+      page = await this.fetcher.fetch(url.href, options);
+    } catch (error) {
+      // The check was not passed (the user cancelled, or the site never let the WebView through), or the
+      // page was passed and its pictures did not come.
+      const host = url.hostname;
+      if ((error as { code?: unknown }).code === 'pictures') throw new TransportError('upstream_unreachable', 'The pictures of the page did not come.', { host });
+      throw new TransportError('blocked', 'The site asked for a human check that was not passed.', { host });
     }
     this.jar.remember(page, url.hostname);
     return page;

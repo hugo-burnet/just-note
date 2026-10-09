@@ -111,6 +111,7 @@ export const fr: Readonly<Record<MessageKey, string>> = {
   'diagnostic.fetch': 'Récupérer les pages',
   'diagnostic.progress': 'Page {n} sur {total}…',
   'challenge.checking': 'Vérification du site…',
+  'challenge.reading': 'Chargement du chapitre…',
   'diagnostic.done': 'Rapport prêt ({n} caractères)',
   'diagnostic.failed': 'Échec',
   'diagnostic.copy': 'Copier le rapport',

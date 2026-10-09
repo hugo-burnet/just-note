@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 240 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 278 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -59,15 +59,16 @@ runs it sees everything you read and can alter what you are shown.
 - **Verified on a phone, by the author's report: Settings → Diagnostic passes Scan-Manga's
   anti-bot check** with a WebView (`PageFetcherPlugin.java`) and reports the home, a series
   and a chapter. **Not verified: what came after** — reading through that WebView in the
-  reader (below), the report's lines on what the page requested, and several addresses in
-  one report.
+  reader (below), the report's lines on what the page requested, several addresses in one
+  report, and the whole **Scan-Manga** module: it was written from three reports, and its
+  card titles and chapter reading are guesses until a phone has run them.
 - Some sites cannot be read from a web app at all: the ones that check their visitors
   with an anti-bot challenge (Cloudflare's *Just a moment…*) answer the proxy with a page
   that only a real browser can pass. Scan-Manga and SushiScan are two (their mobile
   sites too). The APK asks from the phone, but it runs no JavaScript either, so a check
   turns it away the same way: there, a WebView of the app passes the check (see *The APK*),
   and *Settings → Diagnostic* copies a report of what the site sends, which is what a module
-  is written from. Scan-Manga has no module yet.
+  is written from. Scan-Manga has a module for the APK (it is not offered in the browser).
 - LelScan has no search of its own: searching filters its list of series. A chapter takes
   one request per page (the images are not named alike from one series to the next), so a
   long chapter takes a few seconds to open.
@@ -172,6 +173,7 @@ it), so a site cannot be readable in one and refused by the other.
    prints them in its log. A site that answers `403` with *Just a moment…* checks its
    visitors with an anti-bot challenge, which neither the proxy nor the probe can pass:
    it cannot be read from the web app.
+   (Scan-Manga is behind such a check, and it is read in the APK: `nativeOnly` in its module.)
 2. Write a `Source` subclass in `src/engine/source/<site>/` (recognise a link, read a
    series, a listing, a chapter). Look at `webtoon/` for a small one. It also says how
    its content is meant to be read, which is what *Auto* stands for in the settings:
@@ -220,12 +222,25 @@ pictures are not (they stay broken for a few minutes rather than open the WebVie
 Requests turned away together share one WebView. A check that is not passed (cancelled, or
 timed out) is the *human check* error.
 
-Not done yet: sharing a link to the app, and its own launcher icon.
+A reader that builds its pictures with scripts (Scan-Manga's shows each as a `blob:` address)
+is read in the same WebView: the page is scrolled a screen at a time until the pictures its
+selector matches have all come in, and their bytes are taken from the blobs the page made
+(a script run before the page's own keeps them, as a page may let go of the address at once),
+else asked for, else drawn. The plugin keeps them and the app takes them one at a time; they
+are stored like any picture of the sites, under addresses of the site that never reach the
+network, and the list of a chapter is stored too, so a chapter read once opens again without
+the WebView. A source asks for this with `transport.render(url, { pictures: selector })`,
+which only the installed app has; a module that needs it says `nativeOnly` and is left out
+of the browser build.
+
+Not done yet: sharing a link to the app, its own launcher icon, and opening a chapter link
+pasted from Scan-Manga (its address does not name its series, so the app gives chapters an
+address that does; a pasted one opens the site's listing instead).
 
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 240 unit tests
+npm run check        # types (app and worker) and the 278 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

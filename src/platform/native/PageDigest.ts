@@ -12,6 +12,8 @@ export interface DigestSource {
   readonly requests?: readonly string[];
   /** The ones the site answered with an error ("403 https://…"). */
   readonly failures?: readonly string[];
+  /** What the script that takes the pictures a page built found, as lines (see NativeProbe). */
+  readonly collected?: readonly string[];
 }
 
 // The report is pasted into a message from a phone, so it stays near ten thousand characters
@@ -181,6 +183,7 @@ export function digest(source: DigestSource): string {
     ...inline.slice(0, MAX_INLINE).map((text) => `inline: ${clip(text, INLINE_CHARS)}`),
     ...(source.requests ? [`--- requests the page made (${source.requests.length})`, ...requestLines(source.requests, source.url)] : []),
     ...(source.failures?.length ? [`--- answered with an error (${source.failures.length})`, ...source.failures.slice(0, MAX_FAILURES).map((failure) => clip(failure, REQUEST_CHARS + 20))] : []),
+    ...(source.collected ?? []),
     `--- pictures named (${pictures.length})`,
     ...pictures.slice(0, MAX_PICTURES),
     `--- first <img> tags (${tags.length} in all)`,

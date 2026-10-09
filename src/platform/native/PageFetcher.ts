@@ -1,5 +1,14 @@
 import { registerPlugin } from '@capacitor/core';
 import type { FetchOptions } from '../Platform.ts';
+import { BLOB_HOOK, pictureScript } from './pictureScript.ts';
+
+/** A picture a page built, as the WebView read it. */
+export interface CapturedPicture {
+  /** What the bytes are, when the page said ("image/jpeg"); empty when it did not. */
+  readonly type: string;
+  /** The bytes, in base64. */
+  readonly data: string;
+}
 
 /** A page as a real WebView shows it once the site let it through. */
 export interface FetchedPage {
@@ -13,27 +22,67 @@ export interface FetchedPage {
   readonly requests?: readonly string[];
   /** The ones the site answered with an error ("403 https://…"). */
   readonly failures?: readonly string[];
+  /** The pictures asked for with `FetchOptions.pictures`, in the order they are in the page. */
+  readonly pictures?: readonly CapturedPicture[];
 }
 
 export interface PageFetcher {
   fetch(url: string, options?: FetchOptions): Promise<FetchedPage>;
 }
 
+interface PluginOptions {
+  url: string;
+  timeoutMs: number;
+  statusLabel?: string;
+  cancelLabel?: string;
+  settleMs?: number;
+  scroll?: boolean;
+  startScript?: string;
+  script?: string;
+}
+
+// The pictures are not in the answer: there can be tens of megabytes of them, which the bridge
+// carries better one at a time. The answer says how many there are.
+type PluginPage = Omit<FetchedPage, 'pictures'> & { pictures?: number };
+
 interface PageFetcherPlugin {
-  fetch(options: { url: string; timeoutMs: number; statusLabel?: string; cancelLabel?: string; settleMs?: number; scroll?: boolean }): Promise<FetchedPage>;
+  fetch(options: PluginOptions): Promise<PluginPage>;
+  picture(options: { index: number }): Promise<CapturedPicture>;
+  release(): Promise<void>;
 }
 
 const TIMEOUT_MS = 90_000;
 
 /**
  * The WebView of the app (android/…/PageFetcherPlugin.java): it runs the scripts of an anti-bot
- * check as a browser does, in front of the app so that a check which needs a tap can be answered.
+ * check as a browser does, in front of the app so that a check which needs a tap can be answered,
+ * and the scripts of a reader that builds its pictures, which it hands back.
  */
 export class WebViewPageFetcher implements PageFetcher {
   private readonly plugin = registerPlugin<PageFetcherPlugin>('PageFetcher');
 
-  fetch(url: string, options: FetchOptions = {}): Promise<FetchedPage> {
-    const { statusLabel, cancelLabel, settleMs, scroll } = options;
-    return this.plugin.fetch({ url, timeoutMs: TIMEOUT_MS, statusLabel, cancelLabel, settleMs, scroll });
+  async fetch(url: string, options: FetchOptions = {}): Promise<FetchedPage> {
+    const { statusLabel, readingLabel, cancelLabel, settleMs, scroll, pictures: selector } = options;
+    const reading = selector ? { startScript: BLOB_HOOK, script: pictureScript(selector) } : {};
+    const { pictures: count = 0, ...page } = await this.plugin.fetch({
+      url,
+      timeoutMs: TIMEOUT_MS,
+      statusLabel: selector ? (readingLabel ?? statusLabel) : statusLabel,
+      cancelLabel,
+      settleMs,
+      scroll,
+      ...reading,
+    });
+    return selector ? { ...page, pictures: await this.take(count) } : page;
+  }
+
+  private async take(count: number): Promise<CapturedPicture[]> {
+    const taken: CapturedPicture[] = [];
+    try {
+      for (let index = 0; index < count; index++) taken.push(await this.plugin.picture({ index }));
+    } finally {
+      await this.plugin.release().catch(() => undefined);
+    }
+    return taken;
   }
 }

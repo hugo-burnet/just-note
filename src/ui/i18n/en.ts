@@ -110,6 +110,7 @@ export const en = {
   'diagnostic.fetch': 'Fetch the pages',
   'diagnostic.progress': 'Page {n} of {total}…',
   'challenge.checking': 'Checking the site…',
+  'challenge.reading': 'Loading the chapter…',
   'diagnostic.done': 'Report ready ({n} characters)',
   'diagnostic.failed': 'Failed',
   'diagnostic.copy': 'Copy the report',

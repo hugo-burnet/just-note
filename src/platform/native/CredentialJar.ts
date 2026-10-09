@@ -11,6 +11,9 @@ interface Entry {
   readonly at: number;
 }
 
+/** `scan-manga.com` for `static.scan-manga.com`: the hosts of one site share its domain. */
+const domainOf = (host: string): string => host.split('.').slice(-2).join('.');
+
 function hostOf(address: string): string {
   try {
     return new URL(address).hostname;
@@ -35,8 +38,12 @@ export class CredentialJar implements Credentials {
     this.now = now;
   }
 
+  /**
+   * A host nothing was earned for goes with what its site's other hosts earned: a clearance is usually
+   * given to the whole domain (to `.example.com`), and where it is not, sending it does no harm.
+   */
   headersFor(host: string): Readonly<Record<string, string>> {
-    const entry = this.kept.get(host);
+    const entry = this.kept.get(host) ?? this.newestOf(domainOf(host));
     if (!entry) return {};
     return entry.cookie ? { 'User-Agent': entry.userAgent, Cookie: entry.cookie } : { 'User-Agent': entry.userAgent };
   }
@@ -50,7 +57,15 @@ export class CredentialJar implements Credentials {
     this.version++;
   }
 
-  /** Whether a WebView earned this host's credentials less than `ms` ago. */
+  private newestOf(domain: string): Entry | undefined {
+    let newest: Entry | undefined;
+    for (const [host, entry] of this.kept) {
+      if (domainOf(host) === domain && (!newest || entry.at > newest.at)) newest = entry;
+    }
+    return newest;
+  }
+
+  /** Whether a WebView earned this very host's credentials less than `ms` ago. */
   earnedWithin(host: string, ms: number): boolean {
     const entry = this.kept.get(host);
     return entry !== undefined && this.now() - entry.at < ms;

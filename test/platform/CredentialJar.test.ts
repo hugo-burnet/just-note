@@ -15,7 +15,19 @@ test('jar: what the WebView earned goes with its User-Agent, for the hosts that 
   const expected = { 'User-Agent': 'webview', Cookie: 'cf_clearance=ok' };
   assert.deepEqual(jar.headersFor('www.example.test'), expected);
   assert.deepEqual(jar.headersFor('m.example.test'), expected);
-  assert.deepEqual(jar.headersFor('static.example.test'), {});
+  assert.deepEqual(jar.headersFor('static.other.test'), {});
+});
+
+test('jar: a host of the same site that nothing was earned for goes with the newest of the others', () => {
+  let now = 1;
+  const jar = new CredentialJar(() => now);
+  jar.remember(shown('https://www.example.test/', 'a=old'), 'www.example.test');
+  now = 2;
+  jar.remember(shown('https://m.example.test/', 'a=new'), 'm.example.test');
+  assert.equal(jar.headersFor('static.example.test')['Cookie'], 'a=new');
+  assert.equal(jar.headersFor('www.example.test')['Cookie'], 'a=old', 'a host keeps its own');
+  // But it is not earned for: a picture host still gets its own WebView pass.
+  assert.equal(jar.earnedWithin('static.example.test', 60_000), false);
 });
 
 test('jar: a WebView that was given no cookie still lends its User-Agent, and no empty Cookie is sent', () => {

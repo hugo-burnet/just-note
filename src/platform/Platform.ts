@@ -8,7 +8,10 @@ export interface Clipboard {
 
 /** What the user may be told while a page is being checked by a WebView (the words are the app's, in its language). */
 export interface DialogLabels {
+  /** While a site's anti-bot check is passed. */
   readonly statusLabel?: string;
+  /** While a chapter is loaded in the WebView. */
+  readonly readingLabel?: string;
   readonly cancelLabel?: string;
 }
 
@@ -18,6 +21,11 @@ export interface FetchOptions extends DialogLabels {
   readonly settleMs?: number;
   /** Scroll to the bottom meanwhile, which is what makes a page that loads its pictures as they come into view load them. */
   readonly scroll?: boolean;
+  /**
+   * A CSS selector for the pictures the page builds with its scripts (they have no address to ask for):
+   * the page is scrolled until they have all come in, and they are handed back with it.
+   */
+  readonly pictures?: string;
 }
 
 /**
