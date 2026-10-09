@@ -45,9 +45,11 @@ public class PageFetcherPlugin extends Plugin {
             return;
         }
         final int timeoutMs = call.getInt("timeoutMs", 90000);
+        final int settleMs = call.getInt("settleMs", 0);
+        final boolean scroll = call.getBoolean("scroll", false);
         final String status = call.getString("statusLabel", "Checking the site…");
         final String cancel = call.getString("cancelLabel", "Cancel");
-        activity.runOnUiThread(() -> new Session(activity, call, url, timeoutMs, status, cancel).start());
+        activity.runOnUiThread(() -> new Session(activity, call, url, timeoutMs, settleMs, scroll, status, cancel).start());
     }
 
     /** One page, from the first request to the answer. Everything here runs on the UI thread. */
@@ -60,11 +62,14 @@ public class PageFetcherPlugin extends Plugin {
                 + "'script[src*=\"/cdn-cgi/challenge-platform/\"][src*=\"orchestrate\"],#challenge-error-text,#cf-challenge-running'),"
                 + "ready:document.readyState});})()";
         private static final long POLL_MS = 600;
+        private static final long SETTLE_STEP_MS = 700;
 
         private final Activity activity;
         private final PluginCall call;
         private final String url;
         private final long timeoutMs;
+        private final long settleMs;
+        private final boolean scroll;
         private final String statusLabel;
         private final String cancelLabel;
         private final Handler handler = new Handler(Looper.getMainLooper());
@@ -74,11 +79,13 @@ public class PageFetcherPlugin extends Plugin {
         private boolean finished = false;
         private long startedAt;
 
-        Session(Activity activity, PluginCall call, String url, long timeoutMs, String statusLabel, String cancelLabel) {
+        Session(Activity activity, PluginCall call, String url, long timeoutMs, long settleMs, boolean scroll, String statusLabel, String cancelLabel) {
             this.activity = activity;
             this.call = call;
             this.url = url;
             this.timeoutMs = timeoutMs;
+            this.settleMs = settleMs;
+            this.scroll = scroll;
             this.statusLabel = statusLabel;
             this.cancelLabel = cancelLabel;
         }
@@ -151,7 +158,7 @@ public class PageFetcherPlugin extends Plugin {
                     try {
                         JSONObject state = new JSONObject((String) new JSONTokener(value).nextValue());
                         if (!state.optBoolean("running", true) && "complete".equals(state.optString("ready"))) {
-                            collect();
+                            settle();
                             return;
                         }
                     } catch (Exception notReadyYet) {
@@ -161,6 +168,31 @@ public class PageFetcherPlugin extends Plugin {
                 });
             }
         };
+
+        // A page that builds itself with scripts, or loads its pictures as they come into view, is given
+        // a few seconds (and scrolled to the bottom meanwhile) before it is read.
+        private void settle() {
+            final long until = SystemClock.elapsedRealtime() + settleMs;
+            handler.post(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if (finished) return;
+                        if (scroll) {
+                            web.evaluateJavascript(
+                                "window.scrollTo(0,Math.max(document.body?document.body.scrollHeight:0,document.documentElement.scrollHeight))",
+                                null
+                            );
+                        }
+                        if (SystemClock.elapsedRealtime() >= until) {
+                            collect();
+                            return;
+                        }
+                        handler.postDelayed(this, SETTLE_STEP_MS);
+                    }
+                }
+            );
+        }
 
         private void collect() {
             web.evaluateJavascript("document.documentElement.outerHTML", value -> {

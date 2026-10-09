@@ -7,7 +7,7 @@ import { NativeProbe } from '../../src/platform/native/NativeProbe.ts';
 import { OpenPolicy } from '../../src/platform/native/OpenPolicy.ts';
 import type { FetchedPage, PageFetcher } from '../../src/platform/native/PageFetcher.ts';
 import { SiteClient } from '../../src/platform/native/SiteClient.ts';
-import type { DialogLabels } from '../../src/platform/Platform.ts';
+import type { FetchOptions } from '../../src/platform/Platform.ts';
 
 const HOME = 'https://m.example.test/?po';
 
@@ -26,15 +26,15 @@ class FakeHttp implements NativeHttp {
 }
 
 class FakeFetcher implements PageFetcher {
-  readonly asked: Array<{ url: string; labels: DialogLabels | undefined }> = [];
+  readonly asked: Array<{ url: string; options: FetchOptions | undefined }> = [];
   private readonly page: FetchedPage | Error;
 
   constructor(page: FetchedPage | Error) {
     this.page = page;
   }
 
-  async fetch(url: string, labels?: DialogLabels): Promise<FetchedPage> {
-    this.asked.push({ url, labels });
+  async fetch(url: string, options?: FetchOptions): Promise<FetchedPage> {
+    this.asked.push({ url, options });
     if (this.page instanceof Error) throw this.page;
     return this.page;
   }
@@ -68,11 +68,18 @@ test('probe: any host is fine, an http address is asked for over https', async (
 test('probe: a check that turns the phone away is passed by a WebView, which the report says', async () => {
   const { probe, fetcher } = setup(() => reply(403, '<title>Just a moment...</title>', { 'cf-mitigated': 'challenge' }));
   const report = await probe.fetch(HOME, { statusLabel: 'Checking…', cancelLabel: 'Cancel' });
-  assert.deepEqual(fetcher.asked, [{ url: HOME, labels: { statusLabel: 'Checking…', cancelLabel: 'Cancel' } }]);
+  // The words are the app's; the page is given a few seconds and scrolled, as a reader would be.
+  assert.deepEqual(fetcher.asked, [{ url: HOME, options: { settleMs: 3000, scroll: true, statusLabel: 'Checking…', cancelLabel: 'Cancel' } }]);
   assert.match(report, /via: a WebView/);
   assert.match(report, /own network answered: 403/);
   assert.match(report, /\/series\/lantern/);
   assert.doesNotMatch(report, /Just a moment/);
+});
+
+test('probe: what the caller asks of the WebView wins over what the probe would ask', async () => {
+  const { probe, fetcher } = setup(() => reply(403, '', { 'cf-mitigated': 'challenge' }));
+  await probe.fetch(HOME, { settleMs: 0, scroll: false });
+  assert.deepEqual(fetcher.asked[0]?.options, { settleMs: 0, scroll: false });
 });
 
 test('probe: a plain refusal is reported as it is, with no WebView', async () => {

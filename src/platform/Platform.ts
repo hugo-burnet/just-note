@@ -12,13 +12,21 @@ export interface DialogLabels {
   readonly cancelLabel?: string;
 }
 
+/** What a page loaded in the WebView may be given besides the words around it. */
+export interface FetchOptions extends DialogLabels {
+  /** Wait this long after the page is ready, for the scripts that build it to finish. */
+  readonly settleMs?: number;
+  /** Scroll to the bottom meanwhile, which is what makes a page that loads its pictures as they come into view load them. */
+  readonly scroll?: boolean;
+}
+
 /**
  * Fetches any https page the way a browser would, past an anti-bot check if there is one, and
  * answers with a report to copy (see PageDigest.ts). It is how a site that cannot be read is
  * looked at from the phone, as the Probe workflow looks at it from GitHub.
  */
 export interface PageProbe {
-  fetch(address: string, labels?: DialogLabels): Promise<string>;
+  fetch(address: string, options?: FetchOptions): Promise<string>;
 }
 
 /** How the app reaches the sites, and whether that works right now. */

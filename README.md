@@ -201,8 +201,10 @@ service worker's cache names (so *Settings → Data* empties both), and the serv
 not registered. The proxy address setting is hidden. *Settings → Diagnostic* is the Probe
 workflow, from the phone: it fetches any https address with the phone's own network, and
 through a WebView (`PageFetcherPlugin.java`, shown in front of the app so that a check which
-needs a tap can be answered) when an anti-bot check turns that away, and gives a report in
-the shape of the Probe's log to copy. Not done yet: sharing a link to the app, its own
+needs a tap can be answered) when an anti-bot check turns that away, and gives a short
+report to copy: how the page describes itself, the kinds of page it links to with the markup
+around the first link of the commonest kinds, what it loads, the pictures it names, and the
+start of its body. Not done yet: sharing a link to the app, its own
 launcher icon, and reading a site behind a check in the reader.
 
 ## Tests

@@ -1,5 +1,5 @@
 import { registerPlugin } from '@capacitor/core';
-import type { DialogLabels } from '../Platform.ts';
+import type { FetchOptions } from '../Platform.ts';
 
 /** A page as a real WebView shows it once the site let it through. */
 export interface FetchedPage {
@@ -12,11 +12,11 @@ export interface FetchedPage {
 }
 
 export interface PageFetcher {
-  fetch(url: string, labels?: DialogLabels): Promise<FetchedPage>;
+  fetch(url: string, options?: FetchOptions): Promise<FetchedPage>;
 }
 
 interface PageFetcherPlugin {
-  fetch(options: { url: string; timeoutMs: number; statusLabel?: string; cancelLabel?: string }): Promise<FetchedPage>;
+  fetch(options: { url: string; timeoutMs: number; statusLabel?: string; cancelLabel?: string; settleMs?: number; scroll?: boolean }): Promise<FetchedPage>;
 }
 
 const TIMEOUT_MS = 90_000;
@@ -28,7 +28,8 @@ const TIMEOUT_MS = 90_000;
 export class WebViewPageFetcher implements PageFetcher {
   private readonly plugin = registerPlugin<PageFetcherPlugin>('PageFetcher');
 
-  fetch(url: string, labels: DialogLabels = {}): Promise<FetchedPage> {
-    return this.plugin.fetch({ url, timeoutMs: TIMEOUT_MS, statusLabel: labels.statusLabel, cancelLabel: labels.cancelLabel });
+  fetch(url: string, options: FetchOptions = {}): Promise<FetchedPage> {
+    const { statusLabel, cancelLabel, settleMs, scroll } = options;
+    return this.plugin.fetch({ url, timeoutMs: TIMEOUT_MS, statusLabel, cancelLabel, settleMs, scroll });
   }
 }
