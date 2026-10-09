@@ -53,7 +53,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 402 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 413 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -63,7 +63,7 @@ runs it sees everything you read and can alter what you are shown.
   changes from another tab update the visible shelf. The native TypeScript reader is
   also exercised in Chromium: retries in both modes, nearby image loading, and a
   140-image chapter revisited offline after unused blob addresses have been released.
-  Its native composition also lists all five sources and opens Scan-Manga and SushiScan
+  Its native composition also lists all six sources and opens Scan-Manga and SushiScan
   against fixture pages, using the real native TypeScript transport and blob images.
   These checks do not replace running the APK on a phone.
 - **Backups and layout:** browser download, invalid file rejection, restoration after
@@ -104,6 +104,15 @@ runs it sees everything you read and can alter what you are shown.
   volumes are listed (they are in a list of their own, which is read since), and a volume's page finds its 193
   pictures. **But the pictures themselves were not shown** (each frame said *Retry*): the phone could not have them
   from `c.sushiscan.net`, for a reason the next report, which says it, is to give.
+- **Not verified: Demonic Scans** (`demonicscans.org`, English, mostly manhwa, read as a column). The machine
+  it was written on could not reach the site: it follows what the readers that already read it look for (Mihon's
+  and Kotatsu's modules for it, which agree), and is tested on pages shaped the same way. The latest updates are
+  `/lastupdates.php` (the cards with a `toffee-badge` are advertisements, left out), a search is
+  `/search.php?manga=…`, a series is `/manga/<Name>` with its chapters as `#chapters-list a.chplinks`, a chapter
+  is `/title/<Name>/chapter/<n>/…` with its pictures as `img.imgholder`, and the way back to its series is its
+  link to `/manga/<Name>`. **Where the pictures are served from is not known**: only `demonicscans.org` is
+  allowed; if they come from another host, the reader says *Blocked address* and names it, which is the host
+  to add to its module.
 - LelScan has no search of its own: searching filters its list of series. A chapter takes
   one request per page (the images are not named alike from one series to the next), so a
   long chapter takes a few seconds to open.
@@ -238,12 +247,12 @@ in the APK. See [NATIVE.md](NATIVE.md) for rendering, diagnostics and offline st
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 402 unit tests
+npm run check        # types (app and worker) and the 413 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run test:e2e -- regressions # shared storage and native image regressions
 npm run test:e2e -- backup      # backups, byte budgets and responsive layout
-npm run test:e2e -- native-sources # native composition, five sources and captured images
+npm run test:e2e -- native-sources # native composition, six sources and captured images
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg
 ```
 

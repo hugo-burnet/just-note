@@ -29,6 +29,11 @@ const SAMPLES: Readonly<Record<string, { series: string; chapter: string }>> = {
     // The address this source gives a chapter carries its series after the #.
     chapter: 'https://sushiscan.net/lantern-keeper-chapitre-2-5/#/catalogue/lantern-keeper/',
   },
+  demonicscans: {
+    series: 'https://demonicscans.org/manga/Lantern-Keeper',
+    // The address this source gives a chapter carries its series after the #.
+    chapter: 'https://demonicscans.org/title/Lantern-Keeper/chapter/2.5/1#/manga/Lantern-Keeper',
+  },
 };
 
 const io = { transport: new FakeTransport({}), parser: new LinkedomParser() };

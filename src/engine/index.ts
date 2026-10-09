@@ -17,6 +17,7 @@ export { ReaderSession } from './reader/ReaderSession.ts';
 export type { ChapterRef, StepOutcome } from './reader/ReaderSession.ts';
 export { DEFAULT_SETTINGS, Settings } from './Settings.ts';
 export type { ChapterOrder, DirectionChoice, Language, ModeChoice, ReadingMode, SettingsValues, Theme } from './Settings.ts';
+export { DemonicScansSource } from './source/demonicscans/DemonicScansSource.ts';
 export { FanFoxSource } from './source/fanfox/FanFoxSource.ts';
 export { LelScanSource } from './source/lelscan/LelScanSource.ts';
 export { ScanMangaSource } from './source/scanmanga/ScanMangaSource.ts';

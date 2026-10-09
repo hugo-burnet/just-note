@@ -10,7 +10,7 @@ import { settle } from './helpers.ts';
 const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 
 export async function nativeSources({ browser, stage, runner }: Context): Promise<void> {
-  runner.heading('All five sources in the native app');
+  runner.heading('All six sources in the native app');
   buildSync({ absWorkingDir: ROOT, entryPoints: ['test/e2e/NativeSourcesApp.ts'], outfile: 'test-output/site/native-sources.js', bundle: true,
     format: 'esm', target: 'es2022', define: { __APP_VERSION__: JSON.stringify('native-fixture') } });
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, locale: 'fr-FR', colorScheme: 'dark', serviceWorkers: 'block' });
@@ -22,14 +22,14 @@ export async function nativeSources({ browser, stage, runner }: Context): Promis
     await page.goto(stage.appUrl);
     await page.addScriptTag({ url: new URL('native-sources.js', stage.appUrl).href, type: 'module' });
     await page.waitForFunction(() => !!window.nativeSources);
-    await step('the installed app offers FanFox, WEBTOON, LelScan, Scan-Manga and SushiScan', async () => {
-      assert.deepEqual(await page.evaluate(() => window.nativeSources.app.registry.all().map((site) => site.name)), ['FanFox', 'WEBTOON', 'LelScan', 'Scan-Manga', 'SushiScan']);
+    await step('the installed app offers FanFox, WEBTOON, LelScan, Scan-Manga, SushiScan and Demonic Scans', async () => {
+      assert.deepEqual(await page.evaluate(() => window.nativeSources.app.registry.all().map((site) => site.name)), ['FanFox', 'WEBTOON', 'LelScan', 'Scan-Manga', 'SushiScan', 'Demonic Scans']);
       await page.locator('.dock').getByRole('link', { name: 'Explorer' }).click();
-      for (const name of ['FanFox', 'WEBTOON', 'LelScan', 'Scan-Manga', 'SushiScan']) await page.getByRole('button', { name, exact: true }).waitFor();
+      for (const name of ['FanFox', 'WEBTOON', 'LelScan', 'Scan-Manga', 'SushiScan', 'Demonic Scans']) await page.getByRole('button', { name, exact: true }).waitFor();
       await page.getByRole('button', { name: 'Scan-Manga', exact: true }).click();
       await page.locator('.grid .card').nth(1).waitFor();
       await settle(page);
-      await runner.shot(page, '70-native-five-sources');
+      await runner.shot(page, '70-native-sources');
     });
     await step('Scan-Manga opens a series, its chapter list and script-built images', async () => {
       await page.locator('.grid .card', { hasText: scan.SERIES[0]!.title }).click();
