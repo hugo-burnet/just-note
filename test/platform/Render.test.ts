@@ -135,6 +135,47 @@ test('render: it waits for the WebView that is already open, which only one thin
   assert.equal(fetcher.asked.length, 2);
 });
 
+test('render: a chapter read ahead is asked of the WebView with no dialog, and a chapter the user waits for stops it', async () => {
+  const { transport, fetcher } = setup(() => ({ pictures: [captured()] }));
+  await transport.render?.(CHAPTER, { pictures: SELECTOR, background: true });
+  assert.deepEqual(fetcher.asked, [{ url: CHAPTER, options: { pictures: SELECTOR, background: true } }]);
+  assert.equal(fetcher.cancelled, 0);
+  const other = CHAPTER.replace('Chapitre-3-FR_130013', 'Chapitre-9-FR_130019');
+  await transport.render?.(other, { pictures: SELECTOR });
+  assert.deepEqual(fetcher.asked[1], { url: other, options: { ...DIALOG, pictures: SELECTOR } });
+  assert.equal(fetcher.cancelled, 1);
+});
+
+test('render: a chapter read ahead takes no turn at the dialog the user is looking at', async () => {
+  const { transport, fetcher } = setup(() => ({ pictures: [captured()] }));
+  let release: () => void = () => undefined;
+  fetcher.hold = new Promise((resolve) => (release = resolve));
+  const waited = transport.render?.(CHAPTER, { pictures: SELECTOR });
+  const ahead = transport.render?.(CHAPTER.replace('Chapitre-3-FR_130013', 'Chapitre-4-FR_130014'), { pictures: SELECTOR, background: true });
+  await settle();
+  // Both are in the WebView's hands before either is answered: the one read ahead did not wait for the one the user waits for.
+  assert.deepEqual(fetcher.asked.map((asked) => asked.options?.background === true).sort(), [false, true]);
+  release();
+  await Promise.all([waited, ahead]);
+});
+
+test('render: a chapter read ahead is kept like any other, and opens with no WebView once the user gets there', async () => {
+  const { transport, fetcher } = setup(() => ({ pictures: [captured(), captured()] }));
+  const ahead = await transport.render?.(CHAPTER, { pictures: SELECTOR, background: true });
+  await settle();
+  const there = await transport.render?.(CHAPTER, { pictures: SELECTOR });
+  assert.deepEqual(there?.pictures, ahead?.pictures);
+  assert.equal(fetcher.asked.length, 1);
+});
+
+test('render: a chapter read ahead that is stopped, or that a check turned away, fails as any other would', async () => {
+  const { transport, fetcher } = setup(() => ({}));
+  fetcher.failure = Object.assign(new Error('Cancelled.'), { code: 'cancelled' });
+  await assert.rejects(() => transport.render?.(CHAPTER, { pictures: SELECTOR, background: true }) ?? Promise.resolve(), (error: unknown) => error instanceof TransportError && error.code === 'cancelled');
+  fetcher.failure = Object.assign(new Error('check'), { code: 'timeout' });
+  await assert.rejects(() => transport.render?.(CHAPTER, { pictures: SELECTOR, background: true }) ?? Promise.resolve(), (error: unknown) => error instanceof TransportError && error.code === 'blocked');
+});
+
 test('render: a transport with no WebView has no render, which is how the engine knows', () => {
   const kept = stores();
   const client = new SiteClient(new FakeHttp(() => picture()));

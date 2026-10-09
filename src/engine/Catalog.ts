@@ -2,7 +2,7 @@ import { SourceError } from './errors.ts';
 import type { Library } from './library/Library.ts';
 import { Memo } from './Memo.ts';
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from './model.ts';
-import type { Source } from './source/Source.ts';
+import type { ChapterOptions, Source } from './source/Source.ts';
 import type { ResolvedLink, SourceRegistry } from './source/SourceRegistry.ts';
 
 const TTL_MS = 5 * 60_000;
@@ -44,8 +44,12 @@ export class Catalog {
     return series;
   }
 
-  chapter(url: string): Promise<ChapterPages> {
-    return this.chapterMemo.get(url, () => this.sourceFor(url).getChapter(url));
+  /**
+   * `options.background`: the chapter is read ahead. Asked for again while that goes on, it is the same answer, not a second reading;
+   * and where the read ahead failed (a check that wants a person), the next ask is a new one, not remembered.
+   */
+  chapter(url: string, options: ChapterOptions = {}): Promise<ChapterPages> {
+    return this.chapterMemo.get(url, () => this.sourceFor(url).getChapter(url, options));
   }
 
   list(url: string): Promise<SeriesSummary[]> {

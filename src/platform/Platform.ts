@@ -28,6 +28,8 @@ export interface FetchOptions extends DialogLabels {
   readonly pictures?: string;
   /** A CSS selector for the places the page keeps for those pictures, when it has them before it has the pictures: how many to wait for. */
   readonly slots?: string;
+  /** Nobody is waiting: the page is read behind the app, with nothing on the screen, and not at all if it asks for a human check. */
+  readonly background?: boolean;
 }
 
 /**

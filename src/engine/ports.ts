@@ -40,6 +40,8 @@ export interface RenderRequest {
   readonly pictures: string;
   /** A CSS selector for the places the page keeps for them, if it has them before it has the pictures: how many to wait for. */
   readonly slots?: string;
+  /** Nobody is waiting for it (the next chapter is read ahead): it is done out of sight, and gives up quietly where it would have to ask. */
+  readonly background?: boolean;
 }
 
 /** A page as a real browser shows it once its scripts have run. */

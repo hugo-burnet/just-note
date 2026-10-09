@@ -134,7 +134,7 @@ export class ChapterReader extends Component {
     const { next } = this.options;
     if (!next) return;
     try {
-      const { pages } = await this.app.catalog.chapter(next.url);
+      const { pages } = await this.app.catalog.chapter(next.url, { background: true });
       for (const page of pages.slice(0, WARM_PAGES)) new Image().src = await this.app.transport.imageSource(page);
     } catch {
       // A head start, nothing more: opening the chapter will report a real failure.

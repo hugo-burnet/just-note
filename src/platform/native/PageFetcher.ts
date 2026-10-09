@@ -30,6 +30,8 @@ export interface FetchedPage {
 
 export interface PageFetcher {
   fetch(url: string, options?: FetchOptions): Promise<FetchedPage>;
+  /** What is read in the background (`FetchOptions.background`) gives way to what the user waits for: it is stopped, and fails as cancelled. */
+  cancelBackground?(): Promise<void>;
   /** What the WebView already holds for a site (cookies earned in this run or an earlier one), asked without showing anything. */
   held(url: string): Promise<Held>;
 }
@@ -48,16 +50,19 @@ interface PluginOptions {
   scroll?: boolean;
   startScript?: string;
   script?: string;
+  background?: boolean;
 }
 
 // The pictures are not in the answer: there can be tens of megabytes of them, which the bridge
 // carries better one at a time. The answer says how many there are.
-type PluginPage = Omit<FetchedPage, 'pictures'> & { pictures?: number };
+type PluginPage = Omit<FetchedPage, 'pictures'> & { pictures?: number; session?: string };
 
 interface PageFetcherPlugin {
   fetch(options: PluginOptions): Promise<PluginPage>;
-  picture(options: { index: number }): Promise<CapturedPicture>;
-  release(): Promise<void>;
+  /** Of the page that was read as `session`: each read keeps its own pictures. */
+  picture(options: { session?: string; index: number }): Promise<CapturedPicture>;
+  release(options: { session?: string }): Promise<void>;
+  cancelBackground(): Promise<void>;
   held(options: { url: string }): Promise<Held>;
 }
 
@@ -72,30 +77,36 @@ export class WebViewPageFetcher implements PageFetcher {
   private readonly plugin = registerPlugin<PageFetcherPlugin>('PageFetcher');
 
   async fetch(url: string, options: FetchOptions = {}): Promise<FetchedPage> {
-    const { statusLabel, readingLabel, cancelLabel, settleMs, scroll, pictures: selector, slots } = options;
+    const { statusLabel, readingLabel, cancelLabel, settleMs, scroll, pictures: selector, slots, background } = options;
     const reading = selector ? { startScript: BLOB_HOOK, script: pictureScript(selector, slots) } : {};
-    const { pictures: count = 0, ...page } = await this.plugin.fetch({
+    const { pictures: count = 0, session, ...page } = await this.plugin.fetch({
       url,
       timeoutMs: TIMEOUT_MS,
       statusLabel: selector ? (readingLabel ?? statusLabel) : statusLabel,
       cancelLabel,
       settleMs,
       scroll,
+      ...(background ? { background } : {}),
       ...reading,
     });
-    return selector ? { ...page, pictures: await this.take(count) } : page;
+    return selector ? { ...page, pictures: await this.take(count, session) } : page;
+  }
+
+  cancelBackground(): Promise<void> {
+    return this.plugin.cancelBackground();
   }
 
   held(url: string): Promise<Held> {
     return this.plugin.held({ url });
   }
 
-  private async take(count: number): Promise<CapturedPicture[]> {
+  private async take(count: number, session: string | undefined): Promise<CapturedPicture[]> {
     const taken: CapturedPicture[] = [];
+    const of = session ? { session } : {};
     try {
-      for (let index = 0; index < count; index++) taken.push(await this.plugin.picture({ index }));
+      for (let index = 0; index < count; index++) taken.push(await this.plugin.picture({ ...of, index }));
     } finally {
-      await this.plugin.release().catch(() => undefined);
+      await this.plugin.release(of).catch(() => undefined);
     }
     return taken;
   }

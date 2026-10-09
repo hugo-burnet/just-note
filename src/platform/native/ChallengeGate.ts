@@ -12,7 +12,8 @@ const ROUNDS = 3;
 
 /** Shows a page in the WebView of the app and gives back the pictures its scripts built. */
 export interface PageRenderer {
-  render(address: string, selector: string, slots?: string): Promise<FetchedPage>;
+  /** `background`: nobody is waiting (a chapter read ahead): nothing is shown, and a check that wants a person is not answered. */
+  render(address: string, selector: string, slots?: string, background?: boolean): Promise<FetchedPage>;
 }
 
 /** One at a time: the WebView is a full-screen dialog, and two cannot be answered together. */
@@ -70,9 +71,14 @@ export class ChallengeGate implements Sites, PageRenderer {
    * that `selector` matches, in the order they are in the page). It is the WebView that passes a check
    * on the way, and what it earns is kept as for any other page.
    */
-  render(address: string, selector: string, slots?: string): Promise<FetchedPage> {
+  render(address: string, selector: string, slots?: string, background = false): Promise<FetchedPage> {
     const url = this.client.resolve(address);
-    return this.queue.run(() => this.visit(url, { ...this.dialog(), pictures: selector, ...(slots ? { slots } : {}) }));
+    const pictures = { pictures: selector, ...(slots ? { slots } : {}) };
+    // What is read ahead takes no turn at the one dialog there is, and shows nothing.
+    if (background) return this.visit(url, { ...pictures, background: true });
+    // What the user waits for comes before what is read ahead.
+    void this.fetcher.cancelBackground?.().catch(() => undefined);
+    return this.queue.run(() => this.visit(url, { ...this.dialog(), ...pictures }));
   }
 
   /**

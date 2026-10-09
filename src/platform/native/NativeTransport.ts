@@ -76,7 +76,7 @@ export class NativeTransport implements Connection {
     const kept = await this.keptRendering(listKey);
     if (kept) return kept;
 
-    const shown = await renderer.render(address, request.pictures, request.slots);
+    const shown = await renderer.render(address, request.pictures, request.slots, request.background === true);
     const taken = shown.pictures ?? [];
     const pictures = taken.map((picture, index) => ({ picture, address: `${page.origin}/__rendered/${tag}/${index + 1}` }));
     await Promise.all(pictures.map(({ picture, address: where }) => this.images.keep(where, imageFromBase64(picture.data, picture.type, true))));

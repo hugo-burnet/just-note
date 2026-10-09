@@ -31,10 +31,16 @@ export class FakeFetcher implements PageFetcher {
   /** What the WebView already holds, before anything is shown (nothing, unless a test says). */
   holding: Held = { cookies: '', userAgent: 'webview' };
   readonly heldAsked: string[] = [];
+  /** How many times what is read in the background was told to give way. */
+  cancelled = 0;
   private readonly show: (url: string) => FetchedPage;
 
   constructor(show: (url: string) => FetchedPage) {
     this.show = show;
+  }
+
+  async cancelBackground(): Promise<void> {
+    this.cancelled++;
   }
 
   async held(url: string): Promise<Held> {

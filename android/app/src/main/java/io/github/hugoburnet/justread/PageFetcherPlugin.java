@@ -34,7 +34,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -56,8 +58,11 @@ import org.json.JSONTokener;
 @CapacitorPlugin(name = "PageFetcher")
 public class PageFetcherPlugin extends Plugin {
 
-    // The pictures a page built, as {type, base64}.
-    private final List<String[]> captured = Collections.synchronizedList(new ArrayList<String[]>());
+    // The pictures each page built, as {type, base64}, by the session that read them: the app takes them one at a
+    // time, then lets go. A page read ahead and a page the user waits for do not share a list.
+    private final Map<String, List<String[]>> kept = new ConcurrentHashMap<>();
+    // The page nobody is waiting for (the next chapter, read ahead), if there is one: only ever one.
+    private volatile Session readingAhead;
 
     @PluginMethod
     public void fetch(final PluginCall call) {
@@ -78,7 +83,25 @@ public class PageFetcherPlugin extends Plugin {
         final String cancel = call.getString("cancelLabel", "Cancel");
         final String startScript = call.getString("startScript");
         final String script = call.getString("script");
-        activity.runOnUiThread(() -> new Session(activity, call, captured, url, timeoutMs, settleMs, scroll, startScript, script, status, cancel).start());
+        final boolean background = call.getBoolean("background", false);
+        activity.runOnUiThread(() -> {
+            Session session = new Session(activity, call, kept, url, timeoutMs, settleMs, scroll, startScript, script, status, cancel, background);
+            if (background) {
+                Session before = readingAhead;
+                readingAhead = session;
+                if (before != null) before.stop();
+            }
+            session.start();
+        });
+    }
+
+    // What is read ahead gives way to what the user waits for.
+    @PluginMethod
+    public void cancelBackground(final PluginCall call) {
+        final Session ahead = readingAhead;
+        final Activity activity = getActivity();
+        if (ahead != null && activity != null) activity.runOnUiThread(ahead::stop);
+        call.resolve();
     }
 
     // What the WebViews of the app already hold for a site (the cookie of an earlier check, from this run or
@@ -103,9 +126,12 @@ public class PageFetcherPlugin extends Plugin {
     @PluginMethod
     public void picture(PluginCall call) {
         final Integer index = call.getInt("index");
+        final List<String[]> pictures = kept.get(call.getString("session", ""));
         String[] one = null;
-        synchronized (captured) {
-            if (index != null && index >= 0 && index < captured.size()) one = captured.get(index);
+        if (pictures != null) {
+            synchronized (pictures) {
+                if (index != null && index >= 0 && index < pictures.size()) one = pictures.get(index);
+            }
         }
         if (one == null) {
             call.reject("There is no such picture.");
@@ -119,7 +145,7 @@ public class PageFetcherPlugin extends Plugin {
 
     @PluginMethod
     public void release(PluginCall call) {
-        captured.clear();
+        kept.remove(call.getString("session", ""));
         call.resolve();
     }
 
@@ -143,7 +169,11 @@ public class PageFetcherPlugin extends Plugin {
 
         private final Activity activity;
         private final PluginCall call;
-        private final List<String[]> captured;
+        private final Map<String, List<String[]>> kept;
+        // Its own list: the one the user waits for and the one read ahead may run together.
+        private final List<String[]> captured = Collections.synchronizedList(new ArrayList<String[]>());
+        private final String id = UUID.randomUUID().toString();
+        private final boolean background;
         private final String url;
         private final long timeoutMs;
         private final long settleMs;
@@ -173,7 +203,7 @@ public class PageFetcherPlugin extends Plugin {
         Session(
             Activity activity,
             PluginCall call,
-            List<String[]> captured,
+            Map<String, List<String[]>> kept,
             String url,
             long timeoutMs,
             long settleMs,
@@ -181,11 +211,13 @@ public class PageFetcherPlugin extends Plugin {
             String startScript,
             String script,
             String statusLabel,
-            String cancelLabel
+            String cancelLabel,
+            boolean background
         ) {
             this.activity = activity;
             this.call = call;
-            this.captured = captured;
+            this.kept = kept;
+            this.background = background;
             this.url = url;
             this.timeoutMs = timeoutMs;
             this.settleMs = settleMs;
@@ -224,11 +256,20 @@ public class PageFetcherPlugin extends Plugin {
                     }
                 }
             );
-            if (script != null) {
-                captured.clear();
-                web.addJavascriptInterface(new Pictures(), "JustReadPictures");
-            }
+            if (script != null) web.addJavascriptInterface(new Pictures(), "JustReadPictures");
             if (startScript != null) injectBeforeThePage();
+
+            if (background) {
+                // Nobody is waiting, so nothing is shown: the page is put behind the app, which hides it. It is still
+                // on screen as far as the page can tell, which a page that is hidden or drawn small would not be
+                // (its timers are slowed, its pictures wait to be seen).
+                ViewGroup content = activity.findViewById(android.R.id.content);
+                content.addView(web, 0, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                startedAt = SystemClock.elapsedRealtime();
+                web.loadUrl(url);
+                handler.postDelayed(poll, POLL_MS);
+                return;
+            }
 
             label = new TextView(activity);
             label.setText(statusLabel);
@@ -323,7 +364,14 @@ public class PageFetcherPlugin extends Plugin {
                     if (finished) return;
                     try {
                         JSONObject state = new JSONObject((String) new JSONTokener(value).nextValue());
-                        if (script != null && state.optBoolean("running", false)) reveal();
+                        if (script != null && state.optBoolean("running", false)) {
+                            // A check that wants a person cannot be answered where nothing is shown.
+                            if (background) {
+                                finish(null, "timeout", "The site asked for a human check.");
+                                return;
+                            }
+                            reveal();
+                        }
                         if (!state.optBoolean("running", true) && "complete".equals(state.optString("ready"))) {
                             if (script != null) runScript();
                             else settle();
@@ -384,6 +432,7 @@ public class PageFetcherPlugin extends Plugin {
                     result.put("requests", snapshot(requests));
                     result.put("failures", snapshot(failures));
                     if (script != null) {
+                        result.put("session", id);
                         result.put("pictures", captured.size());
                         result.put("note", note);
                     }
@@ -414,8 +463,15 @@ public class PageFetcherPlugin extends Plugin {
             if (parent != null) parent.removeView(web);
             web.stopLoading();
             web.destroy();
-            if (result != null) call.resolve(result);
-            else call.reject(error, code);
+            if (result != null) {
+                if (script != null) kept.put(id, captured);
+                call.resolve(result);
+            } else call.reject(error, code);
+        }
+
+        // What is read ahead gives way: to what the user waits for, or to a newer read ahead.
+        void stop() {
+            finish(null, "cancelled", "Cancelled.");
         }
 
         /** What the script of the app calls, from the page: the WebView runs these on a thread of its own. */

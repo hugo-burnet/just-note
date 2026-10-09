@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Catalog, Library, Source, SourceRegistry } from '../../src/engine/index.ts';
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../src/engine/index.ts';
+import type { ChapterOptions } from '../../src/engine/source/Source.ts';
 import { makeIO, MemoryStore } from './helpers.ts';
 
 class StubSource extends Source {
@@ -10,6 +11,8 @@ class StubSource extends Source {
   readonly languages = ['en'];
   readonly reading = { mode: 'scroll', rtl: false } as const;
   readonly calls = { series: 0, chapter: 0, list: 0 };
+  /** What each chapter was asked with. */
+  readonly chapterCalls: Array<{ background: boolean }> = [];
   failNext = false;
 
   resolve(input: string): SourceTarget | null {
@@ -38,8 +41,13 @@ class StubSource extends Source {
     return [];
   }
 
-  async getChapter(): Promise<ChapterPages> {
+  async getChapter(_url: string, options: ChapterOptions = {}): Promise<ChapterPages> {
     this.calls.chapter++;
+    this.chapterCalls.push({ background: options.background === true });
+    if (this.failNext) {
+      this.failNext = false;
+      throw new Error('boom');
+    }
     return { pages: ['https://stub.test/1.jpg'] };
   }
 }
@@ -65,6 +73,22 @@ test('answers are remembered for a few minutes, then asked again', async () => {
   advance(6 * 60_000);
   await catalog.series(URL_1);
   assert.equal(source.calls.series, 2);
+});
+
+test('a chapter read ahead is told so, and is the answer when the chapter is asked for in the meantime', async () => {
+  const { source, catalog } = setup();
+  const ahead = catalog.chapter(URL_1, { background: true });
+  const asked = catalog.chapter(URL_1);
+  assert.deepEqual(await Promise.all([ahead, asked]), [{ pages: ['https://stub.test/1.jpg'] }, { pages: ['https://stub.test/1.jpg'] }]);
+  assert.deepEqual(source.chapterCalls, [{ background: true }]);
+});
+
+test('a chapter read ahead that failed is not remembered: the next ask reads it again, not in the background', async () => {
+  const { source, catalog } = setup();
+  source.failNext = true;
+  await assert.rejects(() => catalog.chapter(URL_1, { background: true }), { message: 'boom' });
+  assert.equal((await catalog.chapter(URL_1)).pages.length, 1);
+  assert.deepEqual(source.chapterCalls, [{ background: true }, { background: false }]);
 });
 
 test('fresh asks the site again', async () => {

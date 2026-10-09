@@ -3,6 +3,7 @@ import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../mo
 import type { ReadingStyle } from '../../reader/ReadingStyle.ts';
 import { absolute, clean, looksBlocked } from '../../text.ts';
 import { Source } from '../Source.ts';
+import type { ChapterOptions } from '../Source.ts';
 import { Memo } from '../../Memo.ts';
 import { MAX_ITEMS, ScanMangaSeriesParser } from './ScanMangaSeriesParser.ts';
 import { ScanMangaUrls } from './ScanMangaUrls.ts';
@@ -82,12 +83,12 @@ export class ScanMangaSource extends Source {
     return null;
   }
 
-  async getChapter(url: string): Promise<ChapterPages> {
+  async getChapter(url: string, options: ChapterOptions = {}): Promise<ChapterPages> {
     const page = ScanMangaUrls.page(url);
     if (!this.transport.render) {
       throw new SourceError('unsupported', 'The pictures of this site are built by its scripts: only the installed app can read them.', { url });
     }
-    const rendered = await this.transport.render(page, { pictures: PAGE_PICTURES, slots: PAGE_PLACES });
+    const rendered = await this.transport.render(page, { pictures: PAGE_PICTURES, slots: PAGE_PLACES, ...(options.background ? { background: true } : {}) });
     if (rendered.pictures.length === 0) {
       throw new SourceError(looksBlocked(rendered.text) ? 'blocked' : 'no_pages', 'No pages found in the chapter.', {
         url,

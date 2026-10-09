@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 315 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 321 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -251,12 +251,18 @@ series' number), so the reader asks the source to complete it (`Source.complete`
 the chapter has a way back to its series. The addresses the app itself gives its chapters carry
 the series after a `#`, which the site never sees.
 
+The next chapter is read ahead: when the reader is 60 % through a chapter it asks for the next one with
+`background`, which puts the WebView behind the app (it hides it; nothing shows, and a check that wants a
+person is left alone) instead of the full-screen dialog, and what comes is kept like any other, so that the
+chapter opens at once. What the user waits for (another chapter, say) stops a read ahead; a chapter asked
+for while it is being read ahead is the same reading, not a second one.
+
 Not done yet: sharing a link to the app, and its own launcher icon.
 
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 315 unit tests
+npm run check        # types (app and worker) and the 321 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

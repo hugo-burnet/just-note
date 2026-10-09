@@ -2,6 +2,10 @@ import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../model
 import type { ReadingStyle } from '../reader/ReadingStyle.ts';
 import type { DomDocument, HtmlParser, SourceIO, TextRequest, Transport } from '../ports.ts';
 
+export interface ChapterOptions {
+  readonly background?: boolean;
+}
+
 export interface LoadedDocument {
   readonly doc: DomDocument;
   readonly text: string;
@@ -65,7 +69,8 @@ export abstract class Source {
 
   abstract getList(url: string): Promise<SeriesSummary[]>;
 
-  abstract getChapter(url: string): Promise<ChapterPages>;
+  /** `options.background`: it is read ahead, nobody is waiting (only a source that has to open a browser for it cares). */
+  abstract getChapter(url: string, options?: ChapterOptions): Promise<ChapterPages>;
 
   protected async load(url: string, request?: TextRequest): Promise<LoadedDocument> {
     const fetched = await this.transport.text(url, request);
