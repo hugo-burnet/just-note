@@ -57,6 +57,8 @@ export interface Transport {
   text(url: string, request?: TextRequest): Promise<FetchedText>;
   /** The address to give an <img> so that the site's image shows up. */
   imageSource(url: string): Promise<string>;
+  /** Why the last try at this picture failed, in a few words ("403 · host"), for whoever has to tell what went wrong; where the transport knows. */
+  imageProblem?(url: string): string | undefined;
   /**
    * Shows the page in a browser of the app's own, scrolled as a reader would, and collects the pictures
    * its scripts built. Only where there is one (the installed app); the proxy cannot.

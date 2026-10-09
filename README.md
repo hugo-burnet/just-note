@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 353 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 357 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -80,10 +80,10 @@ runs it sees everything you read and can alter what you are shown.
   `#chapterlist`, a chapter is `/<name>-chapitre-<n>/` and its reader is given the pictures in a script
   (`"images":[…]`, on `c.sushiscan.net`), and the way back to its series is the one link to `/catalogue/<name>/`
   in it. A series says what it is (manga, manhua…), which sets how it is read (`Series.reading`). On a phone, by the
-  author's report: the search and the covers work, and a series page gives its title, author, genres and synopsis;
-  but a series with many scans (Solo Leveling) showed one chapter, which the report of its page is to explain (its
-  volumes may be in a list of their own: every `.eplister` is read now). **Not verified**: that the list of pictures
-  of a chapter is found. When a chapter has none the error screen's details quote what the page says of its reader.
+  author's report: the search and the covers work, a series page gives its title, author, genres and synopsis, its
+  volumes are listed (they are in a list of their own, which is read since), and a volume's page finds its 193
+  pictures. **But the pictures themselves were not shown** (each frame said *Retry*): the phone could not have them
+  from `c.sushiscan.net`, for a reason the next report, which says it, is to give.
 - LelScan has no search of its own: searching filters its list of series. A chapter takes
   one request per page (the images are not named alike from one series to the next), so a
   long chapter takes a few seconds to open.
@@ -215,8 +215,10 @@ The same build runs in a browser and inside Capacitor; `src/main.ts` picks the p
 `NativePlatform` reaches the sites with `CapacitorHttp`, the phone's own network stack: no
 CORS to obey, any Referer to send, so no proxy. It applies the proxy's rules (the same list
 of hosts, redirects checked one by one, the same size and type limits) and fails with the
-same codes, so the screens say the same things. Pictures are downloaded by the app and given
-to `<img>` as `blob:` addresses. What is read is kept in the WebView's Cache API under the
+same codes, so the screens say the same things. Pictures are downloaded by the app (six at a time:
+a chapter of two hundred pages is asked for as it nears the screen, not at once) and given
+to `<img>` as `blob:` addresses; a picture that could not be had says why under its *Retry* button
+("403 · host", `not_an_image`, `host_not_allowed`…). What is read is kept in the WebView's Cache API under the
 service worker's cache names (so *Settings → Data* empties both), and the service worker is
 not registered. The proxy address setting is hidden. *Settings → Diagnostic* is the Probe
 workflow, from the phone: it fetches any https address (one per line, one report) with the
@@ -228,7 +230,10 @@ and the start of its body. After the WebView it asks once more with the phone's 
 and the cookie the WebView earned, and says how that was answered; it does the same for what the page
 requested of its site's other hosts (the first bytes of each answer, the first picture with each thing a
 server may want to see, and whether the picture's name is written in the page itself), which is what tells
-whether a site can be read without running its scripts.
+whether a site can be read without running its scripts. A page the phone's own network reads
+with no check is looked at the same way: the pictures it names (three, of the folder most of them are in,
+which is a chapter's pages and not the site's logo) are asked for, with the variants, and with the
+cookies the page set (their names are in the report, never their values).
 
 The reader does the same when a site turns the phone away (`ChallengeGate`): the WebView
 (`PageFetcherPlugin.java`) is shown in front of the app, so that a check which needs a tap
@@ -273,7 +278,7 @@ Not done yet: sharing a link to the app, and its own launcher icon.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 353 unit tests
+npm run check        # types (app and worker) and the 357 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

@@ -16,6 +16,8 @@ export interface DigestSource {
   readonly collected?: readonly string[];
   /** What the phone's own network was answered for some of the page's requests, as lines. */
   readonly tried?: readonly string[];
+  /** The names of the cookies the site set with its answer to the phone (never their values). */
+  readonly cookies?: readonly string[];
 }
 
 // The report is pasted into a message from a phone, so it stays near ten thousand characters
@@ -46,6 +48,10 @@ const LISTING_AFTER = 360;
 
 const unique = <T>(values: Iterable<T>): T[] => [...new Set(values)];
 const captures = (text: string, pattern: RegExp): string[] => [...text.matchAll(pattern)].map((match) => match[1] ?? '').filter(Boolean);
+
+/** The pictures a page names, scripts included (they escape their slashes: https:\/\/host\/1.jpg), in the order it names them. */
+export const namedPictures = (html: string): string[] =>
+  unique(captures(html.replaceAll('\\/', '/'), /(https?:\/\/[^\s"'<>\\]+?\.(?:jpe?g|png|webp|gif|avif)(?:\?[^\s"'<>\\]*)?)/gi));
 const clip = (text: string, limit: number): string => (text.length > limit ? `${text.slice(0, limit)}…` : text);
 const count = (html: string, tag: string): number => (html.match(new RegExp(`<${tag}\\b`, 'gi')) ?? []).length;
 
@@ -149,8 +155,7 @@ export function digest(source: DigestSource): string {
     .map((match) => (match[1] ?? '').trim().replace(/\s+/g, ' '))
     .filter((text) => text.length >= 40);
 
-  // Scripts escape their slashes: https:\/\/host\/1.jpg.
-  const pictures = unique(captures(html.replaceAll('\\/', '/'), /(https?:\/\/[^\s"'<>\\]+?\.(?:jpe?g|png|webp|gif|avif)(?:\?[^\s"'<>\\]*)?)/gi));
+  const pictures = namedPictures(html);
   const tags = html.match(/<img\b[^>]*>/gi) ?? [];
   const bodyAt = Math.max(0, html.search(/<body\b/i));
   const canonical = /<link\b[^>]*rel=["']canonical["'][^>]*>/i.exec(html)?.[0] ?? '';
@@ -175,6 +180,7 @@ export function digest(source: DigestSource): string {
     ...(source.withCookie ? [`with the cookie the WebView earned, it is answered: ${source.withCookie}`] : []),
     `address: ${source.url}`,
     `size: ${html.length} characters`,
+    ...(source.cookies?.length ? [`cookies the site set: ${source.cookies.join(', ')}`] : []),
     '--- head',
     `title: ${clip(/<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1]?.trim() ?? '', 160)}`,
     `canonical: ${/href=["']([^"']*)["']/i.exec(canonical)?.[1] ?? ''}`,

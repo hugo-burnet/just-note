@@ -3,6 +3,9 @@ import { h } from '../../core/dom.ts';
 import { ReadingSurface, retried } from './ReadingSurface.ts';
 import type { SurfaceOptions } from './ReadingSurface.ts';
 
+// A picture is asked for when its frame is this far from the screen (a chapter of two hundred pages is not downloaded at once).
+const LOAD_AHEAD = '1500px 0px';
+
 /**
  * The pages one under the other, like a webtoon. The page being read is the one
  * crossing a thin band in the middle of the screen.
@@ -10,9 +13,23 @@ import type { SurfaceOptions } from './ReadingSurface.ts';
 export class ScrollMode extends ReadingSurface {
   private readonly frames: HTMLElement[] = [];
   private readonly observer: IntersectionObserver;
+  private readonly loader: IntersectionObserver;
+  private readonly loads = new Map<Element, () => void>();
 
   constructor(options: SurfaceOptions) {
     super(h('div', { class: 'stage', 'data-mode': 'scroll' }), options);
+    this.loader = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          this.loader.unobserve(entry.target);
+          this.loads.get(entry.target)?.();
+          this.loads.delete(entry.target);
+        }
+      },
+      { root: this.root, rootMargin: LOAD_AHEAD },
+    );
+    this.own(() => this.loader.disconnect());
     const strip = h('div', { class: 'strip' });
     options.pages.forEach((address, index) => {
       const frame = this.frame(address, index);
@@ -39,7 +56,10 @@ export class ScrollMode extends ReadingSurface {
     // Land where the reader left off, and only then start watching which page is in the middle.
     requestAnimationFrame(() => {
       this.frames[options.startPage]?.scrollIntoView({ block: 'start' });
-      for (const frame of this.frames) this.observer.observe(frame);
+      for (const frame of this.frames) {
+        this.observer.observe(frame);
+        this.loader.observe(frame);
+      }
     });
   }
 
@@ -54,7 +74,9 @@ export class ScrollMode extends ReadingSurface {
   private frame(address: string, index: number): HTMLElement {
     const image = h('img', { alt: '', decoding: 'async', loading: 'lazy', draggable: 'false' });
     const retry = h('button', { class: 'btn retry pressable', type: 'button' }, this.options.retryLabel);
-    const frame = h('div', { class: 'frame', 'data-index': index, 'data-state': 'loading' }, image, retry);
+    // Why it failed, when the transport knows: what to say when someone asks what went wrong.
+    const why = h('span', { class: 'retry-note' });
+    const frame = h('div', { class: 'frame', 'data-index': index, 'data-state': 'loading' }, image, retry, why);
     let attempt = 0;
     const load = async (): Promise<void> => {
       frame.dataset.state = 'loading';
@@ -66,12 +88,13 @@ export class ScrollMode extends ReadingSurface {
     });
     this.listen(image, 'error', () => {
       frame.dataset.state = 'failed';
+      why.textContent = this.options.transport.imageProblem?.(address) ?? '';
     });
     this.listen(retry, 'click', () => {
       attempt++;
       void load();
     });
-    void load();
+    this.loads.set(frame, () => void load());
     return frame;
   }
 }

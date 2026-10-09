@@ -64,6 +64,10 @@ export class NativeTransport implements Connection {
     return this.images.source(url);
   }
 
+  imageProblem(url: string): string | undefined {
+    return this.images.problem(url);
+  }
+
   /**
    * A page whose pictures its scripts build: they are read in the WebView, kept as the pictures of the
    * site are kept, under addresses of the page's own site that never reach the network, and their list

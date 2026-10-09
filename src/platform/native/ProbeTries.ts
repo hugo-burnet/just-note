@@ -29,12 +29,17 @@ class WithHeaders implements Credentials {
   }
 }
 
+// What a browser says of a picture it is asked to show: that it is one, and that it comes from a page of the same site.
+const BROWSER = { 'Sec-Fetch-Dest': 'image', 'Sec-Fetch-Mode': 'no-cors', 'Sec-Fetch-Site': 'same-site' };
+
 // What a server may want to see on a request for a picture, tried one after the other.
 const VARIANTS: ReadonlyArray<readonly [string, (origin: string, page: string) => Record<string, string>]> = [
   ['Referer: the site', () => ({})],
   ['Referer: the site, Origin: the site', (origin) => ({ Origin: origin })],
   ['Referer: the page, Origin: the site', (origin, page) => ({ Origin: origin, Referer: page })],
   ['no Referer', () => ({ Referer: '' })],
+  ['Referer: the site, as a browser says it asks for a picture', () => BROWSER],
+  ['Referer: the page, as a browser says it asks for a picture', (_origin, page) => ({ ...BROWSER, Referer: page })],
 ];
 
 const kilobytes = (bytes: number): number => Math.round(bytes / 1024);
@@ -63,17 +68,27 @@ function peek(response: NativeResponse, binary: boolean): string {
 export class DataTries {
   private readonly http: NativeHttp;
   private readonly credentials: Credentials;
+  private readonly cookie: string;
 
-  /** `credentials`: what the WebView earned on the page. */
-  constructor(http: NativeHttp, credentials: Credentials) {
+  /** `credentials`: what the WebView earned on the page. `cookie`: what the site set with its answer to the phone, as a Cookie header. */
+  constructor(http: NativeHttp, credentials: Credentials, cookie = '') {
     this.http = http;
     this.credentials = credentials;
+    this.cookie = cookie;
   }
 
   async run(page: URL, requests: readonly string[], pages: readonly ReadablePage[]): Promise<string[]> {
-    const wanted = this.wanted(page, requests);
+    return this.asked(page, this.wanted(page, requests), pages, 'what the page requested of its site');
+  }
+
+  /** The pictures a page names, the first three: what they are answered, as for what a page requests. */
+  async runPictures(page: URL, addresses: readonly string[], pages: readonly ReadablePage[]): Promise<string[]> {
+    return this.asked(page, addresses.slice(0, TRIED_REQUESTS), pages, 'the pictures the page names');
+  }
+
+  private async asked(page: URL, wanted: readonly string[], pages: readonly ReadablePage[], what: string): Promise<string[]> {
     if (wanted.length === 0) return [];
-    const lines = [`--- the phone's own network, asked for what the page requested of its site (${wanted.length})`];
+    const lines = [`--- the phone's own network, asked for ${what} (${wanted.length})`];
     for (const address of wanted) lines.push(await this.ask(this.http, this.credentials, address, page, `${page.origin}/`), address);
     const picture = wanted.find((address) => !isJson(address));
     if (picture) lines.push(...(await this.variants(picture, page)), ...this.written(picture, pages));
@@ -119,7 +134,8 @@ export class DataTries {
 
   private async variants(address: string, page: URL): Promise<string[]> {
     const lines = ['--- the first picture, asked for with what a server may want to see'];
-    for (const [label, headers] of VARIANTS) {
+    const variants = this.cookie ? [...VARIANTS, ['Referer: the site, with the cookies the page set', () => ({ Cookie: this.cookie })] as const] : VARIANTS;
+    for (const [label, headers] of variants) {
       const credentials = new WithHeaders(this.credentials, headers(page.origin, page.href));
       lines.push(`${label}: ${await this.ask(this.http, credentials, address, page, `${page.origin}/`)}`);
     }

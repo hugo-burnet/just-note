@@ -167,20 +167,57 @@ test('probe: the first picture is asked for with each thing a server may want to
   const lines = report.split('\n');
   const at = lines.indexOf('--- the first picture, asked for with what a server may want to see');
   assert.ok(at > 0, report);
-  assert.deepEqual(lines.slice(at + 1, at + 5), [
+  assert.deepEqual(lines.slice(at + 1, at + 7), [
     'Referer: the site: 403 text/html, 0 KB, starts with 3c68746d6c3e466f <html>Forbidden',
     'Referer: the site, Origin: the site: 200 image/jpeg, 0 KB, starts with ffd8ffe000104a46 ......JF',
     'Referer: the page, Origin: the site: 200 image/jpeg, 0 KB, starts with ffd8ffe000104a46 ......JF',
     'no Referer: 403 text/html, 0 KB, starts with 3c68746d6c3e466f <html>Forbidden',
+    'Referer: the site, as a browser says it asks for a picture: 403 text/html, 0 KB, starts with 3c68746d6c3e466f <html>Forbidden',
+    'Referer: the page, as a browser says it asks for a picture: 403 text/html, 0 KB, starts with 3c68746d6c3e466f <html>Forbidden',
   ]);
   // The variants really differ on the wire.
-  const sent = http.asked.filter((request) => request.url === PICTURE).map((request) => [request.headers['Origin'], request.headers['Referer']]);
+  const sent = http.asked.filter((request) => request.url === PICTURE).map((request) => [request.headers['Origin'], request.headers['Referer'], request.headers['Sec-Fetch-Dest']]);
   assert.deepEqual(sent.slice(1), [
-    [undefined, 'https://m.example.test/'],
-    ['https://m.example.test', 'https://m.example.test/'],
-    ['https://m.example.test', HOME],
-    [undefined, ''],
+    [undefined, 'https://m.example.test/', undefined],
+    ['https://m.example.test', 'https://m.example.test/', undefined],
+    ['https://m.example.test', HOME, undefined],
+    [undefined, '', undefined],
+    [undefined, 'https://m.example.test/', 'image'],
+    [undefined, HOME, 'image'],
   ]);
+});
+
+// A page the phone's own network reads, which names the pictures of its chapter (in a script) beside its logo.
+const CHAPTER = [
+  '<html><head><title>Chapter 3</title><link rel="icon" href="https://m.example.test/uploads/icon.png"></head><body>',
+  '<img src="https://m.example.test/uploads/logo.webp">',
+  '<script>images=["https:\\/\\/c.example.test\\/uploads97\\/Ch-01.webp","https:\\/\\/c.example.test\\/uploads97\\/Ch-02.webp","https:\\/\\/c.example.test\\/uploads97\\/Ch-03.webp","https:\\/\\/c.example.test\\/uploads97\\/Ch-04.webp"]</script></body></html>',
+].join('\n');
+const WEBP = Buffer.from('RIFF....WEBPVP8 ').toString('base64');
+
+test('probe: a page the phone reads is not enough: the pictures it names are asked for too, with what a server may want to see, and the cookies it set', async () => {
+  const { probe, http, fetcher } = setup((request) => {
+    if (request.url.includes('c.example.test')) return request.headers['Cookie']?.includes('session=abc') ? reply(200, WEBP, { 'content-type': 'image/webp' }) : reply(403, '<html>No', { 'content-type': 'text/html' });
+    return reply(200, CHAPTER, { 'set-cookie': 'session=abc; Path=/; Expires=Wed, 21 Oct 2026 07:28:00 GMT; HttpOnly, theme=dark; Path=/' });
+  });
+  const report = await probe.fetch('https://m.example.test/chapter-3/');
+  assert.equal(fetcher.asked.length, 0);
+  assert.match(report, /\ncookies the site set: session, theme\n/);
+  assert.match(report, /--- the phone's own network, asked for the pictures the page names \(3\)\n403 text\/html/);
+  assert.match(report, /^https:\/\/c\.example\.test\/uploads97\/Ch-01\.webp$/m);
+  assert.match(report, /^Referer: the site, with the cookies the page set: 200 image\/webp/m);
+  assert.match(report, /^Referer: the site: 403 text\/html/m);
+  // Those of the chapter, not the logo and the icon of the site.
+  assert.ok(!http.asked.some((request) => request.url.includes('/uploads/')));
+  assert.equal(http.asked.find((request) => request.url.includes('c.example.test'))?.headers['Cookie'], undefined);
+  assert.ok(http.asked.some((request) => request.url.endsWith('Ch-03.webp')));
+  assert.ok(!http.asked.some((request) => request.url.endsWith('Ch-04.webp')), 'only three are tried');
+});
+
+test('probe: a page that names no picture is read as before, with nothing more asked', async () => {
+  const { probe, http } = setup(() => reply(200, '<html><a href="/series/ember">Ember</a>'));
+  await probe.fetch(HOME);
+  assert.equal(http.asked.length, 1);
 });
 
 test('probe: it says whether the name of the first picture is written in the page, as the WebView shows it and as the phone reads it', async () => {

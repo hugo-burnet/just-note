@@ -23,7 +23,9 @@ export class PagedMode extends ReadingSurface {
     super(h('div', { class: 'stage', 'data-mode': 'paged' }), options);
     this.rtl = options.rtl;
     const retry = h('button', { class: 'btn retry pressable', type: 'button' }, options.retryLabel);
-    this.paged.append(this.image, retry);
+    // Why it failed, when the transport knows: what to say when someone asks what went wrong.
+    const why = h('span', { class: 'retry-note' });
+    this.paged.append(this.image, retry, why);
     this.root.append(this.paged);
 
     this.listen(this.image, 'load', () => {
@@ -31,6 +33,7 @@ export class PagedMode extends ReadingSurface {
     });
     this.listen(this.image, 'error', () => {
       this.paged.dataset.state = 'failed';
+      why.textContent = options.transport.imageProblem?.(options.pages[this.shown] ?? '') ?? '';
     });
     this.listen(retry, 'click', () => void this.show(this.shown, 1));
     this.listen<MouseEvent>(this.paged, 'click', (event) => {

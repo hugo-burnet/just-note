@@ -153,6 +153,50 @@ test('native transport: what is not a picture is not shown as one', async () => 
   assert.equal(await transport.imageSource(PICTURE), PICTURE);
 });
 
+test('native transport: why a picture could not be had is known, until it is had', async () => {
+  let answer: Answer = page('Forbidden', 403);
+  const { transport } = setup(() => answer);
+  assert.equal(transport.imageProblem(PICTURE), undefined);
+  await transport.imageSource(PICTURE);
+  assert.equal(transport.imageProblem(PICTURE), '403 · fmcdn.mfcdn.net');
+  answer = picture('text/html');
+  await transport.imageSource(PICTURE);
+  assert.equal(transport.imageProblem(PICTURE), 'not_an_image · fmcdn.mfcdn.net');
+  answer = new Error('offline');
+  await transport.imageSource(PICTURE);
+  assert.equal(transport.imageProblem(PICTURE), 'upstream_unreachable · fmcdn.mfcdn.net');
+  answer = picture();
+  await transport.imageSource(PICTURE);
+  assert.equal(transport.imageProblem(PICTURE), undefined);
+});
+
+test('native transport: a chapter of two hundred pages is not downloaded all at once', async () => {
+  const started: string[] = [];
+  const open: Array<() => void> = [];
+  const http = {
+    async get(request: NativeRequest) {
+      started.push(request.url);
+      await new Promise<void>((resolve) => open.push(resolve));
+      return picture();
+    },
+  };
+  const client = new SiteClient(http);
+  const transport = new NativeTransport(client, new MemoryStore(), new NativeImages(client, new MemoryStore(), new FakeBlobs()));
+  const shown = Array.from({ length: 10 }, (_, n) => transport.imageSource(`${PICTURE}?n=${n}`));
+  await settle();
+  assert.equal(started.length, 6);
+  open[0]?.();
+  await settle();
+  assert.equal(started.length, 7);
+  for (let i = 1; started.length < 10 || open.length < 10; i++) {
+    open[i]?.();
+    await settle();
+    if (i > 20) break;
+  }
+  for (const release of open) release();
+  assert.equal((await Promise.all(shown)).filter((source) => source.startsWith('blob:')).length, 10);
+});
+
 test('native transport: the oldest picture addresses are let go past the limit, the newest are kept', async () => {
   const { transport, blobs } = setup(() => picture());
   const total = MAX_LIVE_IMAGES + 5;
