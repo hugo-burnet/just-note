@@ -372,6 +372,8 @@ public class PageFetcherPlugin extends Plugin {
                     result.put("requests", snapshot(requests));
                     result.put("failures", snapshot(failures));
                     if (script != null) result.put("pictures", captured.size());
+                    // What the check gave is kept on disk now: a later run of the app finds it (see held).
+                    CookieManager.getInstance().flush();
                     finish(result, null, null);
                 } catch (Exception failure) {
                     finish(null, "unreadable", "The page could not be read: " + failure.getMessage());
