@@ -50,6 +50,7 @@ export const fr: Readonly<Record<MessageKey, string>> = {
   'discover.popular': 'Sur {source}',
   'discover.empty': 'Aucun résultat.',
   'discover.clear': 'Effacer',
+  'discover.sources': 'Sites',
 
   'series.start': 'Commencer',
   'series.continue': 'Reprendre · {chapter}',

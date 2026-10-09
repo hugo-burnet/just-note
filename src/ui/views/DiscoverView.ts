@@ -44,11 +44,20 @@ export class DiscoverView extends View {
   private sources(active: Source): HTMLElement | null {
     const all = this.app.registry.all();
     if (all.length < 2) return null;
-    const chips = h('div', { class: 'chips' });
+    const chips = h('div', { class: 'chips chips-scroll', role: 'group', 'aria-label': this.app.i18n.t('discover.sources') });
+    let current: HTMLElement | null = null;
     for (const source of all) {
       const chip = h('button', { class: 'chip chip-button pressable', type: 'button', 'aria-pressed': String(source === active) }, source.name);
       this.listen(chip, 'click', () => this.app.router.replace(Routes.discover({ source: source.id })));
       chips.append(chip);
+      if (source === active) current = chip;
+    }
+    // The row scrolls: the site being browsed is brought into view, without moving the page.
+    if (current) {
+      const chip = current;
+      requestAnimationFrame(() => {
+        if (chip.offsetLeft + chip.offsetWidth > chips.clientWidth) chips.scrollLeft = chip.offsetLeft - chips.clientWidth / 2 + chip.offsetWidth / 2;
+      });
     }
     return chips;
   }

@@ -99,7 +99,32 @@
   color: var(--accent);
 }
 
-/* A row of choices, e.g. the sources in Discover. The selected one fills in. */
+/*
+ * A row of choices, e.g. the sources in Discover: one line that scrolls sideways
+ * instead of wrapping, running to the edges of the screen and fading out there,
+ * so a cut-off chip says there is more. The selected one fills in.
+ */
+.chips-scroll {
+  flex-wrap: nowrap;
+  margin-left: calc(-1 * var(--pad-l));
+  margin-right: calc(-1 * var(--pad-r));
+  padding: var(--s-1) var(--pad-r) var(--s-1) var(--pad-l);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: var(--pad-l) var(--pad-r);
+  scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--pad-l), #000 calc(100% - var(--pad-r)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--pad-l), #000 calc(100% - var(--pad-r)), transparent);
+}
+
+.chips-scroll > .chip {
+  flex: none;
+  min-height: 2.5rem;
+  padding: 0 var(--s-4);
+  scroll-snap-align: start;
+  white-space: nowrap;
+}
+
 .chip-button[aria-pressed='true'] {
   background: var(--text);
   color: var(--bg);

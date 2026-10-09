@@ -49,6 +49,7 @@ export const en = {
   'discover.popular': 'On {source}',
   'discover.empty': 'Nothing found.',
   'discover.clear': 'Clear',
+  'discover.sources': 'Sites',
 
   'series.start': 'Start reading',
   'series.continue': 'Continue · {chapter}',

@@ -34,6 +34,9 @@ Everything else is shades of the same ink.
 - **A readable shelf:** two columns even on a small phone, rounded cover cards with
   visible reading counts, and a separate keyboard-accessible action button. Desktop
   adds columns within the same readable width. Settings use two columns on wide screens.
+- **One row of sites:** in Explorer the sources are a single line of chips that scrolls
+  sideways rather than wrapping onto a second line, runs to the screen edges and fades
+  there (a cut-off chip says there is more); the site being browsed is scrolled into view.
 - **Data stays understandable:** the backup panel explains how imports merge progress,
   reports errors inline, and keeps the erase action apart from export and import.
 - **Screens that move like screens**: a pushed screen slides in from the right, and going
