@@ -26,6 +26,8 @@ export interface TextRequest {
   readonly referer?: string;
   /** false: the answer is only good once (it carries a token), do not keep it. */
   readonly cache?: boolean;
+  /** Nobody is waiting (new chapters being looked for): a site that asks for a human check is left alone, not shown. */
+  readonly background?: boolean;
 }
 
 export interface FetchedText {
@@ -66,6 +68,25 @@ export interface Transport {
    * its scripts built. Only where there is one (the installed app); the proxy cannot.
    */
   render?(url: string, request: RenderRequest): Promise<RenderedPage>;
+  /** Where chapters are downloaded to, where the platform can keep them. */
+  readonly shelf?: OfflineShelf;
+}
+
+/**
+ * Where downloaded chapters are kept for good, apart from what is kept while reading (which makes room for
+ * what is read next). Pictures go by their address, as the transport knows them; texts by a key of the
+ * engine's. Every call may fail (storage full or blocked): the caller says so.
+ */
+export interface OfflineShelf {
+  /** Keeps a picture for good: the copy kept while reading when there is one, else downloaded now. Answers its size in bytes. */
+  keepPicture(address: string): Promise<number>;
+  dropPictures(addresses: readonly string[]): Promise<void>;
+  keepText(key: string, text: string): Promise<void>;
+  /** null when nothing is kept under `key`. */
+  text(key: string): Promise<string | null>;
+  dropText(key: string): Promise<void>;
+  /** Asks the system not to clear this storage when the device runs short of room; whether it promised. */
+  persist(): Promise<boolean>;
 }
 
 export interface ImageResource {

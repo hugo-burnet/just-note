@@ -16,12 +16,15 @@ export class SettingsView extends View {
   readonly tab = 'settings' as const;
   private readonly parts: Component[] = [];
   private language = this.app.i18n.current;
+  /** Stops the downloads summary from following the downloads, when the screen is built again. */
+  private unwatch: (() => void) | null = null;
 
   constructor(app: AppContext) {
     super(app, 'settings');
   }
 
   open(): void {
+    this.own(() => this.unwatch?.());
     this.build();
     // The texts are rebuilt when the language changes (the app has already switched it by then).
     this.own(
@@ -34,6 +37,7 @@ export class SettingsView extends View {
   }
 
   private build(): void {
+    this.unwatch?.();
     for (const part of this.parts.splice(0)) part.destroy();
     this.root.replaceChildren();
     const { i18n, settings } = this.app;
@@ -144,9 +148,37 @@ export class SettingsView extends View {
       });
       if (!confirmed) return;
       library.clear();
+      void this.app.downloads.remove(this.app.downloads.saved().map((saved) => saved.url));
       toasts.show(i18n.t('settings.libraryCleared'));
     });
-    return this.group('settings.data', [backup.root, h('p', { class: 'cache-hint row-hint' }, i18n.t('settings.cacheBudget', { images: MAX_IMAGE_BYTES / 1024 ** 2, pages: MAX_PAGE_BYTES / 1024 ** 2 })), cache, erase]);
+    return this.group('settings.data', [...this.downloadRows(), backup.root, h('p', { class: 'cache-hint row-hint' }, i18n.t('settings.cacheBudget', { images: MAX_IMAGE_BYTES / 1024 ** 2, pages: MAX_PAGE_BYTES / 1024 ** 2 })), cache, erase]);
+  }
+
+  /** What is downloaded, what it weighs, and the way to let it all go. Nothing where chapters cannot be kept. */
+  private downloadRows(): HTMLElement[] {
+    const { downloads, i18n, sheets, toasts } = this.app;
+    if (!downloads.available) return [];
+    const summary = h('p', { class: 'row-hint downloads-hint' });
+    const remove = h('button', { class: 'row-action danger pressable', type: 'button' }, h('span', null, i18n.t('settings.downloadsRemove')), icon('trash', 18));
+    const paint = (): void => {
+      const { chapters, bytes } = downloads.usage();
+      summary.textContent = chapters > 0 ? i18n.plural('download.count', chapters, { size: i18n.size(bytes) }) : i18n.t('settings.downloadsNone');
+      remove.hidden = chapters === 0;
+    };
+    paint();
+    this.unwatch = downloads.subscribe(paint);
+    this.listen(remove, 'click', async () => {
+      const confirmed = await sheets.confirm({
+        title: i18n.t('settings.downloadsRemoveTitle'),
+        text: i18n.t('settings.downloadsRemoveText'),
+        confirm: i18n.t('common.remove'),
+        destructive: true,
+      });
+      if (!confirmed) return;
+      await downloads.remove(downloads.saved().map((saved) => saved.url));
+      toasts.show(i18n.t('download.removed'));
+    });
+    return [h('div', { class: 'row downloads-row' }, h('span', { class: 'row-label' }, i18n.t('settings.downloads')), summary), remove];
   }
 
   private segmented<T extends string>(label: string, value: T, choices: ReadonlyArray<{ value: T; label: string }>, onChange: (value: T) => void): HTMLElement {

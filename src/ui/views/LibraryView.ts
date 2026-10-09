@@ -33,7 +33,31 @@ export class LibraryView extends View {
     this.root.append(header.root, header.title, this.content);
     this.render();
     this.own(this.app.library.subscribe(() => this.render()));
+    // A download that ends (or is let go) changes the marks on the covers.
+    let kept = this.app.downloads.usage().chapters;
+    this.own(this.app.downloads.subscribe(() => {
+      const now = this.app.downloads.usage().chapters;
+      if (now !== kept) this.render();
+      kept = now;
+    }));
     this.app.router.restoreScroll();
+    this.lookForNewChapters();
+    // Back to the app after a while (the phone was in a pocket): the series may have new chapters.
+    this.listen(document, 'visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.lookForNewChapters();
+    });
+  }
+
+  /** The series not checked for a while are read again from their sites; the shelf is drawn again if one has news. */
+  private lookForNewChapters(): void {
+    let changed = false;
+    void this.app.updates
+      .run(() => {
+        changed = true;
+      })
+      .then(() => {
+        if (changed && !this.isDestroyed) this.render();
+      });
   }
 
   private render(): void {
@@ -59,6 +83,7 @@ export class LibraryView extends View {
   private card(entry: LibraryEntry, index: number): HTMLElement {
     const { library, i18n } = this.app;
     const total = entry.chapterCount ?? 0;
+    const fresh = library.newChapters(entry.url);
     const card = new SeriesCard(this.app, {
       url: entry.url,
       title: entry.title,
@@ -66,6 +91,8 @@ export class LibraryView extends View {
       meta: entry.position?.title ?? i18n.t('library.notStarted'),
       progress: total > 0 ? library.readCount(entry.url) / total : undefined,
       progressLabel: total > 0 ? i18n.t('library.progress', { read: library.readCount(entry.url), total }) : undefined,
+      fresh: fresh > 0 ? i18n.plural('library.new', fresh) : undefined,
+      offline: this.app.downloads.saved(entry.url).length > 0 ? i18n.t('download.offline') : undefined,
       index,
       onMenu: () => void this.confirmRemoval(entry),
     });
@@ -127,6 +154,7 @@ export class LibraryView extends View {
     });
     if (!confirmed || this.isDestroyed) return;
     library.remove(entry.url);
+    void this.app.downloads.removeSeries(entry.url);
     this.render();
   }
 }

@@ -177,3 +177,15 @@ test('gate: pictures that are still turned away right after a WebView do not ope
   await transport.imageSource(`${PICTURE}?n=3`);
   assert.equal(fetcher.asked.length, 2);
 });
+
+test('gate: a page read in the background is never shown in a WebView, but a clearance the WebView holds is used', async () => {
+  const { transport, fetcher } = setup((request) => (earned(request) ? page('<html>raw') : challenge()));
+  const refused = await failure(transport.text(SERIES, { background: true }));
+  assert.equal(refused.code, 'blocked');
+  assert.equal(fetcher.asked.length, 0, 'nothing was shown');
+
+  const held = setup((request) => (request.headers['Cookie'] === 'cf_clearance=earlier' ? page('<html>raw') : challenge()));
+  held.fetcher.holding = { cookies: 'cf_clearance=earlier', userAgent: 'webview-of-earlier' };
+  assert.deepEqual(await held.transport.text(SERIES, { background: true }), { text: '<html>raw', url: SERIES });
+  assert.equal(held.fetcher.asked.length, 0);
+});

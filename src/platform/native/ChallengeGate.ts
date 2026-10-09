@@ -53,12 +53,17 @@ export class ChallengeGate implements Sites, PageRenderer {
     return this.client.resolve(address);
   }
 
-  async get(address: string, kind: Kind, referer?: string): Promise<Fetched> {
+  async get(address: string, kind: Kind, referer?: string, background = false): Promise<Fetched> {
     let shown: FetchedPage | undefined;
     for (let round = 0; ; round++) {
       const version = this.jar.version;
       const fetched = await this.client.exchange(address, kind, referer);
       if (!isChallenge(fetched.response)) return this.client.checked(fetched);
+      // Nobody is waiting: the WebView is not put in front of the user for it. A clearance it already holds is still used.
+      if (background) {
+        if (round === 0 && (await this.borrow(fetched.url))) continue;
+        throw new TransportError('blocked', 'The site asked for a human check, and nobody was waiting to pass it.', { host: fetched.url.hostname });
+      }
       // Turned away even with what the WebView earned: a page can still be read from the WebView.
       if (shown && kind === 'text') return this.rendered(shown, fetched.url);
       if (shown || round === ROUNDS) return this.client.checked(fetched);

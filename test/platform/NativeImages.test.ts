@@ -112,3 +112,24 @@ test('native images: only two captured chapters are retained, and active images 
   assert.ok(!revoked.includes(held.src));
   held.release();
 });
+
+test('native images: a downloaded picture comes first, with no network, and its bytes can be had for the shelf', async () => {
+  let downloads = 0;
+  const client = new SiteClient({ get: async () => {
+    downloads++;
+    return { status: 200, headers: { 'content-type': 'image/jpeg' }, body: 'AQID' };
+  } });
+  const saved = new Map<string, Response>([[url(1), new Response(new Blob(['saved'], { type: 'image/jpeg' }))]]);
+  const made: Blob[] = [];
+  const images = new NativeImages(client, { get: async () => undefined, put: async () => {} }, { create: (blob) => { made.push(blob); return 'blob:test'; }, revoke: () => {} }, {
+    match: async (key) => saved.get(key)?.clone(),
+  });
+  await images.source(url(1));
+  assert.equal(downloads, 0);
+  assert.equal(await made[0]?.text(), 'saved');
+  assert.equal(await images.has(url(1)), true);
+  // Not kept: it is downloaded for the shelf, as it would be read.
+  const bytes = await images.bytes(url(2));
+  assert.equal(downloads, 1);
+  assert.equal((await bytes.blob()).type, 'image/jpeg');
+});

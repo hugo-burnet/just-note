@@ -6,7 +6,7 @@ import { NetworkFirst } from '../../src/sw/NetworkFirst.ts';
 import { ProxiedImages } from '../../src/sw/ProxiedImages.ts';
 
 const SCOPE = 'https://you.github.io/just-note/';
-const router = new FetchRouter({ scope: SCOPE, shellCache: 'jr-shell-test', imageCache: 'jr-img', pageCache: 'jr-api' });
+const router = new FetchRouter({ scope: SCOPE, shellCache: 'jr-shell-test', imageCache: 'jr-img', pageCache: 'jr-api', savedCache: 'jr-saved' });
 
 // A navigation cannot be built with `new Request` (the browser alone makes those), so a stand-in will do.
 const request = (url: string, extra: { method?: string; mode?: string } = {}): Request => ({ method: 'GET', mode: 'cors', url, ...extra }) as Request;
@@ -14,6 +14,10 @@ const request = (url: string, extra: { method?: string; mode?: string } = {}): R
 test('worker: images are kept whatever the proxy lives', () => {
   assert.ok(router.strategyFor(request('https://proxy.workers.dev/api/img?u=x')) instanceof ProxiedImages);
   assert.ok(router.strategyFor(request('https://you.github.io/api/img?u=x')) instanceof ProxiedImages);
+});
+
+test('worker: a picture being downloaded is left to the page, which keeps it itself', () => {
+  assert.equal(router.strategyFor(request('https://proxy.workers.dev/api/img?u=x&saved=1')), null);
 });
 
 test('worker: pages are kept too, except the one-off answers', () => {

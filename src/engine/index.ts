@@ -1,14 +1,19 @@
 // The engine's public surface. Everything behind it is free of DOM, network and
 // storage globals: the platform supplies them through the ports.
 export { Catalog } from './Catalog.ts';
+export type { SavedContent } from './Catalog.ts';
 export { CoverShelf } from './library/CoverShelf.ts';
 export { SourceError, TransportError } from './errors.ts';
 export { extractUrl } from './links.ts';
 export { Library } from './library/Library.ts';
+export { CHECK_EVERY_MS, UpdateChecker } from './library/UpdateChecker.ts';
+export { Downloads } from './library/Downloads.ts';
+export type { DownloadState, SavedChapter } from './library/Downloads.ts';
+export { inBackground } from './source/inBackground.ts';
 export type { LibraryEntry, ReadingPosition } from './library/Library.ts';
 export { MAX_BACKUP_BYTES, parseLibraryBackup } from './library/LibraryBackup.ts';
 export type { Chapter, ChapterPages, Series, SeriesSummary, SourceTarget, TargetKind } from './model.ts';
-export type { DomDocument, DomNode, FetchedText, HtmlParser, ImageResource, KeyValueStore, RenderedPage, RenderRequest, SourceIO, TextRequest, Transport } from './ports.ts';
+export type { DomDocument, DomNode, FetchedText, HtmlParser, ImageResource, KeyValueStore, OfflineShelf, RenderedPage, RenderRequest, SourceIO, TextRequest, Transport } from './ports.ts';
 export { ReaderGestures } from './reader/ReaderGestures.ts';
 export { ReadingStyles } from './reader/ReadingStyle.ts';
 export type { ReadingStyle } from './reader/ReadingStyle.ts';

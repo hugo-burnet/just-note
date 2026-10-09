@@ -1,4 +1,4 @@
-import type { Catalog, Library, Settings, SourceRegistry, Transport } from '../../engine/index.ts';
+import type { Catalog, Downloads, Library, Settings, SourceRegistry, Transport, UpdateChecker } from '../../engine/index.ts';
 import type { Clipboard, PageProbe } from '../../platform/Platform.ts';
 import type { ColorSampler } from '../components/ColorSampler.ts';
 import type { Sheet, SheetOptions } from '../components/Sheet.ts';
@@ -32,6 +32,10 @@ export interface AppContext {
   readonly registry: SourceRegistry;
   readonly catalog: Catalog;
   readonly library: Library;
+  /** Looks for the chapters that came out since a series was last opened. */
+  readonly updates: UpdateChecker;
+  /** The chapters kept on the device to be read offline. */
+  readonly downloads: Downloads;
   readonly settings: Settings;
   readonly transport: Transport;
   readonly clipboard: Clipboard;

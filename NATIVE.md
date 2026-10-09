@@ -64,4 +64,12 @@ person is left alone) instead of the full-screen dialog, and what comes is kept 
 chapter opens at once. What the user waits for (another chapter, say) stops a read ahead; a chapter asked
 for while it is being read ahead is the same reading, not a second one.
 
+Downloaded chapters (see the README) go in a cache of their own, `jr-saved`, in the WebView's Cache API,
+under the address the app reads each picture by: `NativeImages` looks there before anything else, so a
+downloaded chapter opens with no network and no WebView. The bytes are those the app reads (a picture
+already kept while reading is copied, not asked for again); a Scan-Manga chapter is first read in the
+WebView behind the app, as the next chapter is read ahead, and its captured pictures are copied in.
+New chapters are looked for with every request marked `background`: `ChallengeGate` then uses a
+clearance the WebView already holds, but never shows the WebView for it.
+
 Not done yet: sharing a link to the app, and its own launcher icon.

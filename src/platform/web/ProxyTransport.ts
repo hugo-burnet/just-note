@@ -1,5 +1,7 @@
 import { TransportError } from '../../engine/index.ts';
 import type { FetchedText, TextRequest, Transport } from '../../engine/index.ts';
+import { IMAGE_CACHE } from './cacheNames.ts';
+import { CacheShelf } from './CacheShelf.ts';
 
 type Fetcher = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -19,6 +21,8 @@ interface ProxyFailure {
 export class ProxyTransport implements Transport {
   private readonly proxyBase: () => string;
   private readonly fetcher: Fetcher;
+  /** Downloaded chapters; the service worker serves their pictures from there (see ProxiedImages). */
+  readonly shelf = new CacheShelf((address) => this.pictureToKeep(address));
 
   constructor(proxyBase: () => string, fetcher: Fetcher = (input, init) => fetch(input, init)) {
     this.proxyBase = proxyBase;
@@ -43,6 +47,27 @@ export class ProxyTransport implements Transport {
 
   async imageSource(url: string): Promise<string> {
     return `${this.base()}/api/img?u=${encodeURIComponent(url)}`;
+  }
+
+  /**
+   * The bytes of a picture to download: the copy the service worker kept when it was read, else the proxy's.
+   * `saved=1` has the worker leave the request alone, so that it does not keep a second copy among what is read.
+   */
+  private async pictureToKeep(address: string): Promise<Response> {
+    const proxied = await this.imageSource(address);
+    const read = await caches
+      .open(IMAGE_CACHE)
+      .then((cache) => cache.match(proxied))
+      .catch(() => undefined);
+    if (read) return read;
+    let res: Response;
+    try {
+      res = await this.fetcher(`${proxied}&saved=1`, { mode: 'cors', credentials: 'omit' });
+    } catch {
+      throw new TransportError(navigator.onLine === false ? 'offline' : 'network', 'Could not reach the proxy.', { proxy: this.where() });
+    }
+    if (!res.ok) throw await this.failure(res);
+    return res;
   }
 
   async isHealthy(): Promise<boolean> {

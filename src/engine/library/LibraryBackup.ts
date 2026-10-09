@@ -48,6 +48,8 @@ function entry(value: unknown): BackupEntry {
     url: address(item.url), title: text(item.title), cover: item.cover === null ? null : address(item.cover),
     addedAt, updatedAt, finished: [...new Set(item.finished.map(text))],
     ...(item.chapterCount === undefined ? {} : { chapterCount: integer(item.chapterCount) }),
+    ...(item.seenCount === undefined ? {} : { seenCount: integer(item.seenCount) }),
+    ...(item.checkedAt === undefined ? {} : { checkedAt: integer(item.checkedAt) }),
     ...(item.position === undefined ? {} : { position: position(item.position) }),
   };
 }

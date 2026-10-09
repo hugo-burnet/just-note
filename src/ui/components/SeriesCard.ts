@@ -14,6 +14,10 @@ export interface SeriesCardOptions {
   /** 0 to 1: how much of the series is read. Omitted: no bar. */
   readonly progress?: number;
   readonly progressLabel?: string | undefined;
+  /** Chapters that came out since the series was last opened, said on the cover ("2 new"). Omitted: nothing new. */
+  readonly fresh?: string | undefined;
+  /** Some of its chapters are downloaded: what the mark on the cover says to a screen reader. */
+  readonly offline?: string | undefined;
   /** Position in the grid, which sets when the card appears. */
   readonly index: number;
   /** A long press, or a right click. */
@@ -38,6 +42,11 @@ export class SeriesCard extends Component {
       cover.root.append(bar);
     }
     if (options.progressLabel) cover.root.append(h('span', { class: 'cover-progress' }, options.progressLabel));
+    if (options.offline) cover.root.append(h('span', { class: 'cover-offline', role: 'img', 'aria-label': options.offline, title: options.offline }, icon('downloaded', 16)));
+    if (options.fresh) {
+      cover.root.append(h('span', { class: 'cover-new' }, options.fresh));
+      this.root.dataset.fresh = 'true';
+    }
     const link = h('a', { class: 'card-link pressable', href: Routes.series(options.url) }, cover.root, h('p', { class: 'card-title' }, options.title));
     this.root.append(link);
     if (options.meta) link.append(h('p', { class: 'card-meta' }, options.meta));

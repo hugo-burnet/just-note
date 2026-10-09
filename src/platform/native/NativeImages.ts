@@ -12,7 +12,12 @@ export interface BlobUrls {
   revoke(url: string): void;
 }
 
-const browserBlobUrls: BlobUrls = {
+/** The downloaded chapters' pictures, looked up by the same key as what is read (see CacheShelf). */
+export interface SavedPictures {
+  match(key: string): Promise<Response | undefined>;
+}
+
+export const browserBlobUrls: BlobUrls = {
   create: (blob) => URL.createObjectURL(blob),
   revoke: (url) => URL.revokeObjectURL(url),
 };
@@ -56,11 +61,25 @@ export class NativeImages {
   private readonly problems = new Map<string, string>();
   private readonly prepared = new Map<string, Set<string>>();
   private readonly rendered = new Map<string, Blob>();
+  private readonly saved: SavedPictures | undefined;
 
-  constructor(client: Sites, store: ResponseStore, blobs: BlobUrls = browserBlobUrls) {
+  /** `saved`: the pictures of the downloaded chapters, which come before anything else. */
+  constructor(client: Sites, store: ResponseStore, blobs: BlobUrls = browserBlobUrls, saved?: SavedPictures) {
     this.client = client;
     this.store = store;
     this.blobs = blobs;
+    this.saved = saved;
+  }
+
+  /** The bytes of a picture, to be downloaded for good: those held or kept while reading, else the site's. */
+  async bytes(address: string): Promise<Response> {
+    const rendered = this.rendered.get(address);
+    if (rendered) return new Response(rendered, { headers: { 'content-type': rendered.type } });
+    const kept = await this.store.get(this.client.resolve(address).href).catch(() => undefined);
+    if (kept) return kept;
+    const { response } = await this.downloads.run(() => this.client.get(address, 'image'));
+    const blob = decode(response);
+    return new Response(blob, { headers: { 'content-type': blob.type } });
   }
 
   source(address: string): Promise<string> {
@@ -104,7 +123,9 @@ export class NativeImages {
   }
 
   async has(address: string): Promise<boolean> {
-    return this.rendered.has(address) || this.live.has(address) || (await this.store.get(this.client.resolve(address).href).catch(() => undefined)) !== undefined;
+    const key = this.client.resolve(address).href;
+    if (this.rendered.has(address) || this.live.has(address)) return true;
+    return (await this.saved?.match(key).catch(() => undefined)) !== undefined || (await this.store.get(key).catch(() => undefined)) !== undefined;
   }
 
   async acquire(address: string, retry = false): Promise<ImageResource> {
@@ -152,6 +173,8 @@ export class NativeImages {
     const rendered = this.rendered.get(address);
     if (rendered) return this.blobs.create(rendered);
     const key = this.client.resolve(address).href;
+    const saved = await this.saved?.match(key).catch(() => undefined);
+    if (saved) return this.blobs.create(await saved.blob());
     const kept = retry ? undefined : await this.store.get(key).catch(() => undefined);
     if (kept) return this.blobs.create(await kept.blob());
     const { response } = await this.downloads.run(() => this.client.get(address, 'image'));

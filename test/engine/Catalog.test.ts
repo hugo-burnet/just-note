@@ -217,3 +217,22 @@ test('resolve leaves alone what is whole, what nobody knows, and says so when a 
   assert.equal(await catalog.resolve('https://completing.test/c/lost'), null);
   assert.equal(source.asked, 1, 'only the chapter was asked about');
 });
+
+test('a downloaded chapter is read from the device, and a series whose site cannot be had from what was kept of it', async () => {
+  const source = new StubSource(makeIO({}).io);
+  const kept: Series = { url: URL_1, title: 'Kept', cover: null, author: '', status: '', genres: [], description: '', chapters: [] };
+  const saved = {
+    pages: async (url: string) => (url === 'https://stub.test/kept/1' ? { pages: ['saved.jpg'] } : null),
+    series: async (url: string) => (url === URL_1 ? kept : null),
+  };
+  const catalog = new Catalog(new SourceRegistry([source]), new Library(new MemoryStore()), () => 0, undefined, saved);
+  assert.deepEqual(await catalog.chapter('https://stub.test/kept/1'), { pages: ['saved.jpg'] });
+  assert.equal(source.calls.chapter, 0);
+  assert.deepEqual(await catalog.chapter('https://stub.test/other/1'), { pages: ['https://stub.test/1.jpg'] });
+  // Online, the site's page wins; when it fails, the kept one stands in, and nothing kept is still an error.
+  assert.equal((await catalog.series(URL_1)).title, 'Stub series');
+  source.failNext = true;
+  assert.equal((await catalog.series(URL_1, { fresh: true })).title, 'Kept');
+  source.failNext = true;
+  await assert.rejects(() => catalog.series('https://stub.test/series/2', { fresh: true }), /boom/);
+});

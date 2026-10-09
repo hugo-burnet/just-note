@@ -1,4 +1,4 @@
-import { IMAGE_CACHE, PAGE_CACHE, SHELL_PREFIX } from '../platform/web/cacheNames.ts';
+import { IMAGE_CACHE, PAGE_CACHE, SAVED_CACHE, SHELL_PREFIX } from '../platform/web/cacheNames.ts';
 import { FetchRouter } from './FetchRouter.ts';
 import { ShellCache } from './ShellCache.ts';
 
@@ -10,7 +10,7 @@ declare const __SHELL__: string;
 
 const { scope } = self.registration;
 const shell = new ShellCache(__SHELL__, SHELL_PREFIX, __PRECACHE__.map((file) => new URL(file, scope).href));
-const router = new FetchRouter({ scope, shellCache: shell.name, imageCache: IMAGE_CACHE, pageCache: PAGE_CACHE });
+const router = new FetchRouter({ scope, shellCache: shell.name, imageCache: IMAGE_CACHE, pageCache: PAGE_CACHE, savedCache: SAVED_CACHE });
 
 self.addEventListener('install', (event) => {
   event.waitUntil(shell.install().then(() => self.skipWaiting()));

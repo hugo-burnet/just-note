@@ -9,7 +9,8 @@ import type { PageRenderer } from './ChallengeGate.ts';
 import { CredentialJar } from './CredentialJar.ts';
 import { imageFromBase64 } from './ImageBytes.ts';
 import type { NativeHttp } from './NativeHttp.ts';
-import { NativeImages } from './NativeImages.ts';
+import { browserBlobUrls, NativeImages } from './NativeImages.ts';
+import { CacheShelf } from '../web/CacheShelf.ts';
 import type { PageFetcher } from './PageFetcher.ts';
 import { CacheApiStore } from './ResponseStore.ts';
 import type { ResponseStore } from './ResponseStore.ts';
@@ -27,11 +28,14 @@ export class NativeTransport implements Connection {
   private readonly client: Sites;
   private readonly pages: ResponseStore;
   private readonly images: NativeImages;
+  readonly shelf: CacheShelf | undefined;
 
-  constructor(client: Sites, pages: ResponseStore, images: NativeImages, renderer?: PageRenderer) {
+  /** `shelf`: where chapters are downloaded to (its pictures are the ones `images` finds first). */
+  constructor(client: Sites, pages: ResponseStore, images: NativeImages, renderer?: PageRenderer, shelf?: CacheShelf) {
     this.client = client;
     this.pages = pages;
     this.images = images;
+    this.shelf = shelf;
     this.render = renderer ? (url, request) => this.rendering(renderer, url, request) : undefined;
   }
 
@@ -41,14 +45,16 @@ export class NativeTransport implements Connection {
     const client = new SiteClient(http, new HostPolicy(), jar);
     const gate = fetcher ? new ChallengeGate(client, jar, fetcher, dialog) : undefined;
     const sites = gate ?? client;
-    const images = new NativeImages(sites, new CacheApiStore(IMAGE_CACHE, MAX_IMAGES, MAX_IMAGE_BYTES));
-    return new NativeTransport(sites, new CacheApiStore(PAGE_CACHE, MAX_PAGES, MAX_PAGE_BYTES), images, gate);
+    // A downloaded picture is kept under the address the app reads it by; its bytes are those the app reads.
+    const shelf: CacheShelf = new CacheShelf((address): Promise<Response> => images.bytes(address), (address) => sites.resolve(address).href);
+    const images: NativeImages = new NativeImages(sites, new CacheApiStore(IMAGE_CACHE, MAX_IMAGES, MAX_IMAGE_BYTES), browserBlobUrls, shelf);
+    return new NativeTransport(sites, new CacheApiStore(PAGE_CACHE, MAX_PAGES, MAX_PAGE_BYTES), images, gate, shelf);
   }
 
   async text(url: string, request: TextRequest = {}): Promise<FetchedText> {
     const key = this.client.resolve(url).href;
     try {
-      const { response, url: final } = await this.client.get(url, 'text', request.referer);
+      const { response, url: final } = await this.client.get(url, 'text', request.referer, request.background === true);
       if (response.body.length > MAX_HTML_BYTES) throw new TransportError('too_large', 'The source sent more data than allowed.', { host: final.hostname });
       // A one-off answer (it carries a token) is not worth keeping.
       if (request.cache !== false) void this.pages.put(key, new Response(response.body, { headers: { 'x-final-url': final.href } }));

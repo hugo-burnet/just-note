@@ -18,11 +18,13 @@ export type IconName =
   | 'link'
   | 'book'
   | 'download'
+  | 'downloaded'
   | 'upload';
 
 // One consistent set, drawn on a 24px grid with round caps.
 const PATHS: Record<IconName, readonly string[]> = {
   download: ['M12 3v12', 'M7 10l5 5 5-5', 'M4 16v4h16v-4'],
+  downloaded: ['M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z', 'M12 7.5v7', 'M8.75 11.5L12 14.75l3.25-3.25'],
   upload: ['M12 15V3', 'M7 8l5-5 5 5', 'M4 16v4h16v-4'],
   library: ['M4 4.5h4v15H4z', 'M10 4.5h4v15h-4z', 'M15.2 6l3.6-1 3.3 12.6-3.6 1z'],
   discover: ['M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z', 'M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z'],

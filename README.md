@@ -27,9 +27,27 @@ newer progress wins, finished chapters are combined, and unrelated series stay.
 The APK presents selectable JSON with a copy button; save the copied text as a `.json`
 file to import it elsewhere. Backups exclude downloaded images and connection settings.
 
-Offline downloads are bounded by **128 MiB / 400 images** and **16 MiB / 80 pages**
-on both web and native. Actual decoded bytes are counted; oldest downloads leave first.
-An answer larger than its budget stays readable online without displacing other copies.
+**New chapters.** When the library opens (and when the app comes back to the front), each
+series not read from its site for 30 minutes is read again, two at a time (`UpdateChecker`).
+A cover then says how many chapters came out since the series was last opened (*2 new*);
+opening it clears that. These checks never show an anti-bot check: they go through the same
+sources with every request marked `background` (`inBackground`), and a site that asks for a
+human check is simply tried again next time.
+
+**Downloads, to read with no network.** In a series, the ⤓ button beside *Continue* downloads
+the next 5 or 10 unread chapters, or all of them, from where you are; each chapter also has its
+own button, which shows a ring while it comes in and turns into a mark once kept. A chapter is
+kept whole or not at all (its list of pictures, every picture, and the page of its series, so
+that the series opens offline too), one chapter at a time (`Downloads`). It goes in a cache of
+its own (`jr-saved`, `CacheShelf`), which the reading budgets below never trim and *Clear the
+reading cache* does not touch: it stays until you remove it (in the series, or *Settings → Data*).
+The browser is asked to keep that storage (`navigator.storage.persist`). A downloaded chapter is
+read from the device even online. Keep the app open while it downloads.
+
+What is read is also kept (the reading cache), bounded by **128 MiB / 400 images** and
+**16 MiB / 80 pages** on both web and native. Actual decoded bytes are counted; oldest
+copies leave first. An answer larger than its budget stays readable online without
+displacing other copies.
 
 ```
  phone / browser                                  a proxy you deploy               the site
@@ -53,7 +71,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 413 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 432 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -104,6 +122,12 @@ runs it sees everything you read and can alter what you are shown.
   volumes are listed (they are in a list of their own, which is read since), and a volume's page finds its 193
   pictures. **But the pictures themselves were not shown** (each frame said *Retry*): the phone could not have them
   from `c.sushiscan.net`, for a reason the next report, which says it, is to give.
+- **Downloads and new chapters** are checked in Chromium on the web build: a chapter never read is
+  downloaded with its button, the network is switched off, and every page of it opens; the shelf
+  marks the series as downloaded and with new chapters. **Not verified on a phone**: in the APK the
+  same code keeps the pictures in the WebView's Cache API, and a Scan-Manga chapter is downloaded the
+  way the reader reads one ahead (its WebView, behind the app); Android may pause the app in the
+  background, which pauses a download.
 - **Not verified: Demonic Scans** (`demonicscans.org`, English, mostly manhwa, read as a column). The machine
   it was written on could not reach the site: it follows what the readers that already read it look for (Mihon's
   and Kotatsu's modules for it, which agree), and is tested on pages shaped the same way. The latest updates are
@@ -247,7 +271,7 @@ in the APK. See [NATIVE.md](NATIVE.md) for rendering, diagnostics and offline st
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 413 unit tests
+npm run check        # types (app and worker) and the 432 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run test:e2e -- regressions # shared storage and native image regressions

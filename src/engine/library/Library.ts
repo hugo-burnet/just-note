@@ -14,6 +14,10 @@ export interface LibraryEntry extends SeriesSummary {
   readonly addedAt: number;
   readonly updatedAt: number;
   readonly chapterCount?: number;
+  /** How many chapters the series had when it was last opened: those past it are new. */
+  readonly seenCount?: number;
+  /** When the series was last read from its site (opened, or checked for new chapters). */
+  readonly checkedAt?: number;
   readonly position?: ReadingPosition;
 }
 
@@ -62,17 +66,39 @@ export class Library {
     return { ...summary, updatedAt: Math.max(entry.updatedAt, saved?.updatedAt ?? 0), ...(saved ? { position: saved.position } : {}) };
   }
 
-  /** Refreshes details without writing over the independently stored position. */
+  /**
+   * Refreshes details without writing over the independently stored position. A series met for the first
+   * time has nothing new; one known before keeps what had been seen of it, so that what came since shows.
+   */
   save(series: SeriesSummary & { readonly chapters?: readonly unknown[] }): void {
     const old = this.entry(series.url);
     const previous = this.storage.read<StoredEntry>(ENTRY + series.url);
     const now = this.now();
+    const chapterCount = series.chapters?.length ?? old?.chapterCount;
+    const seenCount = old ? (old.seenCount ?? old.chapterCount) : chapterCount;
     this.storage.write(ENTRY + series.url, {
       url: series.url, title: series.title, cover: series.cover,
-      chapterCount: series.chapters?.length ?? old?.chapterCount,
+      chapterCount,
+      ...(seenCount === undefined ? {} : { seenCount }),
+      ...(series.chapters ? { checkedAt: now } : old?.checkedAt === undefined ? {} : { checkedAt: old.checkedAt }),
       addedAt: old?.addedAt ?? now, updatedAt: old?.updatedAt ?? now,
       generation: old?.generation ?? previous?.generation ?? 'initial',
     } satisfies StoredEntry);
+  }
+
+  /** How many chapters came out since the series was last opened. */
+  newChapters(url: string): number {
+    const entry = this.entry(url);
+    if (!entry?.chapterCount) return 0;
+    return Math.max(0, entry.chapterCount - (entry.seenCount ?? entry.chapterCount));
+  }
+
+  /** The series was opened: what it has now is no longer new. */
+  markSeen(url: string): void {
+    const entry = this.entry(url);
+    if (entry && entry.chapterCount !== undefined && entry.seenCount !== entry.chapterCount) {
+      this.storage.write(ENTRY + url, { ...entry, seenCount: entry.chapterCount } satisfies StoredEntry);
+    }
   }
 
   remove(url: string): void {

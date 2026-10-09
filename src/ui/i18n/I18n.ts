@@ -4,7 +4,7 @@ import type { MessageKey } from './en.ts';
 import { fr } from './fr.ts';
 
 export type Locale = 'en' | 'fr';
-export type PluralKey = 'series.chapters' | 'library.count' | 'settings.backupImported';
+export type PluralKey = 'series.chapters' | 'library.count' | 'library.new' | 'download.unread' | 'download.count' | 'download.pending' | 'download.failedCount' | 'settings.backupImported';
 export type Params = Readonly<Record<string, string | number>>;
 
 const DICTIONARIES: Record<Locale, Readonly<Record<MessageKey, string>>> = { en, fr };
@@ -31,6 +31,13 @@ export class I18n {
   /** Picks "<key>.one" or "<key>.other", and fills {n}. */
   plural(key: PluralKey, count: number, params: Params = {}): string {
     return this.t(`${key}.${count === 1 ? 'one' : 'other'}` as MessageKey, { ...params, n: count });
+  }
+
+  /** A size on disk, the way the language writes it: "84 Mo", "1,2 Go", "84 MB". */
+  size(bytes: number): string {
+    const giga = bytes >= 1e9;
+    const value = bytes / (giga ? 1e9 : 1e6);
+    return new Intl.NumberFormat(this.locale, { style: 'unit', unit: giga ? 'gigabyte' : 'megabyte', unitDisplay: 'short', maximumFractionDigits: value < 10 ? 1 : 0 }).format(value);
   }
 
   /** For keys built at run time (error codes): undefined when there is no such text. */

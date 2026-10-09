@@ -12,12 +12,18 @@ import type { Strategy } from './Strategy.ts';
  */
 export class ProxiedImages implements Strategy {
   private readonly cache: ResponseCache;
+  private readonly saved: ResponseCache | undefined;
 
-  constructor(cacheName: string, budget: CacheBudget) {
+  /** `savedCache`: the downloaded chapters, whose pictures are kept under the address of the site (the proxy's `u`). */
+  constructor(cacheName: string, budget: CacheBudget, savedCache?: string) {
     this.cache = new ResponseCache(cacheName, budget);
+    this.saved = savedCache ? new ResponseCache(savedCache) : undefined;
   }
 
   async handle(request: Request): Promise<Response> {
+    const address = new URL(request.url).searchParams.get('u');
+    const saved = address ? await this.saved?.match(address) : undefined;
+    if (saved) return saved;
     const hit = await this.cache.match(request.url);
     if (hit) return hit;
     let response: Response;

@@ -191,3 +191,91 @@
 .chapter[aria-current='true'] .chapter-num {
   color: var(--accent);
 }
+
+/* The way into the story, and beside it the way to take it along offline. */
+.cta-row {
+  display: flex;
+  gap: var(--s-2);
+  align-items: stretch;
+}
+
+.cta-row > .btn-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-square {
+  flex: none;
+  width: 3rem;
+  padding: 0;
+}
+
+.offline-status {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+  margin: var(--s-3) 0 0;
+  color: var(--text-soft);
+  font-size: var(--fs-s);
+}
+
+.offline-status > svg {
+  flex: none;
+  color: var(--accent);
+}
+
+/* A chapter's download button sits beside its row, not in it (a button inside a link is not one). */
+.chapters li.has-dl {
+  position: relative;
+}
+
+.chapters li.has-dl > .chapter {
+  padding-right: 3.25rem;
+}
+
+.chapter-dl {
+  position: absolute;
+  top: 50%;
+  right: var(--s-1);
+  translate: 0 -50%;
+  color: var(--text-faint);
+}
+
+.chapter-dl[data-state='saved'] {
+  color: var(--accent);
+}
+
+.chapter-dl[data-state='failed'] {
+  color: var(--danger);
+}
+
+/* A ring that fills as the pictures come in; it turns while the chapter waits its turn. */
+.dl-ring {
+  --p: 0;
+  display: block;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex: none;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--p) * 360deg), color-mix(in oklch, var(--text) 18%, transparent) 0);
+  -webkit-mask: radial-gradient(closest-side, transparent 64%, #000 68%);
+  mask: radial-gradient(closest-side, transparent 64%, #000 68%);
+}
+
+.chapter-dl[data-state='queued'] .dl-ring,
+.offline-status[data-busy='true'] .dl-ring {
+  background: conic-gradient(var(--accent) 0 25%, color-mix(in oklch, var(--text) 18%, transparent) 0);
+  animation: dl-turn 1s linear infinite;
+}
+
+@keyframes dl-turn {
+  to {
+    rotate: 1turn;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dl-ring {
+    animation: none !important;
+  }
+}

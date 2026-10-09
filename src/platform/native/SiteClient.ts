@@ -23,8 +23,8 @@ export interface Policy {
 export interface Sites {
   /** The address as it will be asked for; fails when no listed site owns it. */
   resolve(address: string): URL;
-  /** The answer, or a TransportError when the site refuses. */
-  get(address: string, kind: Kind, referer?: string): Promise<Fetched>;
+  /** The answer, or a TransportError when the site refuses. `background`: nobody is waiting, an anti-bot check is not to be shown. */
+  get(address: string, kind: Kind, referer?: string, background?: boolean): Promise<Fetched>;
 }
 
 const ACCEPT: Readonly<Record<Kind, string>> = {

@@ -97,6 +97,54 @@
   font-weight: 650;
 }
 
+/* Some chapters are downloaded: a quiet mark in the corner of the cover. */
+.cover-offline {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 50%;
+  background: rgb(10 12 18 / 0.78);
+  color: #fff;
+}
+
+/* Chapters that came out since the series was last opened: the one bright thing on the shelf. */
+.cover-new {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1;
+  max-width: calc(100% - 1rem);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-strong);
+  color: var(--accent-ink);
+  box-shadow: 0 2px 10px color-mix(in oklch, var(--accent) 45%, transparent);
+  font-size: var(--fs-xs);
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  animation: pop-badge var(--med) var(--ease) both;
+}
+
+@keyframes pop-badge {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover-new {
+    animation: none;
+  }
+}
+
 .card-menu {
   position: absolute;
   right: 0.125rem;

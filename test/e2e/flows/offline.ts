@@ -66,6 +66,39 @@ export async function offline({ browser, stage, runner }: Context): Promise<void
     await page.locator('.series-title').waitFor();
   });
 
+  await step('a chapter never read is downloaded with its button, and its download says so', async () => {
+    await page.getByRole('button', { name: /^Download Ch\.004/ }).click();
+    await page.getByRole('button', { name: /^Ch\.004.*: downloaded, available offline$/ }).waitFor();
+    const saved = await cached('jr-saved');
+    assert.equal(saved.filter((url) => url.includes('/c004/') && url.includes('.png')).length, 5, saved.join('\n'));
+    assert.ok(saved.some((url) => url.includes('saved/chapter:')), 'its list of pictures is kept with them');
+    await page.locator('.offline-status', { hasText: '1 chapter offline' }).waitFor();
+    await settle(page);
+    await shot(page, '48-series-downloaded');
+  });
+
+  await step('the shelf marks a series with downloads, and one with chapters out since it was opened', async () => {
+    // Two chapters came out since the series was last opened: as if it had had three when it was.
+    await page.evaluate((url) => {
+      const key = `jr:entry:${url}`;
+      const entry = JSON.parse(localStorage.getItem(key) ?? '{}') as { chapterCount: number };
+      localStorage.setItem(key, JSON.stringify({ ...entry, seenCount: entry.chapterCount - 2 }));
+    }, FANFOX_SERIES);
+    await page.goto(`${stage.appUrl}#/library`);
+    await page.locator('.card .cover-new', { hasText: '2 new' }).waitFor();
+    await page.locator('.card .cover-offline').waitFor();
+    await settle(page);
+    await shot(page, '49-library-new-and-offline');
+    // Opening the series is seeing what is new.
+    await page.locator('.card-link').first().click();
+    await page.locator('.series-title').waitFor();
+    await page.goBack();
+    await page.locator('.card .cover-offline').waitFor();
+    assert.equal(await page.locator('.card .cover-new').count(), 0);
+    await page.locator('.card-link').first().click();
+    await page.locator('.series-title').waitFor();
+  });
+
   await step('offline: the app, the series and the chapter you read still open', async () => {
     await stage.goOffline();
     await page.reload();
@@ -79,8 +112,16 @@ export async function offline({ browser, stage, runner }: Context): Promise<void
     await page.locator('.series-title').waitFor();
   });
 
-  await step('offline: a chapter that was never read says so instead of hanging', async () => {
+  await step('offline: the chapter downloaded but never read opens, every page of it', async () => {
     await page.locator('a.chapter', { hasText: 'Ch.004' }).click();
+    await readPages(5);
+    await leaveReader(page);
+    await page.locator('.series-title').waitFor();
+  });
+
+  await step('offline: a chapter that was never read says so instead of hanging', async () => {
+    // Not Ch.002: reading Ch.001 to its end read it ahead.
+    await page.locator('a.chapter', { hasText: /Ch\.003(?!\.5)/ }).click();
     await page.locator('.error-panel h2', { hasText: /offline|Can't reach/i }).waitFor();
     await settle(page);
     await shot(page, '50-offline');

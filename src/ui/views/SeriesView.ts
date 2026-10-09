@@ -1,4 +1,4 @@
-import type { Series } from '../../engine/index.ts';
+import type { Chapter, Series } from '../../engine/index.ts';
 import { ChapterList } from '../components/ChapterList.ts';
 import { applyTint } from '../components/ColorSampler.ts';
 import { Cover } from '../components/Cover.ts';
@@ -19,12 +19,16 @@ export class SeriesView extends View {
   private url = '';
   private readonly shown: Component[] = [];
   private readonly backdrop: ImageLoader;
+  private chaptersShown: readonly Chapter[] = [];
+  /** Stops the status line from following the downloads, when the page is drawn again. */
+  private unwatch: (() => void) | null = null;
 
   constructor(app: AppContext, route: Route) {
     super(app, 'series');
     this.requested = route.params.u ?? '';
     this.backdrop = new ImageLoader(app.transport);
     this.own(() => this.backdrop.destroy());
+    this.own(() => this.unwatch?.());
   }
 
   async open(): Promise<void> {
@@ -41,7 +45,10 @@ export class SeriesView extends View {
     this.showWaiting();
     try {
       const series = await this.app.catalog.series(this.url, { fresh });
-      if (!this.isDestroyed) this.render(series);
+      if (this.isDestroyed) return;
+      this.render(series);
+      // Its chapters have been seen: none of them is new any more.
+      this.app.library.markSeen(this.url);
     } catch (error) {
       if (this.isDestroyed) return;
       this.clear();
@@ -60,6 +67,7 @@ export class SeriesView extends View {
 
   private render(series: Series): void {
     this.clear();
+    this.chaptersShown = series.chapters;
     const { i18n, library, transport } = this.app;
     this.setTitle(series.title);
     const position = library.position(this.url);
@@ -88,7 +96,8 @@ export class SeriesView extends View {
           h('span', { class: 'label' }, resumeAt ? i18n.t('series.continue', { chapter: resumeAt.title }) : i18n.t('series.start')),
         )
       : null;
-    this.root.append(hero, h('div', { class: 'wrap' }, stats, cta, this.description(series.description), this.chapters(series)));
+    const actions = h('div', { class: 'cta-row' }, cta, this.downloadButton(series));
+    this.root.append(hero, h('div', { class: 'wrap' }, stats, actions, this.offlineStatus(), this.description(series.description), this.chapters(series)));
     this.app.router.restoreScroll();
   }
 
@@ -127,7 +136,16 @@ export class SeriesView extends View {
 
   private chapters(series: Series): HTMLElement {
     const { i18n, settings, library } = this.app;
-    const list = new ChapterList({ seriesUrl: this.url, chapters: series.chapters, library, i18n, order: settings.get().chapterOrder });
+    const { downloads } = this.app;
+    const list = new ChapterList({
+      seriesUrl: this.url,
+      chapters: series.chapters,
+      library,
+      i18n,
+      order: settings.get().chapterOrder,
+      downloads,
+      onDownload: (chapter) => this.downloadOne(series, chapter),
+    });
     this.shown.push(list);
 
     const sort = h('button', { class: 'btn btn-ghost pressable', type: 'button' });
@@ -142,6 +160,87 @@ export class SeriesView extends View {
       label();
     });
     return h('section', null, h('div', { class: 'chapters-head' }, h('h2', { class: 'section-title' }, i18n.plural('series.chapters', series.chapters.length)), sort), list.root);
+  }
+
+  /** The button beside the way into the story: chapters to keep for a journey with no network, or to let go. */
+  private downloadButton(series: Series): HTMLElement | null {
+    const { downloads, i18n } = this.app;
+    if (!downloads.available || series.chapters.length === 0) return null;
+    const button = h('button', { class: 'btn btn-soft btn-square pressable', type: 'button', 'aria-label': i18n.t('download.menu'), title: i18n.t('download.menu') }, icon('download', 20));
+    this.listen(button, 'click', () => this.downloadMenu(series));
+    return button;
+  }
+
+  private downloadMenu(series: Series): void {
+    const { downloads, i18n, sheets } = this.app;
+    const unread = this.toDownload(series);
+    const items = [];
+    for (const n of [5, 10]) if (unread.length > n) items.push({ label: i18n.t('download.next', { n }), icon: 'download' as const, run: () => this.download(series, unread.slice(0, n)) });
+    if (unread.length > 0) items.push({ label: i18n.plural('download.unread', unread.length), icon: 'download' as const, run: () => this.download(series, unread) });
+    if (downloads.pending(this.url) > 0) {
+      const waiting = series.chapters.filter((chapter) => downloads.state(chapter.url)?.status === 'queued').map((chapter) => chapter.url);
+      items.push({ label: i18n.t('download.cancel'), icon: 'close' as const, run: () => downloads.cancel(waiting) });
+    }
+    if (downloads.saved(this.url).length > 0) {
+      items.push({ label: i18n.t('download.removeSeries'), icon: 'trash' as const, destructive: true, run: () => void downloads.removeSeries(this.url).then(() => this.app.toasts.show(i18n.t('download.removed'))) });
+    }
+    if (items.length === 0) {
+      this.app.toasts.show(i18n.t('download.nothing'));
+      return;
+    }
+    sheets.menu(i18n.t('download.menu'), items);
+  }
+
+  /**
+   * The chapters worth taking along, in reading order: those not read yet from where the reader is (or from the
+   * first unread one), then any unread before it, leaving out what is already kept or on its way.
+   */
+  private toDownload(series: Series): Chapter[] {
+    const { downloads, library } = this.app;
+    const position = library.position(this.url);
+    const from = Math.max(0, series.chapters.findIndex((chapter) => chapter.url === position?.chapter));
+    const ordered = [...series.chapters.slice(from), ...series.chapters.slice(0, from)];
+    return ordered.filter((chapter) => (chapter.url === position?.chapter || !library.isRead(this.url, chapter.key)) && !['saved', 'queued', 'running'].includes(downloads.state(chapter.url)?.status ?? ''));
+  }
+
+  private download(series: Series, chapters: readonly Chapter[]): void {
+    this.app.downloads.download(series, chapters);
+    this.app.toasts.show(this.app.i18n.t('download.keepOpen'));
+  }
+
+  /** A chapter's own button: download it, stop waiting for it, try again, or let it go once kept. */
+  private downloadOne(series: Series, chapter: Chapter): void {
+    const { downloads, i18n, sheets } = this.app;
+    const status = downloads.state(chapter.url)?.status;
+    if (status === 'queued') downloads.cancel([chapter.url]);
+    else if (status === 'saved') sheets.menu(chapter.title, [{ label: i18n.t('download.removeOne'), icon: 'trash', destructive: true, run: () => void downloads.remove([chapter.url]) }]);
+    else if (status !== 'running') downloads.download(series, [chapter]);
+  }
+
+  /** What is kept of the series, or how its downloads go; nothing when there is nothing to say. */
+  private offlineStatus(): HTMLElement | null {
+    const { downloads, i18n } = this.app;
+    if (!downloads.available) return null;
+    const line = h('p', { class: 'offline-status', 'aria-live': 'polite' });
+    const paint = (): void => {
+      const pending = downloads.pending(this.url);
+      const saved = downloads.saved(this.url);
+      const failed = this.failedHere();
+      const parts: string[] = [];
+      if (pending > 0) parts.push(i18n.plural('download.pending', pending));
+      else if (saved.length > 0) parts.push(i18n.plural('download.count', saved.length, { size: i18n.size(saved.reduce((sum, one) => sum + one.bytes, 0)) }));
+      if (failed > 0) parts.push(i18n.plural('download.failedCount', failed));
+      line.hidden = parts.length === 0;
+      line.dataset.busy = String(pending > 0);
+      line.replaceChildren(pending > 0 ? h('span', { class: 'dl-ring', 'aria-hidden': 'true' }) : icon('downloaded', 16), h('span', null, parts.join(' · ')));
+    };
+    paint();
+    this.unwatch = downloads.subscribe(paint);
+    return line;
+  }
+
+  private failedHere(): number {
+    return this.chaptersShown.filter((chapter) => this.app.downloads.state(chapter.url)?.status === 'failed').length;
   }
 
   private topBar(menu?: () => void): HTMLElement {
@@ -171,6 +270,7 @@ export class SeriesView extends View {
     });
     if (!confirmed || this.isDestroyed) return;
     library.remove(this.url);
+    void this.app.downloads.removeSeries(this.url);
     router.back(Routes.library());
   }
 
@@ -184,6 +284,8 @@ export class SeriesView extends View {
   }
 
   private clear(): void {
+    this.unwatch?.();
+    this.unwatch = null;
     this.backdrop.clear();
     for (const component of this.shown.splice(0)) component.destroy();
     this.root.replaceChildren();

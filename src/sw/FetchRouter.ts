@@ -13,6 +13,8 @@ export interface RouterOptions {
   readonly shellCache: string;
   readonly imageCache: string;
   readonly pageCache: string;
+  /** The downloaded chapters (see CacheShelf): their pictures are served from there first. */
+  readonly savedCache: string;
 }
 
 /** Decides, for each request the app makes, how it is answered. */
@@ -27,7 +29,7 @@ export class FetchRouter {
   constructor(options: RouterOptions) {
     this.origin = new URL(options.scope).origin;
     const shell = options.shellCache;
-    this.images = new ProxiedImages(options.imageCache, new CacheBudget(MAX_IMAGES, MAX_IMAGE_BYTES));
+    this.images = new ProxiedImages(options.imageCache, new CacheBudget(MAX_IMAGES, MAX_IMAGE_BYTES), options.savedCache);
     // nocache=1 never gets here: a one-off answer (it carries a token) is not worth keeping.
     this.pages = new NetworkFirst({ cacheName: options.pageCache, budget: new CacheBudget(MAX_PAGES, MAX_PAGE_BYTES), staleOnServerError: true });
     // Every page of the app is the same document, including "/?url=…" from the share sheet.
@@ -41,7 +43,8 @@ export class FetchRouter {
     if (request.method !== 'GET') return null;
     const url = new URL(request.url);
     // The proxy may live on another origin (GitHub Pages): its answers are ours to keep, whatever the origin.
-    if (url.pathname.endsWith('/api/img')) return this.images;
+    // A picture being downloaded goes to the network as it is: the page keeps it itself.
+    if (url.pathname.endsWith('/api/img')) return url.searchParams.has('saved') ? null : this.images;
     if (url.pathname.endsWith('/api/html')) return url.searchParams.has('nocache') ? null : this.pages;
     if (url.pathname.includes('/api/') || url.origin !== this.origin) return null;
     if (request.mode === 'navigate') return this.navigations;

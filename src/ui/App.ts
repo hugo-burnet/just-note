@@ -1,4 +1,4 @@
-import { Catalog, CoverShelf, Library, Settings, SITES, SourceRegistry } from '../engine/index.ts';
+import { Catalog, CoverShelf, Downloads, inBackground, Library, Settings, SITES, SourceError, SourceRegistry, UpdateChecker } from '../engine/index.ts';
 import type { ResolvedLink } from '../engine/index.ts';
 import type { Connection, Platform } from '../platform/Platform.ts';
 import { AppSheets } from './components/AppSheets.ts';
@@ -36,6 +36,8 @@ export class App implements AppContext {
   readonly library: Library;
   readonly registry: SourceRegistry;
   readonly catalog: Catalog;
+  readonly updates: UpdateChecker;
+  readonly downloads: Downloads;
   readonly transport: Connection;
   readonly clipboard: Platform['clipboard'];
   readonly usesProxy: boolean;
@@ -65,8 +67,17 @@ export class App implements AppContext {
     this.probe = platform.probe;
     const io = { transport: this.transport, parser: platform.parser };
     // A site that only a WebView can read is offered where the app has one.
-    this.registry = new SourceRegistry(SITES.filter((site) => !site.nativeOnly || !platform.usesProxy).map((site) => site.create(io)));
-    this.catalog = new Catalog(this.registry, this.library, Date.now, new CoverShelf(platform.store));
+    const sites = SITES.filter((site) => !site.nativeOnly || !platform.usesProxy);
+    this.registry = new SourceRegistry(sites.map((site) => site.create(io)));
+    // The same sources, for looking for new chapters behind the user's back: a site's human check is never shown for that.
+    const quiet = new SourceRegistry(sites.map((site) => site.create({ ...io, transport: inBackground(this.transport) })));
+    this.updates = new UpdateChecker(this.library, (url) => {
+      const link = quiet.resolve(url);
+      return link ? link.source.getSeries(url) : Promise.reject(new SourceError('unsupported', `No source understands ${url}.`, { url }));
+    });
+    // A chapter is downloaded as the reader would read it ahead: no dialog put in front of the user for it.
+    this.downloads = new Downloads(platform.store, this.transport.shelf ?? null, (url) => this.catalog.chapter(url, { background: true }));
+    this.catalog = new Catalog(this.registry, this.library, Date.now, new CoverShelf(platform.store), this.downloads);
     this.toasts = new ToastHost(elements.toasts);
     this.sheets = new AppSheets(this, document.body);
     this.appearance = new Appearance(this.settings, this.i18n);
