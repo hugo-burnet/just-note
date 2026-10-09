@@ -94,6 +94,15 @@ test('digest: the synopsis is found in the body by the first words of the descri
   assert.match(report, /--- markup around the text of the description\n.*<div class="synopsis"><p>Mara keeps the last lantern/s);
 });
 
+test('digest: a reader that is given its pages in a script has the start of that list quoted, with the slashes put right', () => {
+  const pages = [1, 2, 3, 4].map((n) => `"https:\\/\\/c.example.test\\/uploads97\\/Ch-0${n}.webp"`).join(',');
+  const body = `<html><head><title>Chapter</title></head><body><script>var a = 1; ts_reader.run({"post_id":7,"sources":[{"source":"Server 1","images":[${pages}]}]});</script></body></html>`;
+  const report = digest({ ...source, body });
+  assert.match(report, /--- the first script that lists pictures, around the first\n.*"images":\["https:\/\/c\.example\.test\/uploads97\/Ch-01\.webp","https:\/\/c\.example\.test\/uploads97\/Ch-02\.webp"/s);
+  // Two pictures named in a script are not a list.
+  assert.doesNotMatch(digest(source), /the first script that lists pictures/);
+});
+
 test('digest: a page without those has none of those windows', () => {
   const report = digest(source);
   assert.doesNotMatch(report, /markup around the first blob|markup around the first <canvas>|markup around the text of the description/);

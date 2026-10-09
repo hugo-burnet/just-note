@@ -95,7 +95,7 @@ export class ReaderView extends View {
       startPage: this.startPage(target, pages.length),
       previous: at > 0 ? refOf(chapters[at - 1]) : null,
       next: at >= 0 ? refOf(chapters[at + 1]) : null,
-      natural: target.reading,
+      natural: series?.reading ?? target.reading,
     });
   }
 

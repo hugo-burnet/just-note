@@ -40,6 +40,9 @@ const MAX_TAGS = 4;
 const TAG_CHARS = 200;
 const BODY_CHARS = 1200;
 const NOT_A_PAGE = '(not a page)';
+const PICTURE_ADDRESS = /https?:\/\/[^\s"'<>\\]+?\.(?:jpe?g|png|webp|avif|gif)/gi;
+const LISTING_BEFORE = 160;
+const LISTING_AFTER = 360;
 
 const unique = <T>(values: Iterable<T>): T[] => [...new Set(values)];
 const captures = (text: string, pattern: RegExp): string[] => [...text.matchAll(pattern)].map((match) => match[1] ?? '').filter(Boolean);
@@ -154,10 +157,14 @@ export function digest(source: DigestSource): string {
   // A reader that builds its pages with scripts shows them as blob: pictures or canvases; the synopsis of a series is somewhere in the body.
   const ogDescription = metaContent(html, 'og:description');
   const synopsis = (ogDescription || metaContent(html, 'description')).slice(0, SYNOPSIS_CHARS).trim();
+  // A reader that is given its pages in a script (a list of addresses, "images":["…"]): the first script that names several, around the first.
+  const listing = inline.map((script) => script.replaceAll('\\/', '/')).find((script) => (script.match(PICTURE_ADDRESS) ?? []).length >= 3);
+  const listingAt = listing ? listing.search(PICTURE_ADDRESS) : -1;
   const readerMarkup = [
     ...around(html, 'the first blob: picture', html.search(/<img\b[^>]*\bsrc=["']blob:/i)),
     ...around(html, 'the first <canvas>', html.search(/<canvas\b/i)),
     ...around(html, 'the text of the description', synopsis ? html.indexOf(synopsis, bodyAt) : -1),
+    ...(listing ? ['--- the first script that lists pictures, around the first', ...fold(listing.slice(Math.max(0, listingAt - LISTING_BEFORE), listingAt + LISTING_AFTER))] : []),
   ];
   const blobs = tags.filter((tag) => /\bsrc=["']blob:/i.test(tag)).length;
 

@@ -19,6 +19,7 @@ export type { ChapterOrder, DirectionChoice, Language, ModeChoice, ReadingMode, 
 export { FanFoxSource } from './source/fanfox/FanFoxSource.ts';
 export { LelScanSource } from './source/lelscan/LelScanSource.ts';
 export { ScanMangaSource } from './source/scanmanga/ScanMangaSource.ts';
+export { SushiScanSource } from './source/sushiscan/SushiScanSource.ts';
 export { Source } from './source/Source.ts';
 export { SITES } from './sites.ts';
 export type { SiteInfo, SiteModule } from './source/Site.ts';
