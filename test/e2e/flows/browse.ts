@@ -163,6 +163,37 @@ export async function browseAndSettings({ browser, stage, runner }: Context): Pr
     await shot(page, '37-reader-in-light-theme');
   });
 
+  await step('the shelf is filtered by genre: a tap keeps one, a second leaves it out, and the choice is kept', async () => {
+    // Three more series, as the library keeps them once their pages were read (just now: nothing to check).
+    await page.evaluate(() => {
+      const shelf: Array<[string, string[]]> = [['Ember Road', ['Action', 'Romance']], ['Quiet Harbour', ['Romance', 'Slice of Life']], ['Iron Sky', ['Action', 'Sci-Fi']]];
+      shelf.forEach(([title, genres], index) => {
+        const url = `https://fanfox.net/manga/${title.toLowerCase().replace(/ /g, '_')}/`;
+        localStorage.setItem(`jr:entry:${url}`, JSON.stringify({ url, title, cover: null, genres, chapterCount: 3, seenCount: 3, checkedAt: Date.now(), addedAt: index, updatedAt: index, generation: 'initial' }));
+      });
+    });
+    await page.goto(`${stage.appUrl}#/library`);
+    await page.reload();
+    const titles = (): Promise<string[]> => page.locator('.shelf .card-title').allInnerTexts();
+    await page.locator('.genre-bar').waitFor();
+    await page.locator('.genre-chip', { hasText: 'Action' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.shelf .card').length === 2);
+    assert.deepEqual((await titles()).sort(), ['Ember Road', 'Iron Sky']);
+    await page.locator('.genre-chip', { hasText: 'Romance' }).click();
+    assert.deepEqual(await titles(), ['Ember Road']);
+    await page.locator('.genre-chip', { hasText: 'Romance' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.shelf .card').length === 1);
+    assert.deepEqual(await titles(), ['Iron Sky']);
+    assert.equal(await page.locator('.genre-chip[data-choice="exclude"]').innerText().then((text) => text.includes('Romance')), true);
+    await settle(page);
+    await shot(page, '39-library-genres');
+    // Kept from one start to the next, until "Show all".
+    await page.reload();
+    await page.waitForFunction(() => document.querySelectorAll('.shelf .card').length === 1);
+    await page.getByRole('button', { name: 'Show all' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.shelf .card').length === 4);
+  });
+
   await step('the erase button asks first, then empties the library', async () => {
     await page.goto(`${stage.appUrl}#/settings`);
     await page.getByRole('button', { name: 'Erase library and progress' }).click();

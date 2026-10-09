@@ -38,7 +38,8 @@ export class UpdateChecker {
   }
 
   private async check(changed: (url: string) => void): Promise<number> {
-    const due = this.library.list().filter((entry) => entry.checkedAt === undefined || this.now() - entry.checkedAt >= CHECK_EVERY_MS);
+    // A series kept before its genres were is read again at once, so that the shelf can be filtered by them.
+    const due = this.library.list().filter((entry) => entry.checkedAt === undefined || entry.genres === undefined || this.now() - entry.checkedAt >= CHECK_EVERY_MS);
     const read = await Promise.all(
       due.map((entry) =>
         this.limiter.run(async () => {

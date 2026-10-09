@@ -34,6 +34,11 @@ const address = (value: unknown): string => {
   return raw;
 };
 
+function genreList(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > 200) return fail();
+  return [...new Set(value.map(text))];
+}
+
 function position(value: unknown): ReadingPosition {
   const item = record(value);
   return { chapter: address(item.chapter), key: text(item.key), title: text(item.title), page: integer(item.page) };
@@ -48,6 +53,7 @@ function entry(value: unknown): BackupEntry {
     url: address(item.url), title: text(item.title), cover: item.cover === null ? null : address(item.cover),
     addedAt, updatedAt, finished: [...new Set(item.finished.map(text))],
     ...(item.chapterCount === undefined ? {} : { chapterCount: integer(item.chapterCount) }),
+    ...(item.genres === undefined ? {} : { genres: genreList(item.genres) }),
     ...(item.seenCount === undefined ? {} : { seenCount: integer(item.seenCount) }),
     ...(item.checkedAt === undefined ? {} : { checkedAt: integer(item.checkedAt) }),
     ...(item.position === undefined ? {} : { position: position(item.position) }),

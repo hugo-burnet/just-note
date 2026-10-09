@@ -8,6 +8,8 @@ export { extractUrl } from './links.ts';
 export { Library } from './library/Library.ts';
 export { CHECK_EVERY_MS, UpdateChecker } from './library/UpdateChecker.ts';
 export { Downloads } from './library/Downloads.ts';
+export { GenreFilter, genreKey } from './library/GenreFilter.ts';
+export type { GenreChoice, ShelfGenre } from './library/GenreFilter.ts';
 export type { DownloadState, SavedChapter } from './library/Downloads.ts';
 export { inBackground } from './source/inBackground.ts';
 export type { LibraryEntry, ReadingPosition } from './library/Library.ts';

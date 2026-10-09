@@ -14,6 +14,8 @@ export interface LibraryEntry extends SeriesSummary {
   readonly addedAt: number;
   readonly updatedAt: number;
   readonly chapterCount?: number;
+  /** The genres its site gives it, as the site writes them; unknown until its page was read since they were kept. */
+  readonly genres?: readonly string[];
   /** How many chapters the series had when it was last opened: those past it are new. */
   readonly seenCount?: number;
   /** When the series was last read from its site (opened, or checked for new chapters). */
@@ -70,15 +72,17 @@ export class Library {
    * Refreshes details without writing over the independently stored position. A series met for the first
    * time has nothing new; one known before keeps what had been seen of it, so that what came since shows.
    */
-  save(series: SeriesSummary & { readonly chapters?: readonly unknown[] }): void {
+  save(series: SeriesSummary & { readonly chapters?: readonly unknown[]; readonly genres?: readonly string[] }): void {
     const old = this.entry(series.url);
     const previous = this.storage.read<StoredEntry>(ENTRY + series.url);
     const now = this.now();
     const chapterCount = series.chapters?.length ?? old?.chapterCount;
     const seenCount = old ? (old.seenCount ?? old.chapterCount) : chapterCount;
+    const genres = series.genres ?? old?.genres;
     this.storage.write(ENTRY + series.url, {
       url: series.url, title: series.title, cover: series.cover,
       chapterCount,
+      ...(genres === undefined ? {} : { genres: [...genres] }),
       ...(seenCount === undefined ? {} : { seenCount }),
       ...(series.chapters ? { checkedAt: now } : old?.checkedAt === undefined ? {} : { checkedAt: old.checkedAt }),
       addedAt: old?.addedAt ?? now, updatedAt: old?.updatedAt ?? now,

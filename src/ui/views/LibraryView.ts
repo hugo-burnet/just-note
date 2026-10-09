@@ -1,4 +1,4 @@
-import type { LibraryEntry, ReadingPosition } from '../../engine/index.ts';
+import type { LibraryEntry, ReadingPosition, ShelfGenre } from '../../engine/index.ts';
 import { Cover } from '../components/Cover.ts';
 import { EmptyState } from '../components/EmptyState.ts';
 import { LargeHeader } from '../components/LargeHeader.ts';
@@ -16,6 +16,8 @@ export class LibraryView extends View {
   readonly tab = 'library' as const;
   private readonly content = h('div', { class: 'wrap' });
   private readonly shown: Component[] = [];
+  /** The cards of the shelf, drawn again on their own when the genres it is filtered by change. */
+  private readonly cards: Component[] = [];
   private backdrop: ImageLoader | null = null;
 
   constructor(app: AppContext) {
@@ -51,21 +53,23 @@ export class LibraryView extends View {
   /** The series not checked for a while are read again from their sites; the shelf is drawn again if one has news. */
   private lookForNewChapters(): void {
     let changed = false;
+    // Series whose genres are not known yet learn them now: the genres above the shelf change.
+    const learning = this.app.library.list().some((entry) => entry.genres === undefined);
     void this.app.updates
       .run(() => {
         changed = true;
       })
-      .then(() => {
-        if (changed && !this.isDestroyed) this.render();
+      .then((read) => {
+        if ((changed || (learning && read > 0)) && !this.isDestroyed) this.render();
       });
   }
 
   private render(): void {
     this.backdrop?.destroy();
     this.backdrop = null;
-    for (const component of this.shown.splice(0)) component.destroy();
+    for (const component of [...this.shown.splice(0), ...this.cards.splice(0)]) component.destroy();
     this.content.replaceChildren();
-    const { library, i18n } = this.app;
+    const { library } = this.app;
     const entries = library.list();
     if (entries.length === 0) {
       this.content.append(this.empty());
@@ -73,11 +77,85 @@ export class LibraryView extends View {
     }
     const resuming = entries.find((entry) => entry.position);
     if (resuming?.position) this.content.append(this.resumeCard(resuming, resuming.position));
+    const shelf = h('section', { class: 'section shelf' });
+    this.content.append(shelf);
+    this.paintShelf(shelf, entries);
+  }
+
+  /** The shelf: its genres to filter by, and the series that pass, most recently read first. */
+  private paintShelf(shelf: HTMLElement, entries: readonly LibraryEntry[]): void {
+    const { i18n, genreFilter } = this.app;
+    for (const card of this.cards.splice(0)) card.destroy();
+    // Drawn again, the row of genres stays where it was scrolled to.
+    const scrolled = shelf.querySelector('.genre-bar')?.scrollLeft ?? 0;
+    const passing = entries.filter((entry) => genreFilter.matches(entry));
+    const count = genreFilter.active ? i18n.t('library.filtered', { shown: passing.length, total: entries.length }) : i18n.plural('library.count', entries.length);
+    const bar = this.genreBar(shelf, entries);
     const grid = h('div', { class: 'grid' });
-    entries.forEach((entry, index) => grid.append(this.card(entry, index)));
-    this.content.append(h('section', { class: 'section shelf' }, h('div', { class: 'shelf-heading' },
-      h('h2', { class: 'section-title' }, i18n.t('library.shelf')), h('span', { class: 'chip' }, i18n.plural('library.count', entries.length))),
-      h('p', { class: 'shelf-hint' }, i18n.t('library.recent')), grid));
+    passing.forEach((entry, index) => grid.append(this.card(entry, index)));
+    shelf.replaceChildren(
+      h('div', { class: 'shelf-heading' }, h('h2', { class: 'section-title' }, i18n.t('library.shelf')), h('span', { class: 'chip' }, count)),
+      h('p', { class: 'shelf-hint' }, i18n.t('library.recent')),
+      bar ?? '',
+      bar && !genreFilter.active ? h('p', { class: 'genre-hint' }, i18n.t('library.genresHint')) : '',
+      passing.length > 0 ? grid : this.noMatch(shelf, entries),
+    );
+    if (bar) bar.scrollLeft = scrolled;
+  }
+
+  /**
+   * The genres of the shelf, the commonest first. A tap keeps a genre (only the series that have it), a second
+   * leaves it out (only those that have not), a third lets it go. Nothing when no series says its genres.
+   */
+  private genreBar(shelf: HTMLElement, entries: readonly LibraryEntry[]): HTMLElement | null {
+    const { i18n, genreFilter } = this.app;
+    const genres = genreFilter.genres(entries);
+    if (genres.length === 0) return null;
+    const bar = h('div', { class: 'chips chips-scroll genre-bar', role: 'group', 'aria-label': i18n.t('library.genres') });
+    if (genreFilter.active) {
+      const reset = h('button', { class: 'chip chip-button genre-reset pressable', type: 'button' }, icon('close', 14), i18n.t('library.genresClear'));
+      this.listen(reset, 'click', () => {
+        genreFilter.clear();
+        this.paintShelf(shelf, entries);
+      });
+      bar.append(reset);
+    }
+    for (const genre of genres) bar.append(this.genreChip(shelf, entries, genre));
+    return bar;
+  }
+
+  private genreChip(shelf: HTMLElement, entries: readonly LibraryEntry[], genre: ShelfGenre): HTMLElement {
+    const { i18n, genreFilter } = this.app;
+    const state = i18n.t(genre.choice === 'include' ? 'library.genreKept' : genre.choice === 'exclude' ? 'library.genreLeftOut' : 'library.genreAny');
+    const chip = h(
+      'button',
+      {
+        class: 'chip chip-button genre-chip pressable',
+        type: 'button',
+        'data-choice': genre.choice,
+        'aria-pressed': genre.choice === 'none' ? 'false' : 'true',
+        'aria-label': `${genre.name}, ${i18n.plural('library.count', genre.count)}, ${state}`,
+      },
+      genre.choice === 'include' ? icon('check', 14) : genre.choice === 'exclude' ? icon('close', 14) : null,
+      h('span', { class: 'genre-name' }, genre.name),
+      h('span', { class: 'genre-count', 'aria-hidden': 'true' }, String(genre.count)),
+    );
+    this.listen(chip, 'click', () => {
+      genreFilter.cycle(genre.key);
+      this.paintShelf(shelf, entries);
+    });
+    return chip;
+  }
+
+  /** Every series is filtered out: said so, with the way back. */
+  private noMatch(shelf: HTMLElement, entries: readonly LibraryEntry[]): HTMLElement {
+    const { i18n, genreFilter } = this.app;
+    const reset = h('button', { class: 'btn btn-soft pressable', type: 'button' }, i18n.t('library.genresClear'));
+    this.listen(reset, 'click', () => {
+      genreFilter.clear();
+      this.paintShelf(shelf, entries);
+    });
+    return h('div', { class: 'genre-empty' }, h('p', null, i18n.t('library.genresNone')), reset);
   }
 
   private card(entry: LibraryEntry, index: number): HTMLElement {
@@ -96,7 +174,7 @@ export class LibraryView extends View {
       index,
       onMenu: () => void this.confirmRemoval(entry),
     });
-    this.shown.push(card);
+    this.cards.push(card);
     return card.root;
   }
 

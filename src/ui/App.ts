@@ -1,4 +1,4 @@
-import { Catalog, CoverShelf, Downloads, inBackground, Library, Settings, SITES, SourceError, SourceRegistry, UpdateChecker } from '../engine/index.ts';
+import { Catalog, CoverShelf, Downloads, GenreFilter, inBackground, Library, Settings, SITES, SourceError, SourceRegistry, UpdateChecker } from '../engine/index.ts';
 import type { ResolvedLink } from '../engine/index.ts';
 import type { Connection, Platform } from '../platform/Platform.ts';
 import { AppSheets } from './components/AppSheets.ts';
@@ -38,6 +38,7 @@ export class App implements AppContext {
   readonly catalog: Catalog;
   readonly updates: UpdateChecker;
   readonly downloads: Downloads;
+  readonly genreFilter: GenreFilter;
   readonly transport: Connection;
   readonly clipboard: Platform['clipboard'];
   readonly usesProxy: boolean;
@@ -54,6 +55,7 @@ export class App implements AppContext {
   constructor(platform: Platform, elements: AppElements) {
     this.settings = new Settings(platform.store, platform.defaults);
     this.library = new Library(platform.store);
+    this.genreFilter = new GenreFilter(platform.store);
     this.transport = platform.connect(
       () => this.settings.get().proxyBase,
       () => ({

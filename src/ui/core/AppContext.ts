@@ -1,4 +1,4 @@
-import type { Catalog, Downloads, Library, Settings, SourceRegistry, Transport, UpdateChecker } from '../../engine/index.ts';
+import type { Catalog, Downloads, GenreFilter, Library, Settings, SourceRegistry, Transport, UpdateChecker } from '../../engine/index.ts';
 import type { Clipboard, PageProbe } from '../../platform/Platform.ts';
 import type { ColorSampler } from '../components/ColorSampler.ts';
 import type { Sheet, SheetOptions } from '../components/Sheet.ts';
@@ -36,6 +36,8 @@ export interface AppContext {
   readonly updates: UpdateChecker;
   /** The chapters kept on the device to be read offline. */
   readonly downloads: Downloads;
+  /** The genres the shelf is filtered by, remembered. */
+  readonly genreFilter: GenreFilter;
   readonly settings: Settings;
   readonly transport: Transport;
   readonly clipboard: Clipboard;

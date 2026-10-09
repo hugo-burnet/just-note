@@ -34,6 +34,12 @@ opening it clears that. These checks never show an anti-bot check: they go throu
 sources with every request marked `background` (`inBackground`), and a site that asks for a
 human check is simply tried again next time.
 
+**Filter the shelf by genre.** Above the shelf, the genres of its series, the commonest first: a
+tap keeps a genre (only the series that have it; several kept genres must all be there), a second
+leaves it out (the series that have it are hidden), a third lets it go. The choice is remembered
+(`GenreFilter`). Two spellings of one genre (*Sci-Fi*, *sci fi*) are one. A series keeps the genres
+its page gave it; one kept before that is read again when the library opens.
+
 **Downloads, to read with no network.** In a series, the ⤓ button beside *Continue* downloads
 the next 5 or 10 unread chapters, or all of them, from where you are; each chapter also has its
 own button, which shows a ring while it comes in and turns into a mark once kept. A chapter is
@@ -71,7 +77,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 432 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 438 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -271,7 +277,7 @@ in the APK. See [NATIVE.md](NATIVE.md) for rendering, diagnostics and offline st
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 432 unit tests
+npm run check        # types (app and worker) and the 438 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run test:e2e -- regressions # shared storage and native image regressions
