@@ -115,7 +115,7 @@ export const fr: Readonly<Record<MessageKey, string>> = {
   'error.noProxy.title': "Impossible de joindre le serveur de l'app",
   'error.noProxy.hint': "Le proxy qui récupère les pages ne répond pas (l'app a interrogé {proxy}). Vérifie son adresse dans les réglages : ce doit être ton propre proxy Just Read.",
   'error.hostNotAllowed.title': 'Adresse bloquée',
-  'error.hostNotAllowed.hint': "Le proxy n'autorise pas {host}. Ajoute-le avec PROXY_EXTRA_HOSTS côté serveur.",
+  'error.hostNotAllowed.hint': "{host} ne fait pas partie des adresses que Just Read lit. S'il sert les images d'un site que tu lis, un proxy peut l'autoriser avec PROXY_EXTRA_HOSTS.",
   'error.refused.title': 'Le site a refusé la requête',
   'error.refused.hint': 'Il affiche peut-être une vérification anti-bot. Réessaie dans une minute.',
   'error.notFound.title': 'Introuvable',

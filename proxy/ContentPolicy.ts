@@ -6,6 +6,8 @@
 // but its own files may run or style the page. Images and requests may go to any
 // https address, because that is where the proxy lives (the user can point the app
 // at their own), and to the machine itself, for a proxy started with `npm start`.
+// Images may also be blob: addresses, which the installed app makes for the pages it
+// downloads itself: only script can make one, and no script but the app's own runs.
 const LOOPBACK = 'http://127.0.0.1:* http://localhost:*';
 
 const DIRECTIVES = [
@@ -13,7 +15,7 @@ const DIRECTIVES = [
   "script-src 'self'",
   "style-src 'self'",
   "font-src 'self'",
-  `img-src 'self' https: ${LOOPBACK} data:`,
+  `img-src 'self' https: ${LOOPBACK} data: blob:`,
   `connect-src 'self' https: ${LOOPBACK}`,
   "manifest-src 'self'",
   "worker-src 'self'",

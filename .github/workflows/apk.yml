@@ -1,0 +1,73 @@
+name: Android
+
+# Builds the installable app (Capacitor): the same screens as the web app, but it reads the
+# sites from the phone itself, so it needs no proxy. The APK is in the run's artifacts.
+#
+# On a phone: open the run, tap "just-read-apk" under Artifacts (a zip), open the zip with
+# the Files app and tap just-read.apk. Android asks once to allow installs from that app.
+# Every build is signed with the same key and numbered after the run, so a newer one
+# installs over an older one and keeps the library.
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'proxy/**'
+      - 'android/**'
+      - 'scripts/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('android/**/*.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Accept the Android SDK licences
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - name: Build
+        working-directory: android
+        run: |
+          version="$(node -p "require('../package.json').version")-${{ github.run_number }}"
+          ./gradlew --no-daemon assembleDebug -PversionCode=${{ github.run_number }} -PversionName="$version"
+      - name: Name the APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk out/just-read.apk
+          ls -l out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: just-read-apk
+          path: out/just-read.apk
+          if-no-files-found: error

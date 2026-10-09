@@ -73,7 +73,7 @@ export class SettingsView extends View {
             { value: 'rtl', label: i18n.t('reader.rtl') },
           ], (direction) => settings.set({ direction }))),
         ]),
-        this.connection(),
+        ...(this.app.usesProxy ? [this.connection()] : []),
         this.data(),
         h('p', { class: 'fineprint selectable' }, i18n.t('settings.privacy')),
         h('p', { class: 'fineprint' }, `${i18n.t('app.name')} ${__APP_VERSION__}`),

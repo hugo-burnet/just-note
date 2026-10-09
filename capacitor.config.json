@@ -1,0 +1,9 @@
+{
+  "appId": "io.github.hugoburnet.justread",
+  "appName": "Just Read",
+  "webDir": "dist",
+  "backgroundColor": "#0f1015",
+  "server": {
+    "androidScheme": "https"
+  }
+}

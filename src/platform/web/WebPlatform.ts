@@ -10,6 +10,7 @@ export class WebPlatform implements Platform {
   readonly store = new LocalStorageStore();
   readonly parser = new BrowserParser();
   readonly clipboard = new ClipboardService();
+  readonly usesProxy = true;
   readonly defaults: Partial<SettingsValues>;
 
   /** `proxyBase`: where the proxy lives, when it is not at the address of the app (GitHub Pages). */

@@ -1,11 +1,10 @@
+import { MAX_IMAGES, MAX_PAGES } from '../platform/web/cacheNames.ts';
 import { CacheBudget } from './CacheBudget.ts';
 import { CacheFirst } from './CacheFirst.ts';
 import { NetworkFirst } from './NetworkFirst.ts';
 import { ProxiedImages } from './ProxiedImages.ts';
 import type { Strategy } from './Strategy.ts';
 
-const MAX_IMAGES = 400;
-const MAX_PAGES = 80;
 const SHELL_TIMEOUT_MS = 4000;
 
 export interface RouterOptions {

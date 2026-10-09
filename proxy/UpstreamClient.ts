@@ -10,7 +10,8 @@ export interface Upstream {
 
 const MAX_REDIRECTS = 5;
 const TIMEOUT_MS = 30_000;
-const USER_AGENT =
+// Also what the installed app presents itself as, so that a site answers it the way it answers the proxy.
+export const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 // Fetches from the sites on behalf of the app. Every hop, redirects included,

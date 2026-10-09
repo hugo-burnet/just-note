@@ -22,6 +22,8 @@ export interface Platform {
   readonly clipboard: Clipboard;
   /** Where this platform's defaults differ from the engine's. */
   readonly defaults: Partial<SettingsValues>;
+  /** Whether the sites are reached through a proxy the user can point elsewhere (the browser), or directly (the installed app). */
+  readonly usesProxy: boolean;
   /** `proxyBase` reads the setting each time, so a change applies at once. */
   connect(proxyBase: () => string): Connection;
 }

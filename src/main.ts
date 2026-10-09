@@ -12,12 +12,18 @@ import './ui/styles/reader-chrome.css';
 import './ui/styles/reader-states.css';
 import './ui/styles/states.css';
 
+import { Capacitor } from '@capacitor/core';
+import { NativePlatform } from './platform/native/NativePlatform.ts';
 import { registerServiceWorker } from './platform/web/registerServiceWorker.ts';
 import { WebPlatform } from './platform/web/WebPlatform.ts';
 import { App } from './ui/App.ts';
 
-// The browser build: the platform is the web's, and the proxy is wherever the build says.
+// One build, two ways to run it. Installed (Capacitor) the app reads the sites itself and
+// keeps what it read on its own: no proxy, no service worker. In a browser the platform is
+// the web's, and the proxy is wherever the build says.
+const native = Capacitor.isNativePlatform();
 const outlet = document.getElementById('app');
 const toasts = document.getElementById('toasts');
-if (outlet && toasts) new App(new WebPlatform(import.meta.env.VITE_PROXY_URL), { outlet, toasts }).start();
-registerServiceWorker();
+const platform = native ? new NativePlatform() : new WebPlatform(import.meta.env.VITE_PROXY_URL);
+if (outlet && toasts) new App(platform, { outlet, toasts }).start();
+if (!native) registerServiceWorker();

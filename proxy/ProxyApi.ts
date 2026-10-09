@@ -9,6 +9,7 @@
 // (CORS) and image CDNs refuse requests that do not carry the site's Referer.
 import { capStream, readText } from './bodies.ts';
 import { HostPolicy } from './HostPolicy.ts';
+import { IMAGE_TYPES, MAX_HTML_BYTES, MAX_IMAGE_BYTES } from './limits.ts';
 import { ProxyError } from './ProxyError.ts';
 import { UpstreamClient } from './UpstreamClient.ts';
 import type { FetchFunction } from './UpstreamClient.ts';
@@ -19,11 +20,6 @@ export interface ProxyOptions {
   /** The origin allowed to call the API from a browser. null: same origin only. */
   corsOrigin?: string | null;
 }
-
-const MAX_HTML_BYTES = 5 * 1024 * 1024;
-const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
-// Raster formats only: an SVG served from our own origin could run scripts.
-const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

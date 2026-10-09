@@ -35,6 +35,8 @@ export interface AppContext {
   readonly settings: Settings;
   readonly transport: Transport;
   readonly clipboard: Clipboard;
+  /** false in the installed app, which reads the sites itself: there is no proxy to configure. */
+  readonly usesProxy: boolean;
   readonly i18n: I18n;
   readonly errors: ErrorPresenter;
   readonly colors: ColorSampler;

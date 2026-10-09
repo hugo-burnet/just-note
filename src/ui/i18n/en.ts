@@ -114,7 +114,7 @@ export const en = {
   'error.noProxy.title': "Can't reach the app's server",
   'error.noProxy.hint': "The proxy that fetches pages isn't answering (the app asked {proxy}). Check its address in Settings: it has to be your own Just Read proxy.",
   'error.hostNotAllowed.title': 'Blocked address',
-  'error.hostNotAllowed.hint': "The proxy doesn't allow {host}. Add it with PROXY_EXTRA_HOSTS on the server.",
+  'error.hostNotAllowed.hint': "{host} isn't one of the addresses Just Read reads from. If it serves the images of a site you read, a proxy can allow it with PROXY_EXTRA_HOSTS.",
   'error.refused.title': 'The site refused the request',
   'error.refused.hint': 'It may be showing an anti-bot check. Try again in a minute.',
   'error.notFound.title': 'Not found',

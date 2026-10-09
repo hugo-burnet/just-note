@@ -3,7 +3,8 @@
 Paste a link, read it here. The app becomes the reader of the site the link points
 to: a library, your place in every series, reading as a scrolling column or page by
 page, and what you already read stays available offline. Built for a phone first
-(a PWA today, an APK with Capacitor later), and it does not look like a website.
+(a PWA, or an Android app made with Capacitor that needs no proxy), and it does not look
+like a website.
 
 Sites it reads: **FanFox** (MangaFox), which publishes in English only; **WEBTOON**, in
 English and French; and **LelScan**, French scans of a few dozen series. The app itself is
@@ -32,7 +33,8 @@ decision back.
 Why a proxy: a browser may not read another site's pages (CORS), and image CDNs
 refuse requests that do not carry the site's Referer. GitHub Pages only serves files,
 so the proxy runs elsewhere (a Cloudflare Worker, or any Node host). It relays an
-allowlist of hosts only, so it is not an open proxy. A native build will not need it.
+allowlist of hosts only, so it is not an open proxy. The installed app (the APK, below)
+does not need it: it reads the sites from the phone itself.
 
 It has to be *this* proxy. A public one found online (corsproxy.io and the like) will
 not do: it speaks another protocol (the app asks for `/api/html` and `/api/img`), it does
@@ -41,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 172 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 192 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -56,9 +58,14 @@ runs it sees everything you read and can alter what you are shown.
   app on a real site yet. Expect the first real run to need an adjustment. When a page
   cannot be read, the error screen has a **Copy details** button: paste its content to
   get the adapter fixed.
+- **Not verified: the APK on a phone.** It was written without a device; the CI only
+  shows that it builds, and the transport it uses is unit-tested with a fake network.
+  Expect the look of the system bars and the first real pages to need an adjustment.
 - Some sites cannot be read from a web app at all: the ones that check their visitors
   with an anti-bot challenge (Cloudflare's *Just a moment…*) answer the proxy with a page
-  that only a real browser can pass. Scan-Manga is one.
+  that only a real browser can pass. Scan-Manga and SushiScan are two. The APK asks from
+  the phone, but it runs no JavaScript either, so it is refused the same way until it can
+  let a WebView pass the challenge and reuse the cookie (not done yet).
 - LelScan has no search of its own: searching filters its list of series. A chapter takes
   one request per page (the images are not named alike from one series to the next), so a
   long chapter takes a few seconds to open.
@@ -105,6 +112,15 @@ On the phone: open the page, then *Install app* / *Add to Home Screen*. On Andro
 **Share → Just Read** from the browser then opens a link directly (iOS has no share
 target: paste the link instead).
 
+**The APK (Android).** `.github/workflows/apk.yml` builds it whenever the app changes, and
+on demand (Actions tab → *Android* → *Run workflow*). On a phone: open the run, tap
+**just-read-apk** under *Artifacts* (a zip), open the zip with the Files app and tap
+`just-read.apk`; Android asks once to allow installs from that app. Every build is signed
+with the same key and numbered after the run, so a newer APK installs over an older one and
+keeps the library. That key is `android/app/debug.keystore`, public on purpose: this is an
+app you install yourself, not a store release. On a computer, with JDK 21 and the Android
+SDK: `npm run apk`.
+
 Prefer one machine for everything? `STATIC_DIR=dist npm start` serves the app and the
 proxy together, and the proxy address stays empty (same address).
 
@@ -120,10 +136,11 @@ proxy together, and the proxy address stays empty (same address).
 
 ```
 src/engine/     the pure engine: sources, catalog, library, settings, reading logic
-src/platform/   what the machine provides: the web's (localStorage, fetch through the proxy)
+src/platform/   what the machine provides: the web's (fetch through the proxy), the installed app's (the phone's own network)
 src/ui/         screens and components, written as classes, with no framework
 src/sw/         the service worker: strategy classes, built next to the app
 proxy/          the proxy, written with the Fetch API only: runs on Node and on Workers
+android/        the Capacitor project of the APK
 scripts/        Vite plugins (service worker, security policy, dev proxy), icons
 test/           unit tests, fixtures, the end-to-end run
 ```
@@ -131,9 +148,10 @@ test/           unit tests, fixtures, the end-to-end run
 - **A pure engine.** `src/engine` touches no DOM, no network and no storage. It is given
   three ports (`Transport`, `HtmlParser`, `KeyValueStore`, see `src/engine/ports.ts`);
   a test fails if any engine file mentions a browser or Node global. That is what lets
-  the same engine run in the browser now and inside Capacitor later.
+  the same engine run in the browser and inside Capacitor.
 - **A platform seam.** `src/platform/Platform.ts` is everything the app takes from the
-  machine. `WebPlatform` is the browser's. Nothing else changes for a native build.
+  machine. `WebPlatform` is the browser's and `NativePlatform` the installed app's; the
+  engine and the screens do not know which one they run on.
 - **Object-oriented, small.** Classes with one job each; no hand-written file is longer
   than 300 lines (a test enforces it, `package-lock.json` aside).
 - **Strict by default.** TypeScript in strict mode, with only syntax that can be erased
@@ -171,17 +189,22 @@ it), so a site cannot be readable in one and refused by the other.
 Prefer URLs and `<meta>` tags to CSS class names when reading a page: they survive
 redesigns better.
 
-### The APK, later
+### The APK
 
-The app is ready for Capacitor: the build is relative (`base: './'`), the screens use
-hash addresses, and the engine only knows ports. What is left is a `NativePlatform`
-(`CapacitorHttp` for pages and images, so no proxy), a `main.native.ts` that builds
-the app on it without registering the service worker, and `npx cap add android`.
+The same build runs in a browser and inside Capacitor; `src/main.ts` picks the platform.
+`NativePlatform` reaches the sites with `CapacitorHttp`, the phone's own network stack: no
+CORS to obey, any Referer to send, so no proxy. It applies the proxy's rules (the same list
+of hosts, redirects checked one by one, the same size and type limits) and fails with the
+same codes, so the screens say the same things. Pictures are downloaded by the app and given
+to `<img>` as `blob:` addresses. What is read is kept in the WebView's Cache API under the
+service worker's cache names (so *Settings → Data* empties both), and the service worker is
+not registered. The proxy address setting is hidden. Not done yet: sharing a link to the
+app, its own launcher icon, and the Cloudflare challenge (above).
 
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 172 unit tests
+npm run check        # types (app and worker) and the 192 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg
@@ -190,7 +213,8 @@ npm run icons        # regenerate the PNG icons from public/icons/icon.svg
 ## Safety notes
 
 - The proxy relays only allowlisted hosts (redirects included), only over https, raster
-  images only, with size and time limits. Pages it relays are served as `text/plain`.
+  images only, with size and time limits. Pages it relays are served as `text/plain`. The
+  installed app applies the same rules to what it fetches itself.
 - The app never executes code from a site and never inserts a site's markup into the
   page: it reads text and attributes and builds its own elements, under a strict
   Content-Security-Policy (`proxy/ContentPolicy.ts`, sent as a header by the Node entry and

@@ -8,3 +8,7 @@ export const PAGE_CACHE = 'jr-api';
 
 /** What was downloaded while reading, as opposed to the app itself. */
 export const CONTENT_CACHES: readonly string[] = [IMAGE_CACHE, PAGE_CACHE];
+
+/** How much of it is kept: past these, the oldest go first. The installed app keeps the same amount as the service worker. */
+export const MAX_IMAGES = 400;
+export const MAX_PAGES = 80;
