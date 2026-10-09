@@ -25,8 +25,8 @@ const LAZY_SOURCES = ['data-original', 'data-src', 'src'];
 // The site also publishes novels: text, which a reader of pictures cannot show. Their address ends with -Novel.
 const NOVEL = /-Novel$/i;
 
-// A page of results never has to show more than this: the list of all the titles has sixteen thousand.
-const MAX_ITEMS = 300;
+/** A page of results never has to show more than this: the list of all the titles has sixteen thousand. */
+export const MAX_ITEMS = 300;
 
 // The name a chapter has besides its number, when it has one (the column is the number again when it has none).
 const JUST_A_NUMBER = /^[\d.,\s-]*$/;
@@ -63,9 +63,9 @@ export class ScanMangaSeriesParser {
   /**
    * The series a page lists, in the order it shows them, each with the cover of its card. The name is
    * the text of the series' link; a link that says nothing (a picture, a menu entry) is named by the
-   * picture's description or the link's title, and failing those by its address.
+   * picture's description or the link's title, and failing those by its address. At most `limit` of them.
    */
-  parseList(doc: DomDocument, pageUrl: string): SeriesSummary[] {
+  parseList(doc: DomDocument, pageUrl: string, limit = MAX_ITEMS): SeriesSummary[] {
     const found = new Map<string, { title: string; cover: string | null }>();
     for (const link of doc.querySelectorAll('a[href]')) {
       const target = ScanMangaUrls.resolve(absolute(link.getAttribute('href'), pageUrl) ?? '');
@@ -74,7 +74,7 @@ export class ScanMangaSeriesParser {
       found.set(target.url, { title: seen?.title || this.cardTitle(link), cover: seen?.cover ?? this.cover(link, pageUrl) });
     }
     return [...found]
-      .slice(0, MAX_ITEMS)
+      .slice(0, limit)
       .map(([url, card]) => ({ url, title: (card.title || titled(ScanMangaUrls.slugOf(url))).slice(0, 120), cover: card.cover }));
   }
 

@@ -123,6 +123,16 @@ test('getList shows no more than a page can bear, whatever the list of all the t
   assert.equal((await source.getList(`${SCANMANGA}/scanlation/liste_series.html`)).length, 300);
 });
 
+test('a search looks through every title of the list, not only the first page of it, and asks the site once for several searches', async () => {
+  const many = Array.from({ length: 500 }, (_, i) => `<div class="listing"><a href="${SCANMANGA}/${20000 + i}/Series-${i}.html">Series ${i}${i === 450 ? ' Lanterns' : ''}</a></div>`).join('');
+  const list = `${SCANMANGA}/scanlation/liste_series.html`;
+  const { source, transport } = scanmanga({ [list]: `<html><body>${many}</body></html>` });
+  assert.deepEqual((await source.getList(source.searchUrl('lanterns'))).map((item) => item.title), ['Series 450 Lanterns']);
+  assert.equal((await source.getList(source.searchUrl('series 49'))).length, 15, 'every word has to be in the title: 49, 149, 249, 349, 449 and 490 to 499');
+  assert.equal((await source.getList(source.searchUrl('series'))).length, 300, 'a page of results is bounded');
+  assert.equal(transport.asked.length, 1);
+});
+
 test('getList names a series from its address when its card says nothing, and does not list one twice', async () => {
   const bare = `<html><body><a href="/13001/Lantern-Keeper.html"></a><a href="/13001/Lantern-Keeper.html">Lantern Keeper</a><a href="/13003/Salt-Road-Journal.html"></a></body></html>`;
   const { source } = scanmanga({ [`${SCANMANGA}/?po`]: bare });
@@ -133,12 +143,12 @@ test('getList names a series from its address when its card says nothing, and do
   ]);
 });
 
-test('a search is answered from the list of all the titles, which is the only thing asked of the site', async () => {
+test('a search is answered from the list of all the titles, which is the only thing asked of the site, and once', async () => {
   const list = `${SCANMANGA}/scanlation/liste_series.html`;
   const { source, transport } = scanmanga({ [list]: allTitlesPage() });
   assert.deepEqual((await source.getList(source.searchUrl('ember last'))).map((item) => item.title), ['Ember Courier: The Last Mile']);
   assert.deepEqual(await source.getList(source.searchUrl('nothing like it')), []);
-  assert.deepEqual(transport.asked.map((asked) => asked.url), [list, list]);
+  assert.deepEqual(transport.asked.map((asked) => asked.url), [list], 'two searches, one request: the list is kept for a few minutes');
 });
 
 test('a listing that is a check page says so', async () => {

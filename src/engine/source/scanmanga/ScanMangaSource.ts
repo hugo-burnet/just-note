@@ -3,7 +3,8 @@ import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../mo
 import type { ReadingStyle } from '../../reader/ReadingStyle.ts';
 import { absolute, clean, looksBlocked } from '../../text.ts';
 import { Source } from '../Source.ts';
-import { ScanMangaSeriesParser } from './ScanMangaSeriesParser.ts';
+import { Memo } from '../../Memo.ts';
+import { MAX_ITEMS, ScanMangaSeriesParser } from './ScanMangaSeriesParser.ts';
 import { ScanMangaUrls } from './ScanMangaUrls.ts';
 
 // The pages of a chapter are <img> elements the site's reader fills in with blob: addresses.
@@ -23,6 +24,7 @@ export class ScanMangaSource extends Source {
   readonly reading: ReadingStyle = { mode: 'scroll', rtl: false };
 
   private readonly series = new ScanMangaSeriesParser();
+  private readonly everything = new Memo<SeriesSummary[]>(10 * 60_000);
 
   resolve(input: string): SourceTarget | null {
     return ScanMangaUrls.resolve(input);
@@ -43,14 +45,20 @@ export class ScanMangaSource extends Source {
 
   async getList(url: string): Promise<SeriesSummary[]> {
     const query = ScanMangaUrls.queryOf(url);
-    // The site's search needs a script: it is answered from the list of all the titles.
+    // The site's search needs a script: it is answered from the list of all the titles, read whole (sixteen
+    // thousand series, a couple of megabytes) and kept for a few minutes, as the next words typed ask for it again.
     const address = ScanMangaUrls.withoutQuery(url);
+    const items = await (query ? this.everything.get(address, () => this.read(address, Infinity)) : this.read(address, MAX_ITEMS));
+    return query ? ScanMangaSeriesParser.matching(items, query).slice(0, MAX_ITEMS) : items;
+  }
+
+  private async read(address: string, limit: number): Promise<SeriesSummary[]> {
     const { doc, text } = await this.load(address);
-    const items = this.series.parseList(doc, address);
+    const items = this.series.parseList(doc, address, limit);
     if (items.length === 0 && looksBlocked(text)) {
-      throw new SourceError('blocked', 'The site asked for a human check.', { url, htmlLength: text.length });
+      throw new SourceError('blocked', 'The site asked for a human check.', { url: address, htmlLength: text.length });
     }
-    return query ? ScanMangaSeriesParser.matching(items, query) : items;
+    return items;
   }
 
   /** A chapter link pasted from the site does not name its series: the page does, in the way back it offers. */
