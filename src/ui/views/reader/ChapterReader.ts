@@ -135,7 +135,7 @@ export class ChapterReader extends Component {
     const { next } = this.options;
     if (!next) return;
     try {
-      const { pages } = await this.app.catalog.chapter(next.url);
+      const { pages } = await this.app.catalog.chapter(next.url, { background: true });
       if (this.isDestroyed) return;
       await Promise.all(pages.slice(0, WARM_PAGES).map(async (page) => {
         const loader = new ImageLoader(this.app.transport);

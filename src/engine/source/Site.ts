@@ -16,5 +16,10 @@ export interface SiteInfo {
 
 /** A site the app can read: its identity, and how to make the Source that knows its pages. */
 export interface SiteModule extends SiteInfo {
+  /**
+   * The site checks its visitors with a challenge that only a browser passes (and builds its pages with
+   * scripts): it can be read in the installed app, which has a WebView, and not through the proxy.
+   */
+  readonly nativeOnly?: boolean;
   create(io: SourceIO): Source;
 }

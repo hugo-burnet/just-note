@@ -1,3 +1,5 @@
+import type { ReadingStyle } from './reader/ReadingStyle.ts';
+
 export interface Chapter {
   readonly url: string;
   /** Stable name inside the series ("c012", "e7"): what "read" marks are kept under. */
@@ -14,6 +16,8 @@ export interface SeriesSummary {
 }
 
 export interface Series extends SeriesSummary {
+  /** How this series is meant to be read, when the site says (a site that publishes manga and webtoons alike); else the site's own way. */
+  readonly reading?: ReadingStyle;
   readonly author: string;
   readonly status: string;
   readonly genres: readonly string[];

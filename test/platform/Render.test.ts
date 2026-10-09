@@ -1,0 +1,184 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { HostPolicy } from '../../proxy/HostPolicy.ts';
+import { TransportError } from '../../src/engine/index.ts';
+import { ChallengeGate } from '../../src/platform/native/ChallengeGate.ts';
+import { CredentialJar } from '../../src/platform/native/CredentialJar.ts';
+import { NativeImages } from '../../src/platform/native/NativeImages.ts';
+import { NativeTransport } from '../../src/platform/native/NativeTransport.ts';
+import type { CapturedPicture, FetchedPage } from '../../src/platform/native/PageFetcher.ts';
+import { SiteClient } from '../../src/platform/native/SiteClient.ts';
+import { FakeBlobs, FakeFetcher, FakeHttp, MemoryStore, page, picture, settle } from './fakes.ts';
+
+const CHAPTER = 'https://m.scan-manga.com/lecture-en-ligne/Lantern-Keeper-Chapitre-3-FR_130013.html';
+const SELECTOR = 'img[src^="blob:"]';
+const DIALOG = { statusLabel: 'Checking…', readingLabel: 'Loading the chapter…', cancelLabel: 'Cancel' };
+// Three bytes (1, 2, 3), as the WebView hands a picture over: base64, with the type the page gave or none.
+const captured = (type = 'image/jpeg'): CapturedPicture => ({ type, data: 'AQID' });
+
+/** The stores outlive a transport, as the Cache API does the app. */
+function stores() {
+  return { pages: new MemoryStore(), pictures: new MemoryStore() };
+}
+
+function setup(shown: (url: string) => Partial<FetchedPage>, kept = stores()) {
+  const http = new FakeHttp(() => page('<html>', 200));
+  const fetcher = new FakeFetcher((url) => ({ html: '<html>read', url, userAgent: 'webview', cookies: 'cf_clearance=ok', ...shown(url) }));
+  const jar = new CredentialJar();
+  const client = new SiteClient(http, new HostPolicy(), jar);
+  const gate = new ChallengeGate(client, jar, fetcher, () => DIALOG);
+  const blobs = new FakeBlobs();
+  const transport = new NativeTransport(gate, kept.pages, new NativeImages(gate, kept.pictures, blobs), gate);
+  return { http, fetcher, transport, blobs, kept, gate };
+}
+
+test('render: the WebView is told what to collect and what to say, and the pictures it built are named as the site\'s own', async () => {
+  const { transport, fetcher, http } = setup(() => ({ pictures: [captured(), captured('image/png')] }));
+  const rendered = await transport.render?.(CHAPTER, { pictures: SELECTOR });
+  assert.deepEqual(fetcher.asked, [{ url: CHAPTER, options: { ...DIALOG, pictures: SELECTOR } }]);
+  assert.equal(rendered?.text, '<html>read');
+  assert.equal(rendered?.url, CHAPTER);
+  const addresses = rendered?.pictures ?? [];
+  assert.equal(addresses.length, 2);
+  addresses.forEach((address, index) => assert.match(address, new RegExp(`^https://m\\.scan-manga\\.com/__rendered/[0-9a-f]{8}/${index + 1}$`)));
+  assert.equal(http.asked.length, 0);
+});
+
+test('render: the places the page keeps for its pictures are handed to the WebView, to know how many to wait for', async () => {
+  const { transport, fetcher } = setup(() => ({ pictures: [captured()] }));
+  await transport.render?.(CHAPTER, { pictures: SELECTOR, slots: '.image-container.strip[data-page]' });
+  assert.deepEqual(fetcher.asked[0]?.options, { ...DIALOG, pictures: SELECTOR, slots: '.image-container.strip[data-page]' });
+});
+
+test('render: what is not a picture fails the chapter instead of being shown as one', async () => {
+  const { transport } = setup(() => ({ pictures: [captured(), captured('text/html')] }));
+  await assert.rejects(() => transport.render?.(CHAPTER, { pictures: SELECTOR }) ?? Promise.resolve(), (error: unknown) => error instanceof TransportError && error.code === 'not_an_image');
+});
+
+test('render: pictures with no type are told from their bytes, and each is shown from the store with no request', async () => {
+  const png = { type: '', data: Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2]).toString('base64') };
+  const { transport, http, blobs } = setup(() => ({ pictures: [captured(), png] }));
+  const rendered = await transport.render?.(CHAPTER, { pictures: SELECTOR });
+  const [first, second] = rendered?.pictures ?? [];
+  assert.equal(await transport.imageSource(first ?? ''), 'blob:test/1');
+  assert.equal(await transport.imageSource(second ?? ''), 'blob:test/2');
+  assert.deepEqual(blobs.created.map((blob) => blob.type), ['image/jpeg', 'image/png']);
+  assert.equal(http.asked.length, 0);
+});
+
+test('render: a chapter read once opens again from what was kept, with no WebView, even in a new transport', async () => {
+  const kept = stores();
+  const first = setup(() => ({ pictures: [captured(), captured()] }), kept);
+  const rendered = await first.transport.render?.(CHAPTER, { pictures: SELECTOR });
+  await settle();
+  const later = setup(() => ({ pictures: [] }), kept);
+  assert.deepEqual(await later.transport.render?.(CHAPTER, { pictures: SELECTOR }), { text: '', url: CHAPTER, pictures: rendered?.pictures });
+  assert.equal(later.fetcher.asked.length, 0);
+});
+
+test('render: a chapter whose pictures were pushed out of the store is read again', async () => {
+  const kept = stores();
+  const first = setup(() => ({ pictures: [captured(), captured()] }), kept);
+  const rendered = await first.transport.render?.(CHAPTER, { pictures: SELECTOR });
+  await settle();
+  kept.pictures.kept.delete(`${rendered?.pictures[1]}`);
+  const later = setup(() => ({ pictures: [captured()] }), kept);
+  assert.equal((await later.transport.render?.(CHAPTER, { pictures: SELECTOR }))?.pictures.length, 1);
+  assert.equal(later.fetcher.asked.length, 1);
+});
+
+test('render: a page with no picture is not remembered as read', async () => {
+  const { transport, fetcher } = setup(() => ({ pictures: [] }));
+  assert.deepEqual((await transport.render?.(CHAPTER, { pictures: SELECTOR }))?.pictures, []);
+  await settle();
+  await transport.render?.(CHAPTER, { pictures: SELECTOR });
+  assert.equal(fetcher.asked.length, 2);
+});
+
+test('render: the cookie the WebView earned on the way goes with the next requests', async () => {
+  const { transport, http } = setup(() => ({ pictures: [captured()] }));
+  await transport.render?.(CHAPTER, { pictures: SELECTOR });
+  await transport.text('https://m.scan-manga.com/?po');
+  assert.equal(http.asked[0]?.headers['Cookie'], 'cf_clearance=ok');
+  assert.equal(http.asked[0]?.headers['User-Agent'], 'webview');
+});
+
+test('render: a page the user gave up on, one the site never let through, and one whose pictures did not come, each say which', async () => {
+  const failing = async (code: string | undefined) => {
+    const { transport, fetcher } = setup(() => ({}));
+    fetcher.failure = Object.assign(new Error('failed'), code ? { code } : {});
+    try {
+      await transport.render?.(CHAPTER, { pictures: SELECTOR });
+    } catch (error) {
+      assert.ok(error instanceof TransportError, String(error));
+      assert.equal(error.host, 'm.scan-manga.com');
+      return error.code;
+    }
+    return 'it did not fail';
+  };
+  assert.equal(await failing('cancelled'), 'cancelled');
+  assert.equal(await failing('timeout'), 'blocked');
+  assert.equal(await failing(undefined), 'blocked');
+  assert.equal(await failing('pictures'), 'upstream_unreachable');
+});
+
+test('render: it waits for the WebView that is already open, which only one thing at a time can use', async () => {
+  const { transport, fetcher } = setup(() => ({ pictures: [captured()] }));
+  let release: () => void = () => undefined;
+  fetcher.hold = new Promise((resolve) => (release = resolve));
+  const first = transport.render?.(CHAPTER, { pictures: SELECTOR });
+  const second = transport.render?.(CHAPTER.replace('Chapitre-3-FR_130013', 'Chapitre-4-FR_130014'), { pictures: SELECTOR });
+  await settle();
+  assert.equal(fetcher.asked.length, 1);
+  release();
+  await Promise.all([first, second]);
+  assert.equal(fetcher.asked.length, 2);
+});
+
+test('render: a chapter read ahead is asked of the WebView with no dialog, and a chapter the user waits for stops it', async () => {
+  const { transport, fetcher } = setup(() => ({ pictures: [captured()] }));
+  await transport.render?.(CHAPTER, { pictures: SELECTOR, background: true });
+  assert.deepEqual(fetcher.asked, [{ url: CHAPTER, options: { pictures: SELECTOR, background: true } }]);
+  assert.equal(fetcher.cancelled, 0);
+  const other = CHAPTER.replace('Chapitre-3-FR_130013', 'Chapitre-9-FR_130019');
+  await transport.render?.(other, { pictures: SELECTOR });
+  assert.deepEqual(fetcher.asked[1], { url: other, options: { ...DIALOG, pictures: SELECTOR } });
+  assert.equal(fetcher.cancelled, 1);
+});
+
+test('render: a chapter read ahead takes no turn at the dialog the user is looking at', async () => {
+  const { transport, fetcher } = setup(() => ({ pictures: [captured()] }));
+  let release: () => void = () => undefined;
+  fetcher.hold = new Promise((resolve) => (release = resolve));
+  const waited = transport.render?.(CHAPTER, { pictures: SELECTOR });
+  const ahead = transport.render?.(CHAPTER.replace('Chapitre-3-FR_130013', 'Chapitre-4-FR_130014'), { pictures: SELECTOR, background: true });
+  await settle();
+  // Both are in the WebView's hands before either is answered: the one read ahead did not wait for the one the user waits for.
+  assert.deepEqual(fetcher.asked.map((asked) => asked.options?.background === true).sort(), [false, true]);
+  release();
+  await Promise.all([waited, ahead]);
+});
+
+test('render: a chapter read ahead is kept like any other, and opens with no WebView once the user gets there', async () => {
+  const { transport, fetcher } = setup(() => ({ pictures: [captured(), captured()] }));
+  const ahead = await transport.render?.(CHAPTER, { pictures: SELECTOR, background: true });
+  await settle();
+  const there = await transport.render?.(CHAPTER, { pictures: SELECTOR });
+  assert.deepEqual(there?.pictures, ahead?.pictures);
+  assert.equal(fetcher.asked.length, 1);
+});
+
+test('render: a chapter read ahead that is stopped, or that a check turned away, fails as any other would', async () => {
+  const { transport, fetcher } = setup(() => ({}));
+  fetcher.failure = Object.assign(new Error('Cancelled.'), { code: 'cancelled' });
+  await assert.rejects(() => transport.render?.(CHAPTER, { pictures: SELECTOR, background: true }) ?? Promise.resolve(), (error: unknown) => error instanceof TransportError && error.code === 'cancelled');
+  fetcher.failure = Object.assign(new Error('check'), { code: 'timeout' });
+  await assert.rejects(() => transport.render?.(CHAPTER, { pictures: SELECTOR, background: true }) ?? Promise.resolve(), (error: unknown) => error instanceof TransportError && error.code === 'blocked');
+});
+
+test('render: a transport with no WebView has no render, which is how the engine knows', () => {
+  const kept = stores();
+  const client = new SiteClient(new FakeHttp(() => picture()));
+  const transport = new NativeTransport(client, kept.pages, new NativeImages(client, kept.pictures, new FakeBlobs()));
+  assert.equal(transport.render, undefined);
+});

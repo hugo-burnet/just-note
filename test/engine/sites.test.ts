@@ -19,6 +19,16 @@ const SAMPLES: Readonly<Record<string, { series: string; chapter: string }>> = {
     series: 'https://lelscans.net/lecture-ligne-lanterne-des-marees.php',
     chapter: 'https://lelscans.net/scan-lanterne-des-marees/2.5/3',
   },
+  scanmanga: {
+    series: 'https://www.scan-manga.com/13001/Lantern-Keeper.html',
+    // The address this source gives a chapter carries its series after the #.
+    chapter: 'https://m.scan-manga.com/lecture-en-ligne/Lantern-Keeper-Chapitre-2-5-FR_130012.html#/13001/Lantern-Keeper.html',
+  },
+  sushiscan: {
+    series: 'https://sushiscan.net/catalogue/lantern-keeper/',
+    // The address this source gives a chapter carries its series after the #.
+    chapter: 'https://sushiscan.net/lantern-keeper-chapitre-2-5/#/catalogue/lantern-keeper/',
+  },
 };
 
 const io = { transport: new FakeTransport({}), parser: new LinkedomParser() };

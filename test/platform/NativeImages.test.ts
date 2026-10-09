@@ -68,3 +68,47 @@ test('native images: an unavailable persistent cache does not prevent a download
   assert.equal(resource.src, 'blob:test/valid');
   resource.release();
 });
+
+test('native images: replacing a captured picture keeps an existing consumer valid until release', async () => {
+  const { images, revoked } = setup();
+  const first = await images.acquire(url(0));
+  await images.keep(url(0), new Blob(['new picture'], { type: 'image/png' }), 'chapter');
+  const second = await images.acquire(url(0));
+  assert.notEqual(second.src, first.src);
+  assert.deepEqual(revoked, []);
+  first.release();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(revoked, [first.src]);
+  second.release();
+});
+
+test('native images: a long captured chapter stays readable past the live-image limit with no disk cache', async () => {
+  let created = 0;
+  const images = new NativeImages(new SiteClient({ get: async () => { throw new Error('synthetic addresses must not reach the network'); } }), {
+    get: async () => undefined, put: async () => { throw new Error('quota'); },
+  }, { create: () => `blob:test/${++created}`, revoke: () => {} });
+  images.beginRendering('chapter');
+  const addresses = Array.from({ length: MAX_LIVE_IMAGES + 5 }, (_, id) => `https://m.scan-manga.com/__rendered/chapter/${id}`);
+  for (const address of addresses) await images.keep(address, new Blob(['page'], { type: 'image/png' }), 'chapter');
+  const first = await images.acquire(addresses[0]!);
+  first.release();
+  for (const address of addresses.slice(1)) (await images.acquire(address)).release();
+  const revisited = await images.acquire(addresses[0]!, true);
+  assert.match(revisited.src, /^blob:/);
+  assert.notEqual(revisited.src, first.src);
+  revisited.release();
+});
+
+test('native images: only two captured chapters are retained, and active images survive discarding an older one', async () => {
+  const { images, revoked } = setup();
+  await images.keep(url(0), new Blob(['first']), 'first');
+  const held = await images.acquire(url(0));
+  await images.keep(url(1), new Blob(['unseen']), 'first');
+  const unseen = await images.source(url(1));
+  await images.keep(url(2), new Blob(['second']), 'second');
+  await images.keep(url(3), new Blob(['third']), 'third');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(revoked.includes(unseen));
+  assert.ok(!revoked.includes(held.src));
+  held.release();
+});

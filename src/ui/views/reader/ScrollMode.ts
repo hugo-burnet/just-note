@@ -66,7 +66,8 @@ export class ScrollMode extends ReadingSurface {
   private frame(address: string, index: number): HTMLElement {
     const image = h('img', { alt: '', decoding: 'async', draggable: 'false' });
     const retry = h('button', { class: 'btn retry pressable', type: 'button' }, this.options.retryLabel);
-    const frame = h('div', { class: 'frame', 'data-index': index, 'data-state': 'loading' }, image, retry);
+    const why = h('span', { class: 'retry-note' });
+    const frame = h('div', { class: 'frame', 'data-index': index, 'data-state': 'loading' }, image, retry, why);
     let attempt = 0;
     let active = false;
     const loader = new ImageLoader(this.options.transport);
@@ -86,7 +87,10 @@ export class ScrollMode extends ReadingSurface {
       frame.dataset.state = 'ready';
     });
     this.listen(image, 'error', () => {
-      if (active) frame.dataset.state = 'failed';
+      if (active) {
+        frame.dataset.state = 'failed';
+        why.textContent = this.options.transport.imageProblem?.(address) ?? '';
+      }
     });
     this.listen(retry, 'click', () => {
       attempt++;

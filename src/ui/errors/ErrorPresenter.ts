@@ -24,6 +24,7 @@ const TEXT_FOR_CODE: Readonly<Record<string, string>> = {
   host_not_allowed: 'hostNotAllowed',
   timeout: 'timeout',
   blocked: 'blocked',
+  cancelled: 'cancelled',
   no_chapters: 'layout',
   no_pages: 'layout',
   age_gated: 'ageGated',

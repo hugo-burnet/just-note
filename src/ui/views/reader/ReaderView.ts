@@ -1,4 +1,4 @@
-import type { Chapter, ChapterRef, ReadingStyle, Series } from '../../../engine/index.ts';
+import type { Chapter, ChapterRef, ReadingStyle, ResolvedLink, Series } from '../../../engine/index.ts';
 import { ErrorPanel } from '../../components/ErrorPanel.ts';
 import type { AppContext } from '../../core/AppContext.ts';
 import type { Component } from '../../core/Component.ts';
@@ -39,7 +39,18 @@ export class ReaderView extends View {
   }
 
   async open(): Promise<void> {
-    const link = this.app.registry.resolve(this.requested);
+    // A chapter link that does not name its series (pasted from a site) is looked up first.
+    const leave = (): void => this.app.router.back(Routes.library());
+    this.show(new ReaderNotice(this.app, leave));
+    let link: ResolvedLink | null;
+    try {
+      link = await this.app.catalog.resolve(this.requested);
+    } catch (error) {
+      if (this.isDestroyed) return;
+      this.show(new ReaderNotice(this.app, leave, new ErrorPanel(this.app, error, { retry: () => void this.open() })));
+      return;
+    }
+    if (this.isDestroyed) return;
     if (link?.kind !== 'chapter' || !link.key || !link.seriesUrl) {
       this.app.router.redirect(Routes.library());
       return;
@@ -84,7 +95,7 @@ export class ReaderView extends View {
       startPage: this.startPage(target, pages.length),
       previous: at > 0 ? refOf(chapters[at - 1]) : null,
       next: at >= 0 ? refOf(chapters[at + 1]) : null,
-      natural: target.reading,
+      natural: series?.reading ?? target.reading,
     });
   }
 

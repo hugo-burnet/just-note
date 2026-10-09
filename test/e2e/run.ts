@@ -11,6 +11,7 @@ import { backupAndDesign } from './flows/backup.ts';
 import { onDesktop } from './flows/desktop.ts';
 import { readFanFox } from './flows/fanfox.ts';
 import { readLelScan } from './flows/lelscan.ts';
+import { nativeSources } from './flows/nativeSources.ts';
 import { offline } from './flows/offline.ts';
 import { regressions } from './flows/regressions.ts';
 import { update } from './flows/update.ts';
@@ -31,6 +32,7 @@ const FLOWS: ReadonlyArray<readonly [string, (context: Context) => Promise<void>
   ['browse', browseAndSettings],
   ['desktop', onDesktop],
   ['regressions', regressions],
+  ['native-sources', nativeSources],
   ['backup', backupAndDesign],
   ['update', update],
   ['offline', offline],

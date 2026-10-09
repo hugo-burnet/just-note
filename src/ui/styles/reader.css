@@ -88,6 +88,24 @@
   transform: translate(-50%, -50%);
 }
 
+.retry-note {
+  display: none;
+}
+
+.frame[data-state='failed'] .retry-note,
+.paged[data-state='failed'] .retry-note {
+  position: absolute;
+  top: calc(45% + 2.5rem);
+  left: 50%;
+  display: block;
+  max-width: 90%;
+  transform: translateX(-50%);
+  color: oklch(1 0 0 / 0.5);
+  font-size: 0.75rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 .paged {
   position: absolute;
   inset: 0;

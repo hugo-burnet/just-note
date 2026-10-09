@@ -2,65 +2,16 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { USER_AGENT } from '../../proxy/UpstreamClient.ts';
 import { TransportError } from '../../src/engine/index.ts';
-import type { NativeHttp, NativeRequest, NativeResponse } from '../../src/platform/native/NativeHttp.ts';
+import type { NativeRequest } from '../../src/platform/native/NativeHttp.ts';
 import { MAX_LIVE_IMAGES, NativeImages } from '../../src/platform/native/NativeImages.ts';
-import type { BlobUrls } from '../../src/platform/native/NativeImages.ts';
 import { NativeTransport } from '../../src/platform/native/NativeTransport.ts';
-import type { ResponseStore } from '../../src/platform/native/ResponseStore.ts';
 import { SiteClient } from '../../src/platform/native/SiteClient.ts';
+import { FakeBlobs, FakeHttp, MemoryStore, page, picture, settle } from './fakes.ts';
+import type { Answer } from './fakes.ts';
 
 const SERIES = 'https://fanfox.net/manga/moonlight_courier/';
 const PICTURE = 'https://fmcdn.mfcdn.net/store/moonlight_courier/001.jpg';
 const REFERER = 'https://fanfox.net/';
-
-type Answer = NativeResponse | Error;
-
-class FakeHttp implements NativeHttp {
-  readonly asked: NativeRequest[] = [];
-  private readonly answer: (request: NativeRequest) => Answer;
-
-  constructor(answer: (request: NativeRequest) => Answer) {
-    this.answer = answer;
-  }
-
-  async get(request: NativeRequest): Promise<NativeResponse> {
-    this.asked.push(request);
-    const answer = this.answer(request);
-    if (answer instanceof Error) throw answer;
-    return answer;
-  }
-}
-
-class MemoryStore implements ResponseStore {
-  readonly kept = new Map<string, Response>();
-
-  async get(key: string): Promise<Response | undefined> {
-    return this.kept.get(key)?.clone();
-  }
-
-  async put(key: string, response: Response): Promise<void> {
-    this.kept.set(key, response);
-  }
-}
-
-class FakeBlobs implements BlobUrls {
-  readonly created: Blob[] = [];
-  readonly revoked: string[] = [];
-
-  create(blob: Blob): string {
-    this.created.push(blob);
-    return `blob:test/${this.created.length}`;
-  }
-
-  revoke(url: string): void {
-    this.revoked.push(url);
-  }
-}
-
-const page = (body: string, status = 200, headers: Record<string, string> = {}): NativeResponse => ({ status, headers, body });
-// Three bytes (1, 2, 3), the way Capacitor hands binary data across.
-const picture = (type = 'image/jpeg'): NativeResponse => ({ status: 200, headers: { 'content-type': type }, body: 'AQID' });
-const settle = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 function setup(answer: (request: NativeRequest) => Answer, store = new MemoryStore(), pictures = new MemoryStore()) {
   const http = new FakeHttp(answer);
@@ -200,6 +151,50 @@ test('native transport: a picture that cannot be had is left to the <img> to fai
 test('native transport: what is not a picture is not shown as one', async () => {
   const { transport } = setup(() => picture('text/html'));
   assert.equal(await transport.imageSource(PICTURE), PICTURE);
+});
+
+test('native transport: why a picture could not be had is known, until it is had', async () => {
+  let answer: Answer = page('Forbidden', 403);
+  const { transport } = setup(() => answer);
+  assert.equal(transport.imageProblem(PICTURE), undefined);
+  await transport.imageSource(PICTURE);
+  assert.equal(transport.imageProblem(PICTURE), '403 · fmcdn.mfcdn.net');
+  answer = picture('text/html');
+  await transport.imageSource(PICTURE);
+  assert.equal(transport.imageProblem(PICTURE), 'not_an_image · fmcdn.mfcdn.net');
+  answer = new Error('offline');
+  await transport.imageSource(PICTURE);
+  assert.equal(transport.imageProblem(PICTURE), 'upstream_unreachable · fmcdn.mfcdn.net');
+  answer = picture();
+  await transport.imageSource(PICTURE);
+  assert.equal(transport.imageProblem(PICTURE), undefined);
+});
+
+test('native transport: a chapter of two hundred pages is not downloaded all at once', async () => {
+  const started: string[] = [];
+  const open: Array<() => void> = [];
+  const http = {
+    async get(request: NativeRequest) {
+      started.push(request.url);
+      await new Promise<void>((resolve) => open.push(resolve));
+      return picture();
+    },
+  };
+  const client = new SiteClient(http);
+  const transport = new NativeTransport(client, new MemoryStore(), new NativeImages(client, new MemoryStore(), new FakeBlobs()));
+  const shown = Array.from({ length: 10 }, (_, n) => transport.imageSource(`${PICTURE}?n=${n}`));
+  await settle();
+  assert.equal(started.length, 6);
+  open[0]?.();
+  await settle();
+  assert.equal(started.length, 7);
+  for (let i = 1; started.length < 10 || open.length < 10; i++) {
+    open[i]?.();
+    await settle();
+    if (i > 20) break;
+  }
+  for (const release of open) release();
+  assert.equal((await Promise.all(shown)).filter((source) => source.startsWith('blob:')).length, 10);
 });
 
 test('native transport: the oldest picture addresses are let go past the limit, the newest are kept', async () => {

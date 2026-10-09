@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { devices } from 'playwright';
 import type { Context } from '../Context.ts';
 import { FANFOX_SERIES, fanfoxChapter } from '../PretendFanFox.ts';
-import { addByLink, chooseReading, counter, dismissSheet, leaveReader, openReadingOptions, revealChrome, scrollToFrame, settle, waitCounter, waitShown } from './helpers.ts';
+import { addByLink, chooseReading, counter, dismissSheet, leaveReader, linkField, openReadingOptions, revealChrome, scrollToFrame, settle, waitCounter, waitShown } from './helpers.ts';
 
 /** Reading a series of FanFox on a phone: from the empty shelf to a finished chapter. */
 export async function readFanFox({ browser, stage, web, runner }: Context): Promise<void> {
@@ -23,7 +23,7 @@ export async function readFanFox({ browser, stage, web, runner }: Context): Prom
 
   await step('"Paste a link" opens the sheet; a link opens the series', async () => {
     await page.getByRole('button', { name: 'Paste a link' }).click();
-    await page.locator('input[name=link]').waitFor();
+    await linkField(page).waitFor();
     await settle(page);
     await shot(page, '02-add-sheet');
     await addByLink(page, FANFOX_SERIES);

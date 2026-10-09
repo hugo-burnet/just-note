@@ -34,12 +34,38 @@ export interface FetchedText {
   readonly url: string;
 }
 
+/** What a page is shown for. */
+export interface RenderRequest {
+  /** A CSS selector for the pictures the page's scripts build: they are what is collected. */
+  readonly pictures: string;
+  /** A CSS selector for the places the page keeps for them, if it has them before it has the pictures: how many to wait for. */
+  readonly slots?: string;
+  /** Nobody is waiting for it (the next chapter is read ahead): it is done out of sight, and gives up quietly where it would have to ask. */
+  readonly background?: boolean;
+}
+
+/** A page as a real browser shows it once its scripts have run. */
+export interface RenderedPage {
+  readonly text: string;
+  /** Where the browser ended up. */
+  readonly url: string;
+  /** The pictures the page built (no address names them), in reading order: addresses for `imageSource`. */
+  readonly pictures: readonly string[];
+}
+
 export interface Transport {
   text(url: string, request?: TextRequest): Promise<FetchedText>;
   /** The address to give an <img> so that the site's image shows up. */
   imageSource(url: string): Promise<string>;
   /** Holds an image until its consumer releases it; retry bypasses a failed cached image. */
   acquireImage?(url: string, retry?: boolean): Promise<ImageResource>;
+  /** Why the last try at this picture failed, in a few words ("403 · host"), for whoever has to tell what went wrong; where the transport knows. */
+  imageProblem?(url: string): string | undefined;
+  /**
+   * Shows the page in a browser of the app's own, scrolled as a reader would, and collects the pictures
+   * its scripts built. Only where there is one (the installed app); the proxy cannot.
+   */
+  render?(url: string, request: RenderRequest): Promise<RenderedPage>;
 }
 
 export interface ImageResource {

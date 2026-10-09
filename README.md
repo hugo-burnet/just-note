@@ -53,7 +53,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 244 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 402 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -63,6 +63,8 @@ runs it sees everything you read and can alter what you are shown.
   changes from another tab update the visible shelf. The native TypeScript reader is
   also exercised in Chromium: retries in both modes, nearby image loading, and a
   140-image chapter revisited offline after unused blob addresses have been released.
+  Its native composition also lists all five sources and opens Scan-Manga and SushiScan
+  against fixture pages, using the real native TypeScript transport and blob images.
   These checks do not replace running the APK on a phone.
 - **Backups and layout:** browser download, invalid file rejection, restoration after
   reload, native JSON copying, byte budgets under concurrent writes, keyboard card
@@ -74,15 +76,34 @@ runs it sees everything you read and can alter what you are shown.
   *Probe* workflow fetched (the series list, a series, chapters, a decimal chapter, images),
   but no chapter of it has been reported through the app. When a page cannot be read, the
   error screen has a **Copy details** button: paste its content to get the adapter fixed.
-- **Not verified: the WebView plugin behind Settings → Diagnostic** (Java, `android/`). The CI
-  has compiled it; nobody has run it on a phone yet.
+- **Verified on a phone, by the author's report: Settings → Diagnostic on Scan-Manga.** The WebView
+  (`PageFetcherPlugin.java`) passes its Cloudflare check; the phone's own network, sent the cookie and
+  the User-Agent the WebView earned, is then answered 200 (so the WebView is needed once, not for each
+  page); and the script that scrolls a chapter took its 22 pictures, valid JPEGs, from the page.
+  Also in the app: the Scan-Manga lists, a series page (title, author, genre, synopsis, chapters), and a
+  chapter link pasted into the library. Its lists only have thumbnails of 130 pixels (a crop of the cover):
+  as a card comes into view the app asks for the cover on the page of its series, three at a time, keeps it
+  and swaps it in (`Source.betterCovers`, `Catalog.cover`); that part is **not verified on a phone**.
+  **Not verified: reading a chapter in the reader** (through the WebView, behind a spinner), the clearance
+  the WebView already held being reused, and how long a chapter takes to open. (A manga chapter was turned
+  away by an earlier build: its hidden pager numbers as many elements as the chapter has pictures, which
+  the module no longer counts.)
 - Some sites cannot be read from a web app at all: the ones that check their visitors
   with an anti-bot challenge (Cloudflare's *Just a moment…*) answer the proxy with a page
   that only a real browser can pass. Scan-Manga and SushiScan are two (their mobile
   sites too). The APK asks from the phone, but it runs no JavaScript either, so a check
-  may turn it away the same way. *Settings → Diagnostic* (APK only) lets a WebView of the app
-  pass the check and copies a report of what the site sends, which is what a module is
-  written from. Reading such a site in the reader through that WebView is not done yet.
+  turns it away the same way: there, a WebView of the app passes the check (see *The APK*),
+  and *Settings → Diagnostic* copies a report of what the site sends, which is what a module
+  is written from. Scan-Manga and SushiScan have a module for the APK (they are not offered in the browser).
+- **SushiScan** was written from four phone reports (the home page, a series, a chapter, a search): the phone's
+  own network is answered 200 with no check, a series is `/catalogue/<name>/` with its chapters in
+  `#chapterlist`, a chapter is `/<name>-chapitre-<n>/` and its reader is given the pictures in a script
+  (`"images":[…]`, on `c.sushiscan.net`), and the way back to its series is the one link to `/catalogue/<name>/`
+  in it. A series says what it is (manga, manhua…), which sets how it is read (`Series.reading`). On a phone, by the
+  author's report: the search and the covers work, a series page gives its title, author, genres and synopsis, its
+  volumes are listed (they are in a list of their own, which is read since), and a volume's page finds its 193
+  pictures. **But the pictures themselves were not shown** (each frame said *Retry*): the phone could not have them
+  from `c.sushiscan.net`, for a reason the next report, which says it, is to give.
 - LelScan has no search of its own: searching filters its list of series. A chapter takes
   one request per page (the images are not named alike from one series to the next), so a
   long chapter takes a few seconds to open.
@@ -130,8 +151,8 @@ On the phone: open the page, then *Install app* / *Add to Home Screen*. On Andro
 target: paste the link instead).
 
 **The APK (Android).** `.github/workflows/apk.yml` builds it whenever the app changes and
-publishes it as the pre-release **apk-latest**, which each build replaces (the notes say which
-branch and commit it came from). On a phone, open
+publishes the default branch as the pre-release **apk-latest**. Other branches produce
+an artifact for testing; they cannot replace the public APK. On a phone, open
 `https://github.com/hugo-burnet/just-note/releases/download/apk-latest/just-read.apk`: the file
 downloads as it is, and Android asks once to allow installs from the browser. Every build is
 signed with the same key and numbered after the run, so a newer APK installs over an older one
@@ -187,6 +208,7 @@ it), so a site cannot be readable in one and refused by the other.
    prints them in its log. A site that answers `403` with *Just a moment…* checks its
    visitors with an anti-bot challenge, which neither the proxy nor the probe can pass:
    it cannot be read from the web app.
+   (Scan-Manga is behind such a check, and it is read in the APK: `nativeOnly` in its module.)
 2. Write a `Source` subclass in `src/engine/source/<site>/` (recognise a link, read a
    series, a listing, a chapter). Look at `webtoon/` for a small one. It also says how
    its content is meant to be read, which is what *Auto* stands for in the settings:
@@ -209,28 +231,19 @@ redesigns better.
 
 ### The APK
 
-The same build runs in a browser and inside Capacitor; `src/main.ts` picks the platform.
-`NativePlatform` reaches the sites with `CapacitorHttp`, the phone's own network stack: no
-CORS to obey, any Referer to send, so no proxy. It applies the proxy's rules (the same list
-of hosts, redirects checked one by one, the same size and type limits) and fails with the
-same codes, so the screens say the same things. Pictures are downloaded by the app and given
-to `<img>` as `blob:` addresses. What is read is kept in the WebView's Cache API under the
-service worker's cache names (so *Settings → Data* empties both), and the service worker is
-not registered. The proxy address setting is hidden. *Settings → Diagnostic* is the Probe
-workflow, from the phone: it fetches any https address with the phone's own network, and
-through a WebView (`PageFetcherPlugin.java`, shown in front of the app so that a check which
-needs a tap can be answered) when an anti-bot check turns that away, and gives a report in
-the shape of the Probe's log to copy. Not done yet: sharing a link to the app, its own
-launcher icon, and reading a site behind a check in the reader.
+The native platform reads sites through the phone's network and uses a WebView for
+human checks and script-built chapter images. Scan-Manga and SushiScan are available
+in the APK. See [NATIVE.md](NATIVE.md) for rendering, diagnostics and offline storage.
 
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 244 unit tests
+npm run check        # types (app and worker) and the 402 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run test:e2e -- regressions # shared storage and native image regressions
 npm run test:e2e -- backup      # backups, byte budgets and responsive layout
+npm run test:e2e -- native-sources # native composition, five sources and captured images
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg
 ```
 

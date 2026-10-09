@@ -2,6 +2,10 @@ import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../model
 import type { ReadingStyle } from '../reader/ReadingStyle.ts';
 import type { DomDocument, HtmlParser, SourceIO, TextRequest, Transport } from '../ports.ts';
 
+export interface ChapterOptions {
+  readonly background?: boolean;
+}
+
 export interface LoadedDocument {
   readonly doc: DomDocument;
   readonly text: string;
@@ -22,6 +26,12 @@ export abstract class Source {
   /** How what this site publishes is meant to be read: pages of a manga, or a long column. */
   abstract readonly reading: ReadingStyle;
 
+  /**
+   * Whether the covers in this site's listings are poor ones (thumbnails, a crop): the one on the series page
+   * is then worth asking for (`coverOf`) as the listing is looked at.
+   */
+  readonly betterCovers: boolean = false;
+
   protected readonly transport: Transport;
   protected readonly parser: HtmlParser;
 
@@ -32,6 +42,14 @@ export abstract class Source {
 
   /** What a link points at on this site, in canonical form; null when it is not ours. */
   abstract resolve(input: string): SourceTarget | null;
+
+  /**
+   * A chapter whose address does not say which series it belongs to (a link pasted from the site) is
+   * completed from the site; null when it cannot be. Every other target is already whole.
+   */
+  async complete(target: SourceTarget): Promise<SourceTarget | null> {
+    return target;
+  }
 
   /** The language the site is browsed in when `wanted` is asked for: that one if the site has it, else its default. */
   languageFor(wanted?: string): string {
@@ -57,7 +75,13 @@ export abstract class Source {
 
   abstract getList(url: string): Promise<SeriesSummary[]>;
 
-  abstract getChapter(url: string): Promise<ChapterPages>;
+  /** The cover on the page of a series. A source overrides it to ask for less than the whole series. */
+  async coverOf(url: string): Promise<string | null> {
+    return (await this.getSeries(url)).cover;
+  }
+
+  /** `options.background`: it is read ahead, nobody is waiting (only a source that has to open a browser for it cares). */
+  abstract getChapter(url: string, options?: ChapterOptions): Promise<ChapterPages>;
 
   protected async load(url: string, request?: TextRequest): Promise<LoadedDocument> {
     const fetched = await this.transport.text(url, request);

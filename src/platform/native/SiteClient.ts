@@ -3,6 +3,7 @@ import type { Target } from '../../../proxy/HostPolicy.ts';
 import { ProxyError } from '../../../proxy/ProxyError.ts';
 import { USER_AGENT } from '../../../proxy/UpstreamClient.ts';
 import { TransportError } from '../../engine/index.ts';
+import type { Credentials } from './CredentialJar.ts';
 import type { NativeHttp, NativeResponse } from './NativeHttp.ts';
 
 export type Kind = 'text' | 'image';
@@ -18,6 +19,14 @@ export interface Policy {
   parse(value: string | null): Target;
 }
 
+/** What the pages and pictures of the sites are asked of: SiteClient directly, or ChallengeGate, which also gets past an anti-bot check. */
+export interface Sites {
+  /** The address as it will be asked for; fails when no listed site owns it. */
+  resolve(address: string): URL;
+  /** The answer, or a TransportError when the site refuses. */
+  get(address: string, kind: Kind, referer?: string): Promise<Fetched>;
+}
+
 const ACCEPT: Readonly<Record<Kind, string>> = {
   text: 'text/html,application/xhtml+xml,text/javascript,*/*;q=0.8',
   image: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
@@ -30,13 +39,16 @@ const TIMEOUT_MS = 30_000;
  * the listed sites (every redirect checked too), with the Referer their image servers
  * expect. It fails with the same codes as the proxy, so the screens say the same things.
  */
-export class SiteClient {
+export class SiteClient implements Sites {
   private readonly http: NativeHttp;
   private readonly policy: Policy;
+  private readonly credentials: Credentials | undefined;
 
-  constructor(http: NativeHttp, policy: Policy = new HostPolicy()) {
+  /** `credentials`: what a WebView earned from a site's anti-bot check, sent with the requests it is good for. */
+  constructor(http: NativeHttp, policy: Policy = new HostPolicy(), credentials?: Credentials) {
     this.http = http;
     this.policy = policy;
+    this.credentials = credentials;
   }
 
   /** The address as it will be asked for; fails when no listed site owns it. */
@@ -46,8 +58,7 @@ export class SiteClient {
 
   /** The answer, or a TransportError when the site refuses (any status but 2xx). */
   async get(address: string, kind: Kind, referer?: string): Promise<Fetched> {
-    const fetched = await this.exchange(address, kind, referer);
-    return this.answered(fetched.response, fetched.url);
+    return this.checked(await this.exchange(address, kind, referer));
   }
 
   /** The last answer of a chain of redirects, whatever its status: for callers that look at a refusal themselves. */
@@ -63,18 +74,21 @@ export class SiteClient {
     throw new TransportError('too_many_redirects', 'The source redirected too many times.', { host: url.hostname });
   }
 
-  private answered(response: NativeResponse, url: URL): Fetched {
+  /** The answer as it is when it is a success, and a TransportError when the site refused (any status but 2xx). */
+  checked(fetched: Fetched): Fetched {
+    const { response, url } = fetched;
     if (response.status < 200 || response.status >= 300) {
       throw new TransportError('upstream_status', `The source answered ${response.status}.`, { upstreamStatus: response.status, host: url.hostname });
     }
-    return { response, url };
+    return fetched;
   }
 
   private async request(url: URL, kind: Kind, referer: string): Promise<NativeResponse> {
     try {
       return await this.http.get({
         url: url.href,
-        headers: { 'User-Agent': USER_AGENT, Accept: ACCEPT[kind], 'Accept-Language': 'en-US,en;q=0.9', Referer: referer },
+        // What a WebView earned goes last: its User-Agent replaces ours, as the cookie is only good with the one that earned it.
+        headers: { 'User-Agent': USER_AGENT, Accept: ACCEPT[kind], 'Accept-Language': 'en-US,en;q=0.9', Referer: referer, ...this.credentials?.headersFor(url.hostname) },
         as: kind === 'text' ? 'text' : 'bytes',
         timeoutMs: TIMEOUT_MS,
       });

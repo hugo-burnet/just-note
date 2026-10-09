@@ -8,7 +8,7 @@ name: Android
 #   https://github.com/hugo-burnet/just-note/releases/download/apk-latest/just-read.apk
 # Android asks once to allow installs from the browser. Every build is signed with the same key
 # and numbered after the run, so a newer one installs over an older one and keeps the library.
-# A build of any branch replaces it: the release notes say which branch and commit it was made from.
+# Only the default branch replaces apk-latest. Other branches still build an artifact for testing.
 on:
   push:
     # Branches only: apk-latest is a tag, and moving it must not start another build.
@@ -81,6 +81,7 @@ jobs:
 
   release:
     needs: apk
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     permissions:
       contents: write

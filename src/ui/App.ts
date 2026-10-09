@@ -1,4 +1,4 @@
-import { Catalog, Library, Settings, SITES, SourceRegistry } from '../engine/index.ts';
+import { Catalog, CoverShelf, Library, Settings, SITES, SourceRegistry } from '../engine/index.ts';
 import type { ResolvedLink } from '../engine/index.ts';
 import type { Connection, Platform } from '../platform/Platform.ts';
 import { AppSheets } from './components/AppSheets.ts';
@@ -52,13 +52,21 @@ export class App implements AppContext {
   constructor(platform: Platform, elements: AppElements) {
     this.settings = new Settings(platform.store, platform.defaults);
     this.library = new Library(platform.store);
-    this.transport = platform.connect(() => this.settings.get().proxyBase);
+    this.transport = platform.connect(
+      () => this.settings.get().proxyBase,
+      () => ({
+        statusLabel: this.i18n.t('challenge.checking'),
+        readingLabel: this.i18n.t('challenge.reading'),
+        cancelLabel: this.i18n.t('common.cancel'),
+      }),
+    );
     this.clipboard = platform.clipboard;
     this.usesProxy = platform.usesProxy;
     this.probe = platform.probe;
     const io = { transport: this.transport, parser: platform.parser };
-    this.registry = new SourceRegistry(SITES.map((site) => site.create(io)));
-    this.catalog = new Catalog(this.registry, this.library);
+    // A site that only a WebView can read is offered where the app has one.
+    this.registry = new SourceRegistry(SITES.filter((site) => !site.nativeOnly || !platform.usesProxy).map((site) => site.create(io)));
+    this.catalog = new Catalog(this.registry, this.library, Date.now, new CoverShelf(platform.store));
     this.toasts = new ToastHost(elements.toasts);
     this.sheets = new AppSheets(this, document.body);
     this.appearance = new Appearance(this.settings, this.i18n);
