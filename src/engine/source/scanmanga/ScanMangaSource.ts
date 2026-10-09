@@ -28,6 +28,9 @@ export class ScanMangaSource extends Source {
   /** Mostly vertical works (webtoons, manhwa): one long column, left to right. */
   readonly reading: ReadingStyle = { mode: 'scroll', rtl: false };
 
+  /** The covers of its listings are thumbnails of a hundred and thirty pixels: the series page has the real one. */
+  override readonly betterCovers = true;
+
   private readonly series = new ScanMangaSeriesParser();
   private readonly everything = new Memo<SeriesSummary[]>(10 * 60_000);
 
@@ -46,6 +49,12 @@ export class ScanMangaSource extends Source {
   async getSeries(url: string): Promise<Series> {
     const { doc, text } = await this.load(url);
     return this.series.parseSeries(doc, text, url);
+  }
+
+  /** Of the many series a listing shows, none is worth keeping the page of, as it is asked for only for the cover. */
+  override async coverOf(url: string): Promise<string | null> {
+    const { doc, text } = await this.load(url, { cache: false });
+    return this.series.parseSeries(doc, text, url).cover;
   }
 
   async getList(url: string): Promise<SeriesSummary[]> {

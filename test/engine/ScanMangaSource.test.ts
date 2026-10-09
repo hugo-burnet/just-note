@@ -57,6 +57,13 @@ test('getSeries reads the title, the cover, who made it, and lists the chapters 
   assert.deepEqual(series.chapters.map((chapter) => chapter.url), ['1', '2', '2-5', '3'].map((n) => chapterAddress(LANTERN, n)));
 });
 
+test('Scan-Manga lists thumbnails, so it says its series pages have better covers, and gives that of a page without keeping the page', async () => {
+  const { source, transport } = scanmanga({ [seriesAddress(LANTERN)]: seriesPage(LANTERN) });
+  assert.equal(source.betterCovers, true);
+  assert.equal(await source.coverOf(seriesAddress(LANTERN)), coverAddress(LANTERN, 1));
+  assert.deepEqual(transport.asked, [{ url: seriesAddress(LANTERN), request: { cache: false } }]);
+});
+
 test('getSeries gives the synopsis in full, not as the tags cut it, without the mark the page hides in it', async () => {
   const { source } = scanmanga({ [seriesAddress(LANTERN)]: seriesPage(LANTERN) });
   const { description } = await source.getSeries(seriesAddress(LANTERN));

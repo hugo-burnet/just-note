@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { Catalog, Library, Source, SourceRegistry } from '../../src/engine/index.ts';
+import { Catalog, CoverShelf, Library, Source, SourceRegistry } from '../../src/engine/index.ts';
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../src/engine/index.ts';
 import type { ChapterOptions } from '../../src/engine/source/Source.ts';
 import { makeIO, MemoryStore } from './helpers.ts';
@@ -11,6 +11,10 @@ class StubSource extends Source {
   readonly languages = ['en'];
   readonly reading = { mode: 'scroll', rtl: false } as const;
   readonly calls = { series: 0, chapter: 0, list: 0 };
+  override readonly betterCovers = true;
+  /** What the pages of series were asked for their covers, and how the test answers. */
+  readonly coversAsked: string[] = [];
+  coverAnswer: (url: string) => Promise<string | null> = async (url) => `${url}/cover.jpg`;
   /** What each chapter was asked with. */
   readonly chapterCalls: Array<{ background: boolean }> = [];
   failNext = false;
@@ -34,6 +38,11 @@ class StubSource extends Source {
       throw new Error('boom');
     }
     return { url, title: 'Stub series', cover: null, author: '', status: '', genres: [], description: '', chapters: [] };
+  }
+
+  override async coverOf(url: string): Promise<string | null> {
+    this.coversAsked.push(url);
+    return this.coverAnswer(url);
   }
 
   async getList(): Promise<SeriesSummary[]> {
@@ -89,6 +98,59 @@ test('a chapter read ahead that failed is not remembered: the next ask reads it 
   await assert.rejects(() => catalog.chapter(URL_1, { background: true }), { message: 'boom' });
   assert.equal((await catalog.chapter(URL_1)).pages.length, 1);
   assert.deepEqual(source.chapterCalls, [{ background: true }, { background: false }]);
+});
+
+test('a better cover is asked of the source once, kept for the next start, and never puts the series in the library', async () => {
+  const store = new MemoryStore();
+  const source = new StubSource(makeIO({}).io);
+  const library = new Library(new MemoryStore());
+  const catalog = new Catalog(new SourceRegistry([source]), library, Date.now, new CoverShelf(store));
+  assert.equal(await catalog.cover(URL_1), `${URL_1}/cover.jpg`);
+  assert.equal(await catalog.cover(URL_1), `${URL_1}/cover.jpg`);
+  assert.deepEqual(source.coversAsked, [URL_1]);
+  assert.deepEqual(library.list(), []);
+
+  const later = new Catalog(new SourceRegistry([source]), library, Date.now, new CoverShelf(store));
+  assert.equal(await later.cover(URL_1), `${URL_1}/cover.jpg`);
+  assert.equal(source.coversAsked.length, 1);
+});
+
+test('better covers are asked for a few at a time, and one asked for twice at once is asked once', async () => {
+  const { source, catalog } = setup();
+  const open: Array<() => void> = [];
+  source.coverAnswer = (url) => new Promise((resolve) => open.push(() => resolve(`${url}.jpg`)));
+  const urls = [1, 2, 3, 4, 5].map((n) => `https://stub.test/series/${n}`);
+  const answers = urls.map((url) => catalog.cover(url));
+  const again = catalog.cover(urls[0] ?? '');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(source.coversAsked.length, 3);
+  open[0]?.();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(source.coversAsked.length, 4);
+  for (const release of open) release();
+  await new Promise((resolve) => setImmediate(resolve));
+  open[4]?.();
+  assert.equal(await again, `${urls[0]}.jpg`);
+  assert.deepEqual(await Promise.all(answers), urls.map((url) => `${url}.jpg`));
+  assert.equal(source.coversAsked.length, 5);
+});
+
+test('a series nobody looks at any more when its turn comes is not asked for, and is when it is looked at again', async () => {
+  const { source, catalog } = setup();
+  assert.equal(await catalog.cover(URL_1, () => false), null);
+  assert.deepEqual(source.coversAsked, []);
+  assert.equal(await catalog.cover(URL_1, () => true), `${URL_1}/cover.jpg`);
+});
+
+test('a page that cannot be read leaves the cover the listing had, and is tried again next time', async () => {
+  const { source, catalog } = setup();
+  source.coverAnswer = async () => {
+    throw new Error('blocked');
+  };
+  assert.equal(await catalog.cover(URL_1), null);
+  source.coverAnswer = async (url) => `${url}/cover.jpg`;
+  assert.equal(await catalog.cover(URL_1), `${URL_1}/cover.jpg`);
+  assert.equal(source.coversAsked.length, 2);
 });
 
 test('fresh asks the site again', async () => {

@@ -107,7 +107,8 @@ export class DiscoverView extends View {
       }
       const grid = h('div', { class: 'grid' });
       items.forEach((item, index) => {
-        const card = new SeriesCard(this.app, { url: item.url, title: item.title, cover: item.cover, index });
+        const better = source.betterCovers ? (wanted: () => boolean) => catalog.cover(item.url, wanted) : undefined;
+        const card = new SeriesCard(this.app, { url: item.url, title: item.title, cover: item.cover, index, ...(better ? { better } : {}) });
         this.shown.push(card);
         grid.append(card.root);
       });

@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 321 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 331 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -60,8 +60,10 @@ runs it sees everything you read and can alter what you are shown.
   (`PageFetcherPlugin.java`) passes its Cloudflare check; the phone's own network, sent the cookie and
   the User-Agent the WebView earned, is then answered 200 (so the WebView is needed once, not for each
   page); and the script that scrolls a chapter took its 22 pictures, valid JPEGs, from the page.
-  Also in the app: the Scan-Manga lists (with the covers the site shows on them, which are small), a
-  series page (title, author, genre, synopsis, chapters), and a chapter link pasted into the library.
+  Also in the app: the Scan-Manga lists, a series page (title, author, genre, synopsis, chapters), and a
+  chapter link pasted into the library. Its lists only have thumbnails of 130 pixels (a crop of the cover):
+  as a card comes into view the app asks for the cover on the page of its series, three at a time, keeps it
+  and swaps it in (`Source.betterCovers`, `Catalog.cover`); that part is **not verified on a phone**.
   **Not verified: reading a chapter in the reader** (through the WebView, behind a spinner), the clearance
   the WebView already held being reused, and how long a chapter takes to open. (A manga chapter was turned
   away by an earlier build: its hidden pager numbers as many elements as the chapter has pictures, which
@@ -262,7 +264,7 @@ Not done yet: sharing a link to the app, and its own launcher icon.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 321 unit tests
+npm run check        # types (app and worker) and the 331 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

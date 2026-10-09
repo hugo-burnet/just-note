@@ -26,6 +26,12 @@ export abstract class Source {
   /** How what this site publishes is meant to be read: pages of a manga, or a long column. */
   abstract readonly reading: ReadingStyle;
 
+  /**
+   * Whether the covers in this site's listings are poor ones (thumbnails, a crop): the one on the series page
+   * is then worth asking for (`coverOf`) as the listing is looked at.
+   */
+  readonly betterCovers: boolean = false;
+
   protected readonly transport: Transport;
   protected readonly parser: HtmlParser;
 
@@ -68,6 +74,11 @@ export abstract class Source {
   abstract getSeries(url: string): Promise<Series>;
 
   abstract getList(url: string): Promise<SeriesSummary[]>;
+
+  /** The cover on the page of a series. A source overrides it to ask for less than the whole series. */
+  async coverOf(url: string): Promise<string | null> {
+    return (await this.getSeries(url)).cover;
+  }
 
   /** `options.background`: it is read ahead, nobody is waiting (only a source that has to open a browser for it cares). */
   abstract getChapter(url: string, options?: ChapterOptions): Promise<ChapterPages>;

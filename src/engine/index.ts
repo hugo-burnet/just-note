@@ -1,6 +1,7 @@
 // The engine's public surface. Everything behind it is free of DOM, network and
 // storage globals: the platform supplies them through the ports.
 export { Catalog } from './Catalog.ts';
+export { CoverShelf } from './library/CoverShelf.ts';
 export { SourceError, TransportError } from './errors.ts';
 export { extractUrl } from './links.ts';
 export { Library } from './library/Library.ts';

@@ -1,4 +1,4 @@
-import { Catalog, Library, Settings, SITES, SourceRegistry } from '../engine/index.ts';
+import { Catalog, CoverShelf, Library, Settings, SITES, SourceRegistry } from '../engine/index.ts';
 import type { ResolvedLink } from '../engine/index.ts';
 import type { Connection, Platform } from '../platform/Platform.ts';
 import { AppSheets } from './components/AppSheets.ts';
@@ -66,7 +66,7 @@ export class App implements AppContext {
     const io = { transport: this.transport, parser: platform.parser };
     // A site that only a WebView can read is offered where the app has one.
     this.registry = new SourceRegistry(SITES.filter((site) => !site.nativeOnly || !platform.usesProxy).map((site) => site.create(io)));
-    this.catalog = new Catalog(this.registry, this.library);
+    this.catalog = new Catalog(this.registry, this.library, Date.now, new CoverShelf(platform.store));
     this.toasts = new ToastHost(elements.toasts);
     this.sheets = new AppSheets(this, document.body);
     this.appearance = new Appearance(this.settings, this.i18n);
