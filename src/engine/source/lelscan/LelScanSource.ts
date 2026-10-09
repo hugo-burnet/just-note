@@ -16,6 +16,8 @@ export class LelScanSource extends Source {
   readonly languages = ['fr'];
   /** Manga: page by page, from right to left. */
   readonly reading: ReadingStyle = { mode: 'paged', rtl: true };
+  /** Its series pages say no genres. */
+  override readonly genres = false;
 
   private readonly series = new LelScanSeriesParser();
   private readonly chapters: LelScanChapterReader;

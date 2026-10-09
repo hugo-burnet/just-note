@@ -39,7 +39,7 @@ export class App implements AppContext {
   readonly updates: UpdateChecker;
   readonly downloads: Downloads;
   readonly genreFilter: GenreFilter;
-  readonly discoverGenres: GenreFilter;
+  private readonly store: Platform['store'];
   readonly transport: Transport;
   readonly clipboard: Platform['clipboard'];
   readonly probe: Platform['probe'];
@@ -56,7 +56,9 @@ export class App implements AppContext {
     this.settings = new Settings(platform.store, platform.defaults);
     this.library = new Library(platform.store);
     this.genreFilter = new GenreFilter(platform.store);
-    this.discoverGenres = new GenreFilter(platform.store, 'discover');
+    this.store = platform.store;
+    // The filter Discover had for every site at once: a genre kept on one site hid the results of the others.
+    platform.store.remove('jr:genre-filter:discover');
     this.transport = platform.connect(
       () => ({
         statusLabel: this.i18n.t('challenge.checking'),
@@ -106,6 +108,10 @@ export class App implements AppContext {
     }
     this.router.go(this.addressOf(link));
     return true;
+  }
+
+  discoverGenres(source: string): GenreFilter {
+    return new GenreFilter(this.store, `discover:${source}`);
   }
 
   seriesLanguage(): string {

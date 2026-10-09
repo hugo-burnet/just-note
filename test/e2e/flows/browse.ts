@@ -60,6 +60,23 @@ export async function browseAndSettings({ browser, stage, runner }: Context): Pr
     assert.equal(await page.getByRole('button', { name: 'Filter by genre' }).isVisible(), false, 'the genres are known: no need to ask again');
   });
 
+  await step('each site of Discover has its own genres: one kept on a site does not hide the results of another', async () => {
+    await page.locator('.genre-chip', { hasText: 'Adventure' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.grid .card:not([hidden])').length === 1);
+    await page.locator('.chip-button', { hasText: 'WEBTOON' }).click();
+    await page.waitForFunction(() => location.hash.includes('src=webtoon') && document.querySelectorAll('.grid .card').length > 0);
+    assert.equal(await page.locator('.grid .card[hidden]').count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'Show all' }).count(), 0);
+    // LelScan's pages say no genres: nothing to filter by.
+    await page.locator('.chip-button', { hasText: 'LelScan' }).click();
+    await page.waitForFunction(() => location.hash.includes('src=lelscan') && document.querySelectorAll('.grid .card').length > 0);
+    assert.equal(await page.getByRole('button', { name: 'Filter by genre' }).count(), 0);
+    // Back on FanFox, its genre is still kept.
+    await page.locator('.chip-button', { hasText: 'FanFox' }).click();
+    await page.waitForFunction(() => location.hash.includes('src=fanfox') && document.querySelectorAll('.grid .card:not([hidden])').length === 1);
+    await page.getByRole('button', { name: 'Show all' }).click();
+  });
+
   await step('a result opens its series, and Back returns to the results', async () => {
     await page.locator('input[type=search]').fill('moon');
     await page.keyboard.press('Enter');
@@ -186,6 +203,33 @@ export async function browseAndSettings({ browser, stage, runner }: Context): Pr
     await page.waitForFunction(() => document.querySelectorAll('.shelf .card').length === 1);
     await page.getByRole('button', { name: 'Show all' }).click();
     await page.waitForFunction(() => document.querySelectorAll('.shelf .card').length === 4);
+  });
+
+  await step('tapping a genre at the end of the shelf\'s row leaves the row where it was, and the genre focused', async () => {
+    await page.evaluate(() => {
+      const genres = ['Mystery', 'Horror', 'Comedy', 'Drama', 'Fantasy', 'Historical', 'Isekai', 'Martial Arts', 'Mecha', 'Sports', 'Thriller'];
+      const url = 'https://fanfox.net/manga/many_genres/';
+      localStorage.setItem(`jr:entry:${url}`, JSON.stringify({ url, title: 'Many Genres', cover: null, genres, chapterCount: 3, seenCount: 3, checkedAt: Date.now(), addedAt: 9, updatedAt: 9, generation: 'initial' }));
+    });
+    await page.reload();
+    await page.locator('.genre-bar').waitFor();
+    const scrolled = await page.evaluate(() => {
+      const bar = document.querySelector<HTMLElement>('.genre-bar')!;
+      bar.scrollLeft = bar.scrollWidth;
+      return bar.scrollLeft;
+    });
+    assert.ok(scrolled > 0, 'the row is wider than the phone');
+    await page.locator('.genre-chip', { hasText: 'Thriller' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.shelf .card').length === 1);
+    // The genre tapped is still in sight (the row was scrolled back to its start before).
+    const inSight = await page.evaluate(() => {
+      const bar = document.querySelector<HTMLElement>('.genre-bar')!.getBoundingClientRect();
+      const chip = [...document.querySelectorAll('.genre-chip')].find((one) => one.textContent?.includes('Thriller'))!.getBoundingClientRect();
+      return chip.left >= bar.left && chip.right <= bar.right;
+    });
+    assert.equal(inSight, true);
+    assert.equal(await page.evaluate(() => document.activeElement?.textContent?.includes('Thriller')), true);
+    await page.getByRole('button', { name: 'Show all' }).click();
   });
 
   await step('the erase button asks first, then empties the library', async () => {

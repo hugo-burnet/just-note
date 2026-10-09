@@ -123,7 +123,7 @@ export class DiscoverView extends View {
         grid.append(card.root);
         return card.root;
       });
-      this.results.replaceChildren(title, this.genreFilter(items, cards), grid);
+      this.results.replaceChildren(title, source.genres ? this.genreFilter(source, items, cards) : '', grid);
     } catch (error) {
       if (this.isDestroyed) return;
       const panel = new ErrorPanel(this.app, error, { retry: () => void this.load(source, query) });
@@ -136,9 +136,11 @@ export class DiscoverView extends View {
    * Filtering the results by genre. A listing does not say the genres of its series, their pages do: they are
    * read (a few at a time, and kept) when the filter is asked for, or at once when one is already chosen. Until
    * its genres are known, a series passes a filter that only leaves genres out, and not one that keeps some.
+   * Each site has its own: it names its genres its own way.
    */
-  private genreFilter(items: readonly SeriesSummary[], cards: readonly HTMLElement[]): HTMLElement {
-    const { i18n, catalog, discoverGenres: filter } = this.app;
+  private genreFilter(source: Source, items: readonly SeriesSummary[], cards: readonly HTMLElement[]): HTMLElement {
+    const { i18n, catalog } = this.app;
+    const filter = this.app.discoverGenres(source.id);
     const known = new Map<string, readonly string[]>();
     let started = false;
     let answered = 0;

@@ -99,11 +99,17 @@ export class LibraryView extends View {
     const count = genreFilter.active ? i18n.t('library.filtered', { shown: passing.length, total: entries.length }) : i18n.plural('library.count', entries.length);
     const grid = h('div', { class: 'grid' });
     passing.forEach((entry, index) => grid.append(this.card(entry, index)));
-    shelf.replaceChildren(
+    // The row of genres stays in the shelf as it is, what is around it is drawn again: taken out and put back,
+    // it would scroll back to its start, away from the genre just tapped, and that genre would lose the focus.
+    const bar = this.genres.root;
+    if (bar.parentNode !== shelf) shelf.replaceChildren(bar);
+    for (const node of [...shelf.childNodes]) if (node !== bar) node.remove();
+    bar.before(
       h('div', { class: 'shelf-heading' }, h('h2', { class: 'section-title' }, i18n.t('library.shelf')), h('span', { class: 'chip' }, count)),
       h('p', { class: 'shelf-hint' }, i18n.t('library.recent')),
-      this.genres.root,
-      !this.genres.root.hidden && !genreFilter.active ? h('p', { class: 'genre-hint' }, i18n.t('library.genresHint')) : '',
+    );
+    bar.after(
+      !bar.hidden && !genreFilter.active ? h('p', { class: 'genre-hint' }, i18n.t('library.genresHint')) : '',
       passing.length > 0 ? grid : this.noMatch(shelf, entries),
     );
   }
