@@ -142,6 +142,8 @@ export const fr: Readonly<Record<MessageKey, string>> = {
   'error.unreachable.hint': 'Réessaie dans un instant.',
   'error.blocked.title': 'Le site demande une vérification humaine',
   'error.blocked.hint': "Impossible de la passer d'ici. Réessaie plus tard.",
+  'error.cancelled.title': 'Chargement annulé',
+  'error.cancelled.hint': 'Touche Réessayer pour le recharger.',
   'error.layout.title': 'Impossible de lire cette page',
   'error.layout.hint': "Le site a peut-être changé de mise en page. Copie les détails pour qu'on corrige l'adaptateur.",
   'error.ageGated.title': 'Celui-ci demande une vérification de l’âge',

@@ -78,6 +78,25 @@ public class PageFetcherPlugin extends Plugin {
         activity.runOnUiThread(() -> new Session(activity, call, captured, url, timeoutMs, settleMs, scroll, startScript, script, status, cancel).start());
     }
 
+    // What the WebViews of the app already hold for a site (the cookie of an earlier check, from this run or
+    // another), with the User-Agent they present: asked without showing anything.
+    @PluginMethod
+    public void held(final PluginCall call) {
+        final String url = call.getString("url");
+        final Activity activity = getActivity();
+        if (url == null || !url.startsWith("https://") || activity == null) {
+            call.reject("An https address is needed.");
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            String cookies = CookieManager.getInstance().getCookie(url);
+            JSObject result = new JSObject();
+            result.put("cookies", cookies == null ? "" : cookies);
+            result.put("userAgent", WebSettings.getDefaultUserAgent(activity));
+            call.resolve(result);
+        });
+    }
+
     @PluginMethod
     public void picture(PluginCall call) {
         final Integer index = call.getInt("index");

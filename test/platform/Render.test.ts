@@ -97,13 +97,23 @@ test('render: the cookie the WebView earned on the way goes with the next reques
   assert.equal(http.asked[0]?.headers['User-Agent'], 'webview');
 });
 
-test('render: a page the WebView could not be passed, or whose pictures did not come, says which', async () => {
-  const cancelled = setup(() => ({}));
-  cancelled.fetcher.failure = Object.assign(new Error('Cancelled.'), { code: 'cancelled' });
-  await assert.rejects(() => cancelled.transport.render?.(CHAPTER, { pictures: SELECTOR }) ?? Promise.resolve(), (error: unknown) => error instanceof TransportError && error.code === 'blocked' && error.host === 'm.scan-manga.com');
-  const missing = setup(() => ({}));
-  missing.fetcher.failure = Object.assign(new Error('A picture did not load (1 of 2).'), { code: 'pictures' });
-  await assert.rejects(() => missing.transport.render?.(CHAPTER, { pictures: SELECTOR }) ?? Promise.resolve(), (error: unknown) => error instanceof TransportError && error.code === 'upstream_unreachable');
+test('render: a page the user gave up on, one the site never let through, and one whose pictures did not come, each say which', async () => {
+  const failing = async (code: string | undefined) => {
+    const { transport, fetcher } = setup(() => ({}));
+    fetcher.failure = Object.assign(new Error('failed'), code ? { code } : {});
+    try {
+      await transport.render?.(CHAPTER, { pictures: SELECTOR });
+    } catch (error) {
+      assert.ok(error instanceof TransportError, String(error));
+      assert.equal(error.host, 'm.scan-manga.com');
+      return error.code;
+    }
+    return 'it did not fail';
+  };
+  assert.equal(await failing('cancelled'), 'cancelled');
+  assert.equal(await failing('timeout'), 'blocked');
+  assert.equal(await failing(undefined), 'blocked');
+  assert.equal(await failing('pictures'), 'upstream_unreachable');
 });
 
 test('render: it waits for the WebView that is already open, which only one thing at a time can use', async () => {

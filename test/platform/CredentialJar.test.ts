@@ -62,3 +62,14 @@ test('jar: an address that is not one is not remembered under any host', () => {
   assert.deepEqual(jar.headersFor(''), {});
   assert.equal(jar.version, 1);
 });
+
+test('jar: what the WebView already held is sent, but it does not count as earned just now', () => {
+  const jar = new CredentialJar(() => 5_000);
+  jar.adopt(shown('https://m.example.test/', 'a=held'), 'm.example.test');
+  assert.equal(jar.headersFor('m.example.test')['Cookie'], 'a=held');
+  assert.equal(jar.earnedWithin('m.example.test', 60_000), false);
+  assert.equal(jar.version, 1);
+  // A real pass takes its place, and then counts.
+  jar.remember(shown('https://m.example.test/', 'a=passed'), 'm.example.test');
+  assert.equal(jar.earnedWithin('m.example.test', 60_000), true);
+});

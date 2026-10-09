@@ -1,4 +1,10 @@
-import type { FetchedPage } from './PageFetcher.ts';
+/** What a WebView holds for a site: its cookies, and the User-Agent they are tied to. */
+export interface Earned {
+  /** Where the cookies were given: the host they are for. */
+  readonly url: string;
+  readonly cookies: string;
+  readonly userAgent: string;
+}
 
 /** What the app's own requests carry besides what they always do, host by host. */
 export interface Credentials {
@@ -48,10 +54,19 @@ export class CredentialJar implements Credentials {
     return entry.cookie ? { 'User-Agent': entry.userAgent, Cookie: entry.cookie } : { 'User-Agent': entry.userAgent };
   }
 
-  /** `hosts`: the ones that turned the phone away; the one the WebView ended on is remembered too. */
-  remember(page: FetchedPage, ...hosts: string[]): void {
-    const entry: Entry = { cookie: page.cookies, userAgent: page.userAgent, at: this.now() };
-    for (const host of new Set([...hosts, hostOf(page.url)])) {
+  /** A check was just passed: `hosts` are the ones that turned the phone away (the one the WebView ended on is remembered too). */
+  remember(earned: Earned, ...hosts: string[]): void {
+    this.keep(earned, this.now(), hosts);
+  }
+
+  /** What the WebView already held: tried, but not earned just now (see earnedWithin). */
+  adopt(earned: Earned, ...hosts: string[]): void {
+    this.keep(earned, Number.NEGATIVE_INFINITY, hosts);
+  }
+
+  private keep(earned: Earned, at: number, hosts: readonly string[]): void {
+    const entry: Entry = { cookie: earned.cookies, userAgent: earned.userAgent, at };
+    for (const host of new Set([...hosts, hostOf(earned.url)])) {
       if (host) this.kept.set(host, entry);
     }
     this.version++;

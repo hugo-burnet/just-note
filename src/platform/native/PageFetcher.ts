@@ -28,6 +28,13 @@ export interface FetchedPage {
 
 export interface PageFetcher {
   fetch(url: string, options?: FetchOptions): Promise<FetchedPage>;
+  /** What the WebView already holds for a site (cookies earned in this run or an earlier one), asked without showing anything. */
+  held(url: string): Promise<Held>;
+}
+
+export interface Held {
+  readonly cookies: string;
+  readonly userAgent: string;
 }
 
 interface PluginOptions {
@@ -49,6 +56,7 @@ interface PageFetcherPlugin {
   fetch(options: PluginOptions): Promise<PluginPage>;
   picture(options: { index: number }): Promise<CapturedPicture>;
   release(): Promise<void>;
+  held(options: { url: string }): Promise<Held>;
 }
 
 const TIMEOUT_MS = 90_000;
@@ -74,6 +82,10 @@ export class WebViewPageFetcher implements PageFetcher {
       ...reading,
     });
     return selector ? { ...page, pictures: await this.take(count) } : page;
+  }
+
+  held(url: string): Promise<Held> {
+    return this.plugin.held({ url });
   }
 
   private async take(count: number): Promise<CapturedPicture[]> {

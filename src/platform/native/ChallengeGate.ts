@@ -75,13 +75,31 @@ export class ChallengeGate implements Sites, PageRenderer {
     return this.queue.run(() => this.visit(url, { ...this.dialog(), pictures: selector }));
   }
 
-  /** The page as the WebView shows it once the site let it through; nothing when another request got through while this one waited. */
+  /**
+   * The page as the WebView shows it once the site let it through. Nothing when the request is to be asked
+   * again as it is: another got through while this one waited, or the WebView already held a clearance (from
+   * an earlier run) that this one was not sent with.
+   */
   private async pass(url: URL, kind: Kind, version: number): Promise<FetchedPage | undefined> {
     if (this.jar.version !== version) return undefined;
+    if (await this.borrow(url)) return undefined;
     if (kind === 'image' && this.jar.earnedWithin(url.hostname, PICTURE_WINDOW_MS)) {
       throw new TransportError('upstream_status', 'The source answered 403.', { upstreamStatus: 403, host: url.hostname });
     }
     return this.visit(url, this.dialog());
+  }
+
+  /** Whether the WebView held cookies for this host that the app's requests had not been sent with: they are used from now on. */
+  private async borrow(url: URL): Promise<boolean> {
+    try {
+      const held = await this.fetcher.held(url.href);
+      const sent = this.jar.headersFor(url.hostname)['Cookie'] ?? '';
+      if (!held.cookies || held.cookies === sent) return false;
+      this.jar.adopt({ url: url.href, ...held }, url.hostname);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async visit(url: URL, options: FetchOptions): Promise<FetchedPage> {
@@ -89,10 +107,11 @@ export class ChallengeGate implements Sites, PageRenderer {
     try {
       page = await this.fetcher.fetch(url.href, options);
     } catch (error) {
-      // The check was not passed (the user cancelled, or the site never let the WebView through), or the
-      // page was passed and its pictures did not come.
+      // The user cancelled; or the page was passed and its pictures did not come; or the site never let the WebView through.
       const host = url.hostname;
-      if ((error as { code?: unknown }).code === 'pictures') throw new TransportError('upstream_unreachable', 'The pictures of the page did not come.', { host });
+      const code = (error as { code?: unknown }).code;
+      if (code === 'cancelled') throw new TransportError('cancelled', 'Cancelled.', { host });
+      if (code === 'pictures') throw new TransportError('upstream_unreachable', 'The pictures of the page did not come.', { host });
       throw new TransportError('blocked', 'The site asked for a human check that was not passed.', { host });
     }
     this.jar.remember(page, url.hostname);

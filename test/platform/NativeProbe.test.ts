@@ -108,6 +108,47 @@ test('probe: a script that finds nothing, or fails, is a line of the report, not
   assert.match(await probe.fetch(HOME), /--- pictures the reader script collected: failed \(pictures: A picture did not load \(1 of 2\)\.\)\n/);
 });
 
+test('probe: what the page requested of the other hosts of its site is asked for again, with the cookie, and the first bytes of each answer are in the report', async () => {
+  const requests = [
+    'GET https://data.example.test/n/series/12/34/p001.jpg',
+    'GET https://data.example.test/n/series/12/34/p002.jpg',
+    'GET https://api.example.test/chapter/12.json',
+    'GET https://static.example.test/img/cover.jpg',
+    'GET https://data.example.test/css/site.css?v=2',
+    'GET https://ads.other.test/pixel.gif',
+    'POST https://api.example.test/log',
+  ];
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1]).toString('base64');
+  const { probe, http } = setup(
+    (request) => {
+      if (!request.headers['Cookie']) return challenged();
+      if (request.url.endsWith('.json')) return reply(200, '{"chapter":12}', { 'content-type': 'application/json' });
+      return request.url.includes('data.example.test') ? reply(200, jpeg, { 'content-type': 'image/jpeg' }) : reply(200, '<html>');
+    },
+    { ...passed, requests },
+  );
+  const report = await probe.fetch(HOME);
+  assert.ok(
+    report.includes(
+      [
+        "--- the phone's own network, asked for what the page requested of its site (2)",
+        '200 image/jpeg, 0 KB, starts with ffd8ffe000104a46 ......JFIF..',
+        'https://data.example.test/n/series/12/34/p001.jpg',
+        '200 application/json, 0 KB, starts with 7b22636861707465 {"chapter":12}',
+        'https://api.example.test/chapter/12.json',
+      ].join('\n'),
+    ),
+    report,
+  );
+  const asked = http.asked.map((request) => request.url);
+  assert.ok(asked.includes('https://data.example.test/n/series/12/34/p001.jpg'));
+  assert.ok(!asked.some((address) => /static\.|\.css|ads\.other|p002/.test(address)), asked.join(' '));
+  // As the page's own scripts would, with the Referer of its site and the cookie the WebView earned.
+  const tried = http.asked.find((request) => request.url.includes('p001'));
+  assert.equal(tried?.headers['Referer'], 'https://m.example.test/');
+  assert.equal(tried?.headers['Cookie'], 'cf_clearance=x');
+});
+
 test('probe: a page without blob: pictures is not looked at twice', async () => {
   const { probe, fetcher } = setup(challenged);
   const report = await probe.fetch(HOME);

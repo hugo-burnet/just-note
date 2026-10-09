@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 287 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 297 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -56,12 +56,13 @@ runs it sees everything you read and can alter what you are shown.
   *Probe* workflow fetched (the series list, a series, chapters, a decimal chapter, images),
   but no chapter of it has been reported through the app. When a page cannot be read, the
   error screen has a **Copy details** button: paste its content to get the adapter fixed.
-- **Verified on a phone, by the author's report: Settings → Diagnostic passes Scan-Manga's
-  anti-bot check** with a WebView (`PageFetcherPlugin.java`) and reports the home, a series
-  and a chapter. **Not verified: what came after** — reading through that WebView in the
-  reader (below), the report's lines on what the page requested, several addresses in one
-  report, and the whole **Scan-Manga** module: it was written from three reports, and its
-  card titles and chapter reading are guesses until a phone has run them.
+- **Verified on a phone, by the author's report: Settings → Diagnostic on Scan-Manga.** The WebView
+  (`PageFetcherPlugin.java`) passes its Cloudflare check; the phone's own network, sent the cookie and
+  the User-Agent the WebView earned, is then answered 200 (so the WebView is needed once, not for each
+  page); and the script that scrolls a chapter took its 22 pictures, valid JPEGs, from the page.
+  **Not verified: the same things inside the app** — the Scan-Manga module (written from those reports:
+  the home, a series, a chapter, the list of all the titles), reading a chapter through the WebView,
+  a chapter link pasted from the site, the clearance the WebView already held being reused.
 - Some sites cannot be read from a web app at all: the ones that check their visitors
   with an anti-bot challenge (Cloudflare's *Just a moment…*) answer the proxy with a page
   that only a real browser can pass. Scan-Manga and SushiScan are two (their mobile
@@ -243,7 +244,7 @@ Not done yet: sharing a link to the app, and its own launcher icon.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 287 unit tests
+npm run check        # types (app and worker) and the 297 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

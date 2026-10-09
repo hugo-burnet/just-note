@@ -141,6 +141,8 @@ export const en = {
   'error.unreachable.hint': 'Try again in a moment.',
   'error.blocked.title': 'The site asked for a human check',
   'error.blocked.hint': "It couldn't be passed from here. Try again later.",
+  'error.cancelled.title': 'Loading was cancelled',
+  'error.cancelled.hint': 'Tap Retry to load it again.',
   'error.layout.title': "Couldn't read this page",
   'error.layout.hint': 'The site may have changed its layout. Copy the details so the adapter can be fixed.',
   'error.ageGated.title': 'This one asks for an age check',

@@ -107,6 +107,32 @@ test('gate: requests turned away together share one WebView', async () => {
   assert.equal(fetcher.asked.length, 1);
 });
 
+test('gate: a clearance the WebView already holds (from an earlier run) is used without showing the WebView', async () => {
+  const { transport, http, fetcher } = setup((request) => (request.headers['Cookie'] === 'cf_clearance=earlier' ? page('<html>raw') : challenge()));
+  fetcher.holding = { cookies: 'cf_clearance=earlier', userAgent: 'webview-of-earlier' };
+  assert.deepEqual(await transport.text(SERIES), { text: '<html>raw', url: SERIES });
+  assert.equal(fetcher.asked.length, 0, 'nothing was shown');
+  assert.deepEqual(fetcher.heldAsked, [SERIES]);
+  assert.equal(http.asked[1]?.headers['User-Agent'], 'webview-of-earlier');
+  // It goes with the next requests too, with no further question to the WebView.
+  await transport.text(`${SERIES}c001/`);
+  assert.equal(fetcher.heldAsked.length, 1);
+});
+
+test('gate: a clearance the WebView holds that no longer works is not insisted on: the WebView is shown', async () => {
+  const { transport, fetcher } = setup((request) => (earned(request) ? page('<html>raw') : challenge()));
+  fetcher.holding = { cookies: 'cf_clearance=expired', userAgent: 'webview' };
+  assert.equal((await transport.text(SERIES)).text, '<html>raw');
+  assert.equal(fetcher.asked.length, 1);
+});
+
+test('gate: a picture whose clearance was only borrowed can still have the WebView shown for it', async () => {
+  const { transport, fetcher } = setup((request) => (earned(request) ? picture() : challenge()));
+  fetcher.holding = { cookies: 'cf_clearance=expired', userAgent: 'webview' };
+  assert.equal(await transport.imageSource(PICTURE), 'blob:test/1');
+  assert.deepEqual(fetcher.asked.map((asked) => asked.url), [PICTURE]);
+});
+
 test('gate: a WebView that is cancelled, or fails, is a human check that was not passed', async () => {
   const { transport, fetcher } = setup(() => challenge());
   fetcher.failure = new Error('Cancelled.');

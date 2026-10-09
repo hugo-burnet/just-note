@@ -1,8 +1,10 @@
 // Pages shaped like Scan-Manga's mobile site, with made-up series. What was copied from the real
-// site is the shape: a <title> that ends with " | Scan-Manga", Open Graph tags for the cover, the
-// kind, genre, year and author, and the synopsis; chapters linked by /lecture-en-ligne/ addresses
-// that carry a number and an id; a menu of rankings; cards on the home page whose picture is a
-// placeholder until a script swaps in data-original.
+// site, as three phones' reports showed it: a <title> that ends with " | Scan-Manga", Open Graph tags
+// for the cover, the kind, genre, year and author; a synopsis in div.titres_desc, cut short in the
+// tags; chapters in div.chapt_m rows (the number, then the name when there is one) beside buttons that
+// start reading; on the home page a div.publi per series, a table with the cover in one cell and the
+// series' link in the next, the cover swapped in for a placeholder by a script; in the list of all the
+// titles a div.listing per series, with a note on those that were updated.
 export const SCANMANGA = 'https://m.scan-manga.com';
 export const STATIC = 'https://static.scan-manga.com';
 
@@ -17,6 +19,9 @@ export interface PretendSeries {
   readonly synopsis: string;
   /** As written in the address: "3", "2-5" for 2.5. Newest first, as the site lists them. */
   readonly chapters: readonly string[];
+  /** The name some chapters have besides their number, by number. */
+  readonly names?: Readonly<Record<string, string>>;
+  readonly novel?: boolean;
 }
 
 export const SERIES: readonly PretendSeries[] = [
@@ -29,6 +34,7 @@ export const SERIES: readonly PretendSeries[] = [
     author: 'Mara Quill et Tov Reed',
     synopsis: 'Mara keeps the last lantern of a city that no longer sleeps, and learns why it must never go out',
     chapters: ['3', '2-5', '2', '1'],
+    names: { '2-5': 'Lantern Night' },
   },
   {
     id: '13002-45678',
@@ -41,6 +47,19 @@ export const SERIES: readonly PretendSeries[] = [
     chapters: ['2', '1'],
   },
 ];
+
+/** A text novel: the site lists it with the others, and a reader of pictures has nothing to show of it. */
+export const NOVEL: PretendSeries = {
+  id: '13003',
+  slug: 'Salt-Road-Journal-Novel',
+  title: 'Salt Road Journal (Novel)',
+  genre: 'Fantasy',
+  year: '2020',
+  author: 'Pel Anders',
+  synopsis: 'A journal of a long walk',
+  chapters: ['1'],
+  novel: true,
+};
 
 export const seriesAddress = (series: PretendSeries): string => `${SCANMANGA}/${series.id}/${series.slug}.html`;
 export const chapterPath = (series: PretendSeries, number: string): string => `/lecture-en-ligne/${series.slug}-Chapitre-${number}-FR_${series.id.slice(0, 5)}${number.replace('-', '')}.html`;
@@ -56,7 +75,16 @@ function page(head: string, body: string): string {
   return `<html lang="fr"><head><meta charset="utf-8">${head}</head><body>${CONSENT}<nav class="menu"><ul><li><a href="/?po">Dernières publications</a></li><li><a href="/scanlation/liste_series.html">Titres</a></li>${MENU}</ul></nav>${body}</body></html>`;
 }
 
-/** A series page: its own chapters, and a block of the latest chapters of other series. */
+/** The row of a chapter in the list of a series. */
+function row(series: PretendSeries, number: string): string {
+  const name = series.names?.[number] ?? number.replace('-', '.');
+  return (
+    `<div class="chapt_m seinenlisting"><table cellpadding="0" cellspacing="1"><tbody><tr><td class="publimg"><span class="i"><a href="${chapterPath(series, number)}">Ch. ${number.replace('-', '.')}</a></span></td>` +
+    `<td class="publititle">${name}</td><td class="publi_read"><a class="l_read typcn typcn-document" href="${chapterPath(series, number)}"></a></td></tr></tbody></table></div>`
+  );
+}
+
+/** A series page: the buttons that start reading, the synopsis, its own chapters, and a block of the latest chapters of other series. */
 export function seriesPage(series: PretendSeries, others: readonly PretendSeries[] = []): string {
   const head = [
     `<title>${series.title} | Scan-Manga</title>`,
@@ -66,24 +94,38 @@ export function seriesPage(series: PretendSeries, others: readonly PretendSeries
     `<meta property="og:description" content="${series.synopsis}...">`,
     `<link rel="canonical" href="https://www.scan-manga.com/${series.id}/${series.slug}.html">`,
   ].join('');
-  const chapters = series.chapters.map((number) => `<li><a href="${chapterPath(series, number)}">Chapitre ${number.replace('-', '.')}</a></li>`).join('');
+  const first = series.chapters[series.chapters.length - 1] ?? '1';
+  const last = series.chapters[0] ?? '1';
+  const buttons =
+    `<div style="text-align:center"><a href="${SCANMANGA}${chapterPath(series, first)}" class="startRead">Commencer à lire</a>` +
+    `<a href="${SCANMANGA}${chapterPath(series, last)}" class="ReadLast">Lire le dernier chapitre</a></div>`;
+  const synopsis = `<div class="titres_souspart"><div>Synopsis </div></div><div class="titres_desc" itemprop="description" property="og:description"> ${series.synopsis}, even for a night.<br>\nA spin-off of <a href="https://www.scan-manga.com/11667/Bocchi-the-Rock.html">Another Series</a>.<span style="visibility:hidden">**</span></div>`;
   const latest = others.map((other) => `<li><a href="${chapterPath(other, other.chapters[0] ?? '1')}">${other.title}</a></li>`).join('');
-  return page(head, `<div id="all"><h1>${series.title}</h1><p class="synopsis">${series.synopsis}, even for a night.</p><ul class="chapters">${chapters}</ul><aside><ul>${latest}</ul></aside></div>`);
+  return page(head, `<div id="all">${buttons}<h1 class="main_title">${series.title}</h1>${synopsis}${series.chapters.map((number) => row(series, number)).join('')}<aside><ul>${latest}</ul></aside></div>`);
 }
 
-/** The home page: a card for each series, with a placeholder picture the page swaps for the cover, then a chapter link. */
+/** One card of the home page: the cover in one cell (swapped in for a placeholder, or already there), the series' link in the next. */
+function card(series: PretendSeries, lazy: boolean): string {
+  const cover = lazy
+    ? `<img width="110px" height="38px" src="${STATIC}/img/lazy_130x45.jpg" data-original="${coverAddress(series, 2)}">`
+    : `<img width="110px" height="38px" src="${coverAddress(series, 2)}">`;
+  const latest = series.chapters[0] ?? '1';
+  return (
+    `<div class="${series.novel ? 'novel_ly ' : ''}publi shonenlisting" datetime="1791531618"><span class="nouveaute_cc" style="display: block;">N</span><table cellpadding="0" cellspacing="1"><tbody><tr>` +
+    `<td class="publimg">${cover}</td><td><a class="l_manga" href="/${series.id}/${series.slug}.html">${series.title}</a><span class="i"><a href="${chapterPath(series, latest)}">Ch. ${latest}</a></span></td>` +
+    `<td width="15%" class="publi_read"><a class="l_read typcn typcn-document" href="${chapterPath(series, latest)}"></a></td></tr></tbody></table></div>`
+  );
+}
+
+/** The home page: a card for each series, the first covers already in, the others waiting for the script. */
 export function homePage(series: readonly PretendSeries[] = SERIES): string {
-  const cards = series
-    .map(
-      (one) =>
-        `<div class="card"><a href="/${one.id}/${one.slug}.html"><img src="${STATIC}/img/lazy_130x45.jpg" data-original="${coverAddress(one, 2)}" alt="${one.title}"></a>` +
-        `<a href="${chapterPath(one, one.chapters[0] ?? '1')}">Chapitre ${one.chapters[0]}</a></div>`,
-    )
-    .join('');
-  return page('<title>Dernières publications | Scan-Manga</title>', `<div id="all">${cards}</div>`);
+  return page('<title>Dernières publications | Scan-Manga</title>', `<div id="all">${series.map((one, index) => card(one, index > 0)).join('')}</div>`);
 }
 
-/** The list of all the titles: a link to each series, with only its name. */
+/** The list of all the titles: a link to each series, with only its name, and a note on those that were updated. */
 export function allTitlesPage(series: readonly PretendSeries[] = SERIES): string {
-  return page('<title>Liste des titres | Scan-Manga</title>', `<div id="all">${series.map((one) => `<a href="/${one.id}/${one.slug}.html">${one.title}</a>`).join('')}</div>`);
+  const listing = series
+    .map((one, index) => `<div class="listing seinenlisting"><a href="${SCANMANGA}/${one.id}/${one.slug}.html">${one.title} ${index === 0 ? '<span class="info_update" style="color:#65b901">Mise à jour</span>' : ''}</a></div>`)
+    .join('');
+  return page('<title>Scantrad | Scan-Manga</title>', `<div id="all"><div class="lettres"><a name="#"></a>#</div>${listing}</div>`);
 }

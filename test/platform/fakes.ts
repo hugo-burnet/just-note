@@ -1,6 +1,6 @@
 import type { NativeHttp, NativeRequest, NativeResponse } from '../../src/platform/native/NativeHttp.ts';
 import type { BlobUrls } from '../../src/platform/native/NativeImages.ts';
-import type { FetchedPage, PageFetcher } from '../../src/platform/native/PageFetcher.ts';
+import type { FetchedPage, Held, PageFetcher } from '../../src/platform/native/PageFetcher.ts';
 import type { ResponseStore } from '../../src/platform/native/ResponseStore.ts';
 import type { FetchOptions } from '../../src/platform/Platform.ts';
 
@@ -28,10 +28,18 @@ export class FakeFetcher implements PageFetcher {
   readonly asked: Array<{ url: string; options: FetchOptions | undefined }> = [];
   hold: Promise<void> | undefined;
   failure: Error | undefined;
+  /** What the WebView already holds, before anything is shown (nothing, unless a test says). */
+  holding: Held = { cookies: '', userAgent: 'webview' };
+  readonly heldAsked: string[] = [];
   private readonly show: (url: string) => FetchedPage;
 
   constructor(show: (url: string) => FetchedPage) {
     this.show = show;
+  }
+
+  async held(url: string): Promise<Held> {
+    this.heldAsked.push(url);
+    return this.holding;
   }
 
   async fetch(url: string, options?: FetchOptions): Promise<FetchedPage> {

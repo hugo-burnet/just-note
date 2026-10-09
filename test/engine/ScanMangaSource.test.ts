@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ScanMangaSource, SourceError } from '../../src/engine/index.ts';
 import type { RenderedPage } from '../../src/engine/index.ts';
-import { allTitlesPage, chapterAddress, chapterPath, coverAddress, homePage, SCANMANGA, SERIES, seriesAddress, seriesPage } from '../pretend/scanmangaPages.ts';
+import { allTitlesPage, chapterAddress, chapterPath, coverAddress, homePage, NOVEL, SCANMANGA, SERIES, seriesAddress, seriesPage } from '../pretend/scanmangaPages.ts';
 import { FakeTransport, LinkedomParser } from './helpers.ts';
 import type { Route } from './helpers.ts';
 
@@ -47,15 +47,33 @@ test('getSeries reads the title, the cover, who made it, and lists the chapters 
   assert.equal(series.cover, coverAddress(LANTERN, 1));
   assert.equal(series.author, 'Mara Quill et Tov Reed');
   assert.deepEqual(series.genres, ['Seinen']);
-  assert.match(series.description, /^Mara keeps the last lantern/);
   assert.deepEqual(series.chapters.map((chapter) => [chapter.key, chapter.number, chapter.title]), [
     ['c1', 1, 'Chapitre 1'],
     ['c2', 2, 'Chapitre 2'],
-    ['c2.5', 2.5, 'Chapitre 2.5'],
+    ['c2.5', 2.5, 'Chapitre 2.5 – Lantern Night'],
     ['c3', 3, 'Chapitre 3'],
   ]);
   // Each chapter knows its series, which its own address does not say.
   assert.deepEqual(series.chapters.map((chapter) => chapter.url), ['1', '2', '2-5', '3'].map((n) => chapterAddress(LANTERN, n)));
+});
+
+test('getSeries gives the synopsis in full, not as the tags cut it, without the mark the page hides in it', async () => {
+  const { source } = scanmanga({ [seriesAddress(LANTERN)]: seriesPage(LANTERN) });
+  const { description } = await source.getSeries(seriesAddress(LANTERN));
+  assert.equal(description, 'Mara keeps the last lantern of a city that no longer sleeps, and learns why it must never go out, even for a night. A spin-off of Another Series.');
+  // Without that block, the tag's text stands in.
+  const bare = seriesPage(LANTERN).replace('titres_desc', 'other');
+  assert.match((await scanmanga({ [seriesAddress(LANTERN)]: bare }).source.getSeries(seriesAddress(LANTERN))).description, /^Mara keeps the last lantern.*\.\.\.$/);
+});
+
+test('getSeries names a chapter after its row even when a button that starts reading links it first', async () => {
+  // The buttons come before the rows: here the first link to chapter 2.5 is the one that starts reading.
+  const page = seriesPage(LANTERN).replace(`href="${SCANMANGA}${chapterPath(LANTERN, '1')}" class="startRead"`, `href="${SCANMANGA}${chapterPath(LANTERN, '2-5')}" class="startRead"`);
+  assert.ok(page.indexOf(chapterPath(LANTERN, '2-5')) < page.indexOf('chapt_m'), 'the button is ahead of the rows');
+  const { source } = scanmanga({ [seriesAddress(LANTERN)]: page });
+  const chapters = (await source.getSeries(seriesAddress(LANTERN))).chapters;
+  assert.equal(chapters.find((chapter) => chapter.key === 'c2.5')?.title, 'Chapitre 2.5 – Lantern Night');
+  assert.equal(chapters.length, 4);
 });
 
 test('getSeries keeps the title of a series whose name has punctuation, and an id with two numbers', async () => {
@@ -80,6 +98,29 @@ test('getList gives the series of a page in the order it shows them, each with t
   const { source } = scanmanga({ [`${SCANMANGA}/?po`]: homePage() });
   const items = await source.getList(`${SCANMANGA}/?po`);
   assert.deepEqual(items, SERIES.map((series) => ({ url: seriesAddress(series), title: series.title, cover: coverAddress(series, 2) })));
+});
+
+test('getList leaves the novels out (text, which a reader of pictures cannot show), by their card or by their address', async () => {
+  const withNovel = homePage([LANTERN, NOVEL, EMBER]);
+  const { source } = scanmanga({ [`${SCANMANGA}/?po`]: withNovel, [`${SCANMANGA}/scanlation/liste_series.html`]: allTitlesPage([LANTERN, NOVEL]) });
+  assert.deepEqual((await source.getList(`${SCANMANGA}/?po`)).map((item) => item.title), ['Lantern Keeper', 'Ember Courier: The Last Mile']);
+  assert.deepEqual((await source.getList(`${SCANMANGA}/scanlation/liste_series.html`)).map((item) => item.title), ['Lantern Keeper']);
+  // A novel whose card does not say so is still told by its address.
+  const bare = withNovel.replace('novel_ly publi', 'publi');
+  assert.equal((await scanmanga({ [`${SCANMANGA}/?po`]: bare }).source.getList(`${SCANMANGA}/?po`)).length, 2);
+});
+
+test('getList names a series by the text of its link, without the note the list of all the titles adds to the updated ones', async () => {
+  const { source } = scanmanga({ [`${SCANMANGA}/scanlation/liste_series.html`]: allTitlesPage() });
+  const items = await source.getList(`${SCANMANGA}/scanlation/liste_series.html`);
+  assert.deepEqual(items.map((item) => item.title), ['Lantern Keeper', 'Ember Courier: The Last Mile']);
+  assert.ok(items.every((item) => item.cover === null), 'that list has no pictures');
+});
+
+test('getList shows no more than a page can bear, whatever the list of all the titles holds', async () => {
+  const many = Array.from({ length: 500 }, (_, i) => `<div class="listing"><a href="${SCANMANGA}/${20000 + i}/Series-${i}.html">Series ${i}</a></div>`).join('');
+  const { source } = scanmanga({ [`${SCANMANGA}/scanlation/liste_series.html`]: `<html><body>${many}</body></html>` });
+  assert.equal((await source.getList(`${SCANMANGA}/scanlation/liste_series.html`)).length, 300);
 });
 
 test('getList names a series from its address when its card says nothing, and does not list one twice', async () => {
