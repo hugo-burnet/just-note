@@ -18,6 +18,16 @@ test('a chapter pasted from the site is a chapter whose series is still to be fo
   assert.deepEqual(SushiScanUrls.resolve('https://sushiscan.net/blue-lock-chapitre-345'), { kind: 'chapter', url: 'https://sushiscan.net/blue-lock-chapitre-345/', key: 'c345' });
 });
 
+test('an episode, an extra and a special have keys of their own, and a title when the page gives none', () => {
+  assert.equal(SushiScanUrls.resolve('https://sushiscan.net/one-piece-episode-4/')?.key, 'e4');
+  assert.equal(SushiScanUrls.resolve('https://sushiscan.net/one-piece-extra-1/')?.key, 'x1');
+  assert.equal(SushiScanUrls.resolve('https://sushiscan.net/one-piece-special-2/')?.key, 's2');
+  assert.equal(SushiScanUrls.resolve('https://sushiscan.net/one-piece-vol-7/')?.key, 'v7');
+  assert.deepEqual(['c5', 'v3', 't2', 'e4', 'x1', 's2'].map(SushiScanUrls.titleOf), ['Chapitre 5', 'Volume 3', 'Tome 2', 'Épisode 4', 'Extra 1', 'Spécial 2']);
+  assert.equal(SushiScanUrls.chapterSlugOf('https://sushiscan.net/blue-lock-chapitre-345/'), 'blue-lock');
+  assert.equal(SushiScanUrls.chapterSlugOf('https://sushiscan.net/catalogue/blue-lock/'), '');
+});
+
 test('a half chapter, a volume and a tome have keys of their own', () => {
   assert.equal(SushiScanUrls.resolve('https://sushiscan.net/one-piece-chapitre-12-5/')?.key, 'c12.5');
   assert.equal(SushiScanUrls.resolve('https://sushiscan.net/one-piece-volume-3/')?.key, 'v3');

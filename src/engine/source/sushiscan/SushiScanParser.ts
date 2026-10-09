@@ -65,11 +65,18 @@ export class SushiScanParser {
    */
   parseList(doc: DomDocument, pageUrl: string, limit = MAX_ITEMS): SeriesSummary[] {
     const found = new Map<string, { title: string; cover: string | null }>();
-    for (const link of doc.querySelectorAll('a[href]')) {
+    const seriesOf = (link: DomNode): string | null => {
       const target = SushiScanUrls.resolve(absolute(link.getAttribute('href'), pageUrl) ?? '');
-      if (target?.kind !== 'series') continue;
-      const seen = found.get(target.url);
-      found.set(target.url, { title: seen?.title || this.cardTitle(link), cover: seen?.cover ?? this.cover(link, pageUrl) });
+      return target?.kind === 'series' ? target.url : null;
+    };
+    // What the page lists is in div.listupd; the widgets beside it (the popular series, the latest) are not what was asked for.
+    const own = [...doc.querySelectorAll('.listupd a[href]')];
+    const links = own.some((link) => seriesOf(link)) ? own : [...doc.querySelectorAll('a[href]')];
+    for (const link of links) {
+      const url = seriesOf(link);
+      if (!url) continue;
+      const seen = found.get(url);
+      found.set(url, { title: seen?.title || this.cardTitle(link), cover: seen?.cover ?? this.cover(link, pageUrl) });
     }
     return [...found].slice(0, limit).map(([url, card]) => ({ url, title: (card.title || titled(SushiScanUrls.slugOf(url))).slice(0, 120), cover: card.cover }));
   }
@@ -86,21 +93,42 @@ export class SushiScanParser {
     return rows;
   }
 
-  /** Oldest first: the page lists the newest first. */
+  /**
+   * Oldest first: a list of the page has the newest first. A series may have more than one (its chapters, its
+   * volumes), which are kept apart, one after the other.
+   */
   private chapters(doc: DomDocument, seriesUrl: string): Chapter[] {
-    const listed = [...doc.querySelectorAll('#chapterlist li')];
-    const rows = listed.length > 0 ? listed : [...doc.querySelectorAll('a[href]')];
     const found = new Map<string, Chapter>();
-    for (const row of rows) {
-      const link = row.querySelector('a[href]') ?? row;
-      const url = SushiScanUrls.chapter(absolute(link.getAttribute('href'), seriesUrl) ?? '', seriesUrl);
-      const key = url ? SushiScanUrls.resolve(url)?.key : undefined;
-      const number = SushiScanUrls.chapterNumber(key ?? '');
-      if (!url || !key || !Number.isFinite(number) || found.has(key)) continue;
-      const title = clean(row.querySelector('.chapternum')?.textContent) || clean(row.getAttribute('data-num')) || `Chapitre ${number}`;
-      found.set(key, { url, key, number, title, date: clean(row.querySelector('.chapterdate')?.textContent) });
+    const take = (rows: Iterable<DomNode>): Chapter[] => {
+      const list: Chapter[] = [];
+      for (const row of rows) {
+        const chapter = this.chapter(row, seriesUrl);
+        if (!chapter || found.has(chapter.key)) continue;
+        found.set(chapter.key, chapter);
+        list.push(chapter);
+      }
+      return list.reverse();
+    };
+    const chapters = [...doc.querySelectorAll('.eplister, #chapterlist')].flatMap((list) => take(list.querySelectorAll('li')));
+    if (chapters.length > 0) return chapters;
+    // No list the usual way: the links of the page to chapters, those of the name most of them have.
+    const bySlug = new Map<string, DomNode[]>();
+    for (const link of doc.querySelectorAll('a[href]')) {
+      const address = absolute(link.getAttribute('href'), seriesUrl) ?? '';
+      if (SushiScanUrls.chapter(address, seriesUrl)) bySlug.set(SushiScanUrls.chapterSlugOf(address), [...(bySlug.get(SushiScanUrls.chapterSlugOf(address)) ?? []), link]);
     }
-    return [...found.values()].reverse();
+    return take([...bySlug.values()].sort((a, b) => b.length - a.length)[0] ?? []);
+  }
+
+  /** A chapter from a row of a list (or from a link): its address with the series, its number, its name and its date. */
+  private chapter(row: DomNode, seriesUrl: string): Chapter | null {
+    const link = row.getAttribute('href') ? row : row.querySelector('a[href]');
+    const url = SushiScanUrls.chapter(absolute(link?.getAttribute('href'), seriesUrl) ?? '', seriesUrl);
+    const key = url ? SushiScanUrls.resolve(url)?.key : undefined;
+    const number = SushiScanUrls.chapterNumber(key ?? '');
+    if (!url || !key || !Number.isFinite(number)) return null;
+    const title = clean(row.querySelector('.chapternum')?.textContent) || clean(row.getAttribute('data-num')) || SushiScanUrls.titleOf(key);
+    return { url, key, number, title, date: clean(row.querySelector('.chapterdate')?.textContent) };
   }
 
   private meta(doc: DomDocument, property: string): string {

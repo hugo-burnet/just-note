@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 349 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 353 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -79,9 +79,11 @@ runs it sees everything you read and can alter what you are shown.
   own network is answered 200 with no check, a series is `/catalogue/<name>/` with its chapters in
   `#chapterlist`, a chapter is `/<name>-chapitre-<n>/` and its reader is given the pictures in a script
   (`"images":[…]`, on `c.sushiscan.net`), and the way back to its series is the one link to `/catalogue/<name>/`
-  in it. A series says what it is (manga, manhua…), which sets how it is read (`Series.reading`). **Not verified
-  on a phone**: that the list of pictures is found, and the search. When a chapter has none the error screen's
-  details quote what the page says of its reader.
+  in it. A series says what it is (manga, manhua…), which sets how it is read (`Series.reading`). On a phone, by the
+  author's report: the search and the covers work, and a series page gives its title, author, genres and synopsis;
+  but a series with many scans (Solo Leveling) showed one chapter, which the report of its page is to explain (its
+  volumes may be in a list of their own: every `.eplister` is read now). **Not verified**: that the list of pictures
+  of a chapter is found. When a chapter has none the error screen's details quote what the page says of its reader.
 - LelScan has no search of its own: searching filters its list of series. A chapter takes
   one request per page (the images are not named alike from one series to the next), so a
   long chapter takes a few seconds to open.
@@ -271,7 +273,7 @@ Not done yet: sharing a link to the app, and its own launcher icon.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 349 unit tests
+npm run check        # types (app and worker) and the 353 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

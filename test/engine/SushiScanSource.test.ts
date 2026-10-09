@@ -60,6 +60,32 @@ test('a series with volumes lists them as volumes, and one with no chapter says 
   await assert.rejects(() => blocked.getSeries(seriesAddress(EMBER)), (error: unknown) => error instanceof SourceError && error.code === 'blocked');
 });
 
+test('a series whose volumes are in a list of their own has them after its chapters, each kind oldest first', async () => {
+  const both = { ...LANTERN, chapters: ['2', '1'], volumes: ['2', '1'] };
+  const { source } = sushi({ [seriesAddress(both)]: seriesPage(both) });
+  const series = await source.getSeries(seriesAddress(both));
+  assert.deepEqual(series.chapters.map((chapter) => [chapter.key, chapter.title]), [
+    ['c1', 'Chapitre 1'],
+    ['c2', 'Chapitre 2'],
+    ['v1', 'Volume 1'],
+    ['v2', 'Volume 2'],
+  ]);
+});
+
+test('a series page with no list of chapters still gives the chapters it links to, of the name most of them have', async () => {
+  const links = ['3', '2', '1'].map((n) => `<a href="${chapterAddress(LANTERN, n)}">${n}</a>`).join('');
+  const html = `<html><head><title>Lantern</title></head><body><h1>Lantern Keeper</h1>${links}<a href="${SUSHI}/other-chapitre-9/">other</a></body></html>`;
+  const { source } = sushi({ [seriesAddress(LANTERN)]: html });
+  const series = await source.getSeries(seriesAddress(LANTERN));
+  assert.deepEqual(series.chapters.map((chapter) => [chapter.key, chapter.title]), [['c1', 'Chapitre 1'], ['c2', 'Chapitre 2'], ['c3', 'Chapitre 3']]);
+});
+
+test('a row of the list that links to something that is not a chapter is left out, not shown broken', async () => {
+  const html = seriesPage(LANTERN).replace('<li data-num="Chapitre 3">', `<li data-num="Bonus"><div class="chbox"><div class="eph-num"><a href="${SUSHI}/lantern-keeper-bonus-art/"><span class="chapternum">Bonus</span></a></div></div></li><li data-num="Chapitre 3">`);
+  const { source } = sushi({ [seriesAddress(LANTERN)]: html });
+  assert.deepEqual((await source.getSeries(seriesAddress(LANTERN))).chapters.map((chapter) => chapter.key), ['c1', 'c2', 'c2.5', 'c3']);
+});
+
 test('the home page lists each series once, with its name and cover, whichever way the page shows it', async () => {
   const { source } = sushi({ [`${SUSHI}/`]: homePage() });
   const items = await source.getList(`${SUSHI}/`);
@@ -71,10 +97,10 @@ test('the home page lists each series once, with its name and cover, whichever w
   assert.deepEqual(items.map((item) => item.cover), [`${LANTERN.cover}?ver=1790341491`, `${EMBER.cover}?ver=1790341491`]);
 });
 
-test('a search lists what the site found first, and the links nobody asked for (a trap, the menu) are not series', async () => {
+test('a search lists what the site found, not the widgets beside it, and the links nobody asked for (a trap, the menu) are not series', async () => {
   const { source } = sushi({ [`${SUSHI}/?s=lantern`]: searchPage([LANTERN], [EMBER]) });
   const items = await source.getList(`${SUSHI}/?s=lantern`);
-  assert.deepEqual(items.map((item) => item.title), ['Lantern Keeper', 'Ember Courier']);
+  assert.deepEqual(items.map((item) => item.title), ['Lantern Keeper']);
   assert.deepEqual(await sushi({ [`${SUSHI}/?s=nothing`]: searchPage([]) }).source.getList(`${SUSHI}/?s=nothing`), []);
   assert.ok(card(LANTERN).includes('class="bs"'));
 });

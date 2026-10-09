@@ -4,11 +4,13 @@ const ORIGIN = 'https://sushiscan.net';
 const HOSTS = ['sushiscan.net'];
 
 // /catalogue/<slug>/                                      a series
-// /<slug>-chapitre-<n>[-<n>]/ (or -volume-, -tome-)        a chapter ("12-5" is chapter 12.5)
+// /<slug>-chapitre-<n>[-<n>]/ (or -volume-, -tome-...)    a chapter ("12-5" is chapter 12.5)
 // A chapter's address does not say which series it belongs to: the series of /blue-lock-chapitre-345/ is
 // /catalogue/1-blue-lock/.
 const SERIES_PATH = /^\/catalogue\/([^/]+)\/?$/i;
-const CHAPTER_PATH = /^\/([^/]+?)-(chapitre|chapter|volume|tome)-(\d+(?:-\d+)?)\/?$/i;
+const CHAPTER_PATH = /^\/([^/]+?)-(chapitre|chapter|volume|vol|tome|episode|extra|special)-(\d+(?:-\d+)?)\/?$/i;
+// The letter a kind of chapter has in a key ("c12", "v3"): distinct, so that chapter 1 and volume 1 are two things.
+const KIND_LETTERS: Readonly<Record<string, string>> = { chapitre: 'c', chapter: 'c', volume: 'v', vol: 'v', tome: 't', episode: 'e', extra: 'x', special: 's' };
 
 const isOwnHost = (host: string): boolean => HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
 
@@ -70,7 +72,7 @@ export class SushiScanUrls {
     const match = CHAPTER_PATH.exec(pathname);
     if (!match) return null;
     const [, slug = '', kind = 'chapitre', written = ''] = match;
-    const key = `${kind.charAt(0).toLowerCase()}${written.replace('-', '.')}`;
+    const key = `${KIND_LETTERS[kind.toLowerCase()] ?? 'c'}${written.replace('-', '.')}`;
     const page = `${ORIGIN}/${slug}-${kind.toLowerCase()}-${written}/`;
     const parent = SushiScanUrls.seriesAt(seriesPath);
     return parent ? { kind: 'chapter', url: `${page}#${new URL(parent).pathname}`, key, seriesUrl: parent } : { kind: 'chapter', url: page, key };
@@ -83,6 +85,15 @@ export class SushiScanUrls {
     return page.href;
   }
 
+  /** The name the chapters of a series have in their addresses ("blue-lock" for /blue-lock-chapitre-345/); empty for any other address. */
+  static chapterSlugOf(address: string): string {
+    try {
+      return CHAPTER_PATH.exec(new URL(address).pathname)?.[1] ?? '';
+    } catch {
+      return '';
+    }
+  }
+
   /** The name a series has in its address. */
   static slugOf(address: string): string {
     const path = new URL(address).pathname;
@@ -91,6 +102,12 @@ export class SushiScanUrls {
 
   static chapterNumber(key: string): number {
     return Number(/^[a-z](\d+(?:\.\d+)?)$/.exec(key)?.[1] ?? NaN);
+  }
+
+  /** What a chapter is called when the page does not say: "Volume 3" for "v3". */
+  static titleOf(key: string): string {
+    const names: Readonly<Record<string, string>> = { c: 'Chapitre', v: 'Volume', t: 'Tome', e: 'Épisode', x: 'Extra', s: 'Spécial' };
+    return `${names[key.charAt(0)] ?? 'Chapitre'} ${key.slice(1)}`;
   }
 
   /** The site's own search (WordPress's: the answer is a page of cards, like the home page). */

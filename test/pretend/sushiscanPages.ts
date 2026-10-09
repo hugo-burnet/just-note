@@ -26,6 +26,8 @@ export interface PretendWork {
   readonly chapters: readonly string[];
   /** "chapitre" or "volume". */
   readonly kind?: string;
+  /** Volumes, in a list of their own after that of the chapters, newest first. */
+  readonly volumes?: readonly string[];
 }
 
 export const LANTERN: PretendWork = {
@@ -119,6 +121,9 @@ export function seriesPage(work: PretendWork, facts: Readonly<Record<string, str
     })
     .join('');
   const others = WORKS.filter((other) => other !== work).map((other) => card(other)).join('');
+  const volumes = work.volumes
+    ? `<div class="eplister" id="volumelist"><ul>${work.volumes.map((n) => `<li data-num="Volume ${n}"><div class="chbox"><div class="eph-num"><a href="${SUSHI}/${work.chapterSlug}-volume-${n}/"><span class="chapternum">Volume ${n}</span><span class="chapterdate">1 janvier 2020</span></a></div></div></li>`).join('')}</ul></div>`
+    : '';
   const head =
     `<title>${work.title} - Scan FR / VF - Sushiscan</title><link rel="canonical" href="${seriesAddress(work)}">` +
     `<meta property="og:image" content="${work.cover}"><meta property="og:title" content="${work.title} - Scan FR / VF - Sushiscan">` +
@@ -129,7 +134,7 @@ export function seriesPage(work: PretendWork, facts: Readonly<Record<string, str
     `<div class="seriestucontentr"><div class="seriestuhead"><div class="entry-content entry-content-single" itemprop="description"><p>${work.synopsis}, even for a night.</p></div></div>` +
     `<div class="seriestucont"><div class="seriestucontr"><table class="infotable"><tbody>${Object.entries(facts).map(([label, value]) => row(label, value)).join('')}</tbody></table>` +
     `<div class="seriestugenre">${work.genres.map((genre) => `<a href="${SUSHI}/genres/${genre.toLowerCase()}/" rel="tag">${genre}</a>`).join(' ')}</div></div></div></div></div></div>` +
-    `<div class="eplister" id="chapterlist"><ul >${chapters}</ul></div><div class="listupd">${others}</div>`;
+    `<div class="eplister" id="chapterlist"><ul >${chapters}</ul></div>${volumes}<div class="listupd">${others}</div>`;
   return page(head, body);
 }
 
