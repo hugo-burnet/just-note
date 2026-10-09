@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { Catalog, CoverShelf, Library, Source, SourceRegistry } from '../../src/engine/index.ts';
+import { Catalog, CoverShelf, GenreShelf, Library, Source, SourceRegistry } from '../../src/engine/index.ts';
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../src/engine/index.ts';
 import type { ChapterOptions } from '../../src/engine/source/Source.ts';
 import { makeIO, MemoryStore } from './helpers.ts';
@@ -235,4 +235,24 @@ test('a downloaded chapter is read from the device, and a series whose site cann
   assert.equal((await catalog.series(URL_1, { fresh: true })).title, 'Kept');
   source.failNext = true;
   await assert.rejects(() => catalog.series('https://stub.test/series/2', { fresh: true }), /boom/);
+});
+
+test('the genres of a series of a listing are read from its page once, kept, and do not put it in the library', async () => {
+  const source = new StubSource(makeIO({}).io);
+  const store = new MemoryStore();
+  const library = new Library(store);
+  const catalog = new Catalog(new SourceRegistry([source]), library, () => 0, undefined, undefined, new GenreShelf(store));
+  assert.deepEqual(await catalog.genres(URL_1), []);
+  assert.deepEqual(await catalog.genres(URL_1), []);
+  assert.equal(source.calls.series, 1);
+  assert.equal(library.get(URL_1), null);
+  // Kept from one start to the next.
+  const again = new Catalog(new SourceRegistry([source]), library, () => 0, undefined, undefined, new GenreShelf(store));
+  assert.deepEqual(await again.genres(URL_1), []);
+  assert.equal(source.calls.series, 1);
+  // A page that cannot be read gives nothing, and one no longer wanted is not read.
+  source.failNext = true;
+  assert.equal(await catalog.genres('https://stub.test/series/2'), null);
+  assert.equal(await catalog.genres('https://stub.test/series/3', () => false), null);
+  assert.equal(source.calls.series, 2);
 });

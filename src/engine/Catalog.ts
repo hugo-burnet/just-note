@@ -1,5 +1,6 @@
 import { SourceError } from './errors.ts';
 import type { CoverShelf } from './library/CoverShelf.ts';
+import type { GenreShelf } from './library/GenreShelf.ts';
 import type { Library } from './library/Library.ts';
 import { Limiter } from './Limiter.ts';
 import { Memo } from './Memo.ts';
@@ -16,6 +17,8 @@ export interface SavedContent {
 }
 // The series pages asked for their covers, at the same time: the site is not a thing to hammer.
 const COVERS_AT_ONCE = 3;
+// The same for the genres of the series of a listing (their pages say them; listings do not).
+const GENRES_AT_ONCE = 3;
 
 /**
  * What the views ask for: series, chapters, listings. Looking at a series puts
@@ -33,10 +36,17 @@ export class Catalog {
   private readonly coverLimit = new Limiter(COVERS_AT_ONCE);
   private readonly askingCover = new Map<string, Promise<string | null>>();
   private readonly saved: SavedContent | undefined;
+  private readonly genreShelf: GenreShelf | undefined;
+  private readonly genreLimit = new Limiter(GENRES_AT_ONCE);
+  private readonly askingGenres = new Map<string, Promise<readonly string[] | null>>();
 
-  /** `covers`: where the covers found for listings are kept from one start to the next. `saved`: what was downloaded. */
-  constructor(registry: SourceRegistry, library: Library, now: () => number = Date.now, covers?: CoverShelf, saved?: SavedContent) {
+  /**
+   * `covers` and `genres`: where the covers and the genres found for listings are kept from one start to the next.
+   * `saved`: what was downloaded.
+   */
+  constructor(registry: SourceRegistry, library: Library, now: () => number = Date.now, covers?: CoverShelf, saved?: SavedContent, genres?: GenreShelf) {
     this.saved = saved;
+    this.genreShelf = genres;
     this.registry = registry;
     this.library = library;
     this.shelf = covers;
@@ -58,7 +68,31 @@ export class Catalog {
     if (options.fresh) this.seriesMemo.forget(url);
     const series = await this.seriesMemo.get(url, () => this.readSeries(url));
     this.library.save(series);
+    this.genreShelf?.set(url, series.genres);
     return series;
+  }
+
+  /**
+   * The genres of a series of a listing, which only its page says: what is known of it (kept, or in the library),
+   * else its page, a few at a time, and only for a series still wanted when its turn comes. Null when they
+   * cannot be had. It never puts the series in the library; opening it afterwards is instant.
+   */
+  genres(url: string, wanted: () => boolean = () => true): Promise<readonly string[] | null> {
+    const known = this.genreShelf?.get(url) ?? this.library.get(url)?.genres;
+    if (known) return Promise.resolve(known);
+    const pending = this.askingGenres.get(url);
+    if (pending) return pending;
+    const asked = this.genreLimit
+      .run(async () => {
+        if (!wanted()) return null;
+        const { genres } = await this.seriesMemo.get(url, () => this.readSeries(url));
+        this.genreShelf?.set(url, genres);
+        return genres;
+      })
+      .catch(() => null)
+      .finally(() => this.askingGenres.delete(url));
+    this.askingGenres.set(url, asked);
+    return asked;
   }
 
   /**

@@ -74,3 +74,12 @@ test('library: a series keeps its genres, through a backup too, and one without 
   assert.deepEqual(asked, ['https://site.test/old/']);
   assert.deepEqual(library.get('https://site.test/old/')?.genres, ['Drama']);
 });
+
+test('genres: Discover has a filter of its own, apart from the shelf’s', () => {
+  const store = new MemoryStore();
+  new GenreFilter(store, 'discover').set('Romance', 'exclude');
+  assert.equal(new GenreFilter(store).active, false);
+  assert.equal(new GenreFilter(store, 'discover').choice('romance'), 'exclude');
+  // What a listing knows: a series whose genres were read, and one whose were not.
+  assert.deepEqual([{ genres: ['Romance'] }, { genres: undefined }].map((one) => new GenreFilter(store, 'discover').matches(one)), [false, true]);
+});

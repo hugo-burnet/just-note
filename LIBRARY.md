@@ -16,6 +16,13 @@ leaves it out (the series that have it are hidden), a third lets it go. The choi
 (`GenreFilter`). Two spellings of one genre (*Sci-Fi*, *sci fi*) are one. A series keeps the genres
 its page gave it; one kept before that is read again when the library opens.
 
+**Filter Discover by genre.** A listing does not say the genres of its series; their pages do. Under the
+title of the results, *Filter by genre* reads them, three at a time (`Catalog.genres`), keeps them
+(`GenreShelf`, a few hundred series) so that they are not read again, and the same chips as the shelf's
+appear as they come in. Discover's choice is remembered apart from the shelf's: when one is chosen, the
+genres of the next results are read at once. Until its genres are known, a series passes a filter that
+only leaves genres out, and not one that keeps some.
+
 **Downloads, to read with no network.** In a series, the ⤓ button beside *Continue* downloads
 the next 5 or 10 unread chapters, or all of them, from where you are; each chapter also has its
 own button, which shows a ring while it comes in and turns into a mark once kept. A chapter is

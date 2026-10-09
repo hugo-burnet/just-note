@@ -1,5 +1,4 @@
 import type { KeyValueStore } from '../ports.ts';
-import type { LibraryEntry } from './Library.ts';
 
 /** What a genre does to the shelf: nothing, kept (a series must have it), or left out (a series must not). */
 export type GenreChoice = 'none' | 'include' | 'exclude';
@@ -18,6 +17,11 @@ interface Stored {
 }
 
 const KEY = 'jr:genre-filter';
+
+/** Anything that may say its genres: a series of the library, one of a listing whose page was read. */
+export interface WithGenres {
+  readonly genres?: readonly string[] | undefined;
+}
 
 /**
  * Two sites rarely write a genre alike ("Sci-fi", "Sci Fi", "science-fiction"...): case, accents, spaces and
@@ -38,9 +42,12 @@ export const genreKey = (genre: string): string =>
  */
 export class GenreFilter {
   private readonly store: KeyValueStore;
+  private readonly key: string;
 
-  constructor(store: KeyValueStore) {
+  /** `scope`: a filter of its own (Discover's is not the shelf's), remembered under its own name. */
+  constructor(store: KeyValueStore, scope?: string) {
     this.store = store;
+    this.key = scope ? `${KEY}:${scope}` : KEY;
   }
 
   get active(): boolean {
@@ -71,10 +78,10 @@ export class GenreFilter {
   }
 
   clear(): void {
-    this.store.remove(KEY);
+    this.store.remove(this.key);
   }
 
-  matches(entry: LibraryEntry): boolean {
+  matches(entry: WithGenres): boolean {
     const { include, exclude } = this.read();
     const has = new Set((entry.genres ?? []).map(genreKey));
     if (exclude.some((key) => has.has(key))) return false;
@@ -86,7 +93,7 @@ export class GenreFilter {
    * The genres of the shelf, the commonest first (then by name), each under the spelling most of its series
    * use. A genre chosen earlier is listed even when no series has it any more, so that it can be let go.
    */
-  genres(entries: readonly LibraryEntry[]): ShelfGenre[] {
+  genres(entries: readonly WithGenres[]): ShelfGenre[] {
     const found = new Map<string, { spellings: Map<string, number>; count: number }>();
     for (const entry of entries) {
       for (const key of new Set((entry.genres ?? []).map(genreKey))) {
@@ -114,7 +121,7 @@ export class GenreFilter {
 
   private read(): Stored {
     try {
-      const stored = JSON.parse(this.store.get(KEY) ?? '{}') as Partial<Stored>;
+      const stored = JSON.parse(this.store.get(this.key) ?? '{}') as Partial<Stored>;
       const keys = (value: unknown): string[] => (Array.isArray(value) ? value.filter((one): one is string => typeof one === 'string') : []);
       return { include: keys(stored.include), exclude: keys(stored.exclude) };
     } catch {
@@ -123,7 +130,7 @@ export class GenreFilter {
   }
 
   private write(value: Stored): void {
-    if (value.include.length === 0 && value.exclude.length === 0) this.store.remove(KEY);
-    else this.store.set(KEY, JSON.stringify(value));
+    if (value.include.length === 0 && value.exclude.length === 0) this.store.remove(this.key);
+    else this.store.set(this.key, JSON.stringify(value));
   }
 }

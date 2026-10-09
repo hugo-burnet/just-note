@@ -1,4 +1,4 @@
-import { Catalog, CoverShelf, Downloads, GenreFilter, inBackground, Library, Settings, SITES, SourceError, SourceRegistry, UpdateChecker } from '../engine/index.ts';
+import { Catalog, CoverShelf, Downloads, GenreFilter, GenreShelf, inBackground, Library, Settings, SITES, SourceError, SourceRegistry, UpdateChecker } from '../engine/index.ts';
 import type { ResolvedLink } from '../engine/index.ts';
 import type { Connection, Platform } from '../platform/Platform.ts';
 import { AppSheets } from './components/AppSheets.ts';
@@ -39,6 +39,7 @@ export class App implements AppContext {
   readonly updates: UpdateChecker;
   readonly downloads: Downloads;
   readonly genreFilter: GenreFilter;
+  readonly discoverGenres: GenreFilter;
   readonly transport: Connection;
   readonly clipboard: Platform['clipboard'];
   readonly usesProxy: boolean;
@@ -56,6 +57,7 @@ export class App implements AppContext {
     this.settings = new Settings(platform.store, platform.defaults);
     this.library = new Library(platform.store);
     this.genreFilter = new GenreFilter(platform.store);
+    this.discoverGenres = new GenreFilter(platform.store, 'discover');
     this.transport = platform.connect(
       () => this.settings.get().proxyBase,
       () => ({
@@ -79,7 +81,7 @@ export class App implements AppContext {
     });
     // A chapter is downloaded as the reader would read it ahead: no dialog put in front of the user for it.
     this.downloads = new Downloads(platform.store, this.transport.shelf ?? null, (url) => this.catalog.chapter(url, { background: true }));
-    this.catalog = new Catalog(this.registry, this.library, Date.now, new CoverShelf(platform.store), this.downloads);
+    this.catalog = new Catalog(this.registry, this.library, Date.now, new CoverShelf(platform.store), this.downloads, new GenreShelf(platform.store));
     this.toasts = new ToastHost(elements.toasts);
     this.sheets = new AppSheets(this, document.body);
     this.appearance = new Appearance(this.settings, this.i18n);

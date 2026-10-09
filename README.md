@@ -27,8 +27,8 @@ newer progress wins, finished chapters are combined, and unrelated series stay.
 The APK presents selectable JSON with a copy button; save the copied text as a `.json`
 file to import it elsewhere. Backups exclude downloaded images and connection settings.
 
-The library marks the chapters that came out since a series was last opened, filters its shelf by
-genre (keep some, leave others out) and downloads chapters to read with no network: see
+The library marks the chapters that came out since a series was last opened, filters its shelf and
+Discover's results by genre (keep some, leave others out) and downloads chapters to read with no network: see
 [LIBRARY.md](LIBRARY.md).
 
 What is read is also kept (the reading cache), bounded by **128 MiB / 400 images** and
@@ -58,7 +58,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 438 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 440 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -258,7 +258,7 @@ in the APK. See [NATIVE.md](NATIVE.md) for rendering, diagnostics and offline st
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 438 unit tests
+npm run check        # types (app and worker) and the 440 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run test:e2e -- regressions # shared storage and native image regressions

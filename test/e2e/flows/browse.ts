@@ -53,7 +53,33 @@ export async function browseAndSettings({ browser, stage, runner }: Context): Pr
     await shot(page, '31-search');
   });
 
+  await step('Discover filters its results by genre, read from the pages of the series when asked for', async () => {
+    await page.goto(`${stage.appUrl}#/discover`);
+    await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 3);
+    const visible = (): Promise<number> => page.locator('.grid .card:not([hidden])').count();
+    await page.getByRole('button', { name: 'Filter by genre' }).click();
+    // Only Moonlight Courier has a page on the pretend site: its genres are the only ones known.
+    await page.locator('.genre-chip', { hasText: 'Adventure' }).waitFor();
+    await page.locator('.genre-chip', { hasText: 'Adventure' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.grid .card:not([hidden])').length === 1);
+    assert.equal(await page.locator('.grid .card:not([hidden]) .card-title').innerText(), 'Moonlight Courier');
+    await settle(page);
+    await shot(page, '30b-discover-genres');
+    // Left out: it is hidden, and the series whose genres could not be read stay.
+    await page.locator('.genre-chip', { hasText: 'Adventure' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.grid .card:not([hidden])').length === 2);
+    // Remembered: the results are filtered again at once when Discover opens again.
+    await page.reload();
+    await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 3 && document.querySelectorAll('.grid .card:not([hidden])').length === 2);
+    await page.getByRole('button', { name: 'Show all' }).click();
+    assert.equal(await visible(), 3);
+    assert.equal(await page.getByRole('button', { name: 'Filter by genre' }).isVisible(), false, 'the genres are known: no need to ask again');
+  });
+
   await step('a result opens its series, and Back returns to the results', async () => {
+    await page.locator('input[type=search]').fill('moon');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 1);
     await page.locator('.grid .card').first().click();
     await page.locator('.series-title').waitFor();
     await page.goBack();

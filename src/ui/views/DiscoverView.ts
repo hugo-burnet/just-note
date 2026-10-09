@@ -1,6 +1,7 @@
-import type { Source } from '../../engine/index.ts';
+import type { SeriesSummary, Source } from '../../engine/index.ts';
 import { EmptyState } from '../components/EmptyState.ts';
 import { ErrorPanel } from '../components/ErrorPanel.ts';
+import { GenreBar } from '../components/GenreBar.ts';
 import { LargeHeader } from '../components/LargeHeader.ts';
 import { SeriesCard, skeletonGrid } from '../components/SeriesCard.ts';
 import type { AppContext } from '../core/AppContext.ts';
@@ -115,19 +116,85 @@ export class DiscoverView extends View {
         return;
       }
       const grid = h('div', { class: 'grid' });
-      items.forEach((item, index) => {
+      const cards = items.map((item, index) => {
         const better = source.betterCovers ? (wanted: () => boolean) => catalog.cover(item.url, wanted) : undefined;
         const card = new SeriesCard(this.app, { url: item.url, title: item.title, cover: item.cover, index, ...(better ? { better } : {}) });
         this.shown.push(card);
         grid.append(card.root);
+        return card.root;
       });
-      this.results.replaceChildren(title, grid);
+      this.results.replaceChildren(title, this.genreFilter(items, cards), grid);
     } catch (error) {
       if (this.isDestroyed) return;
       const panel = new ErrorPanel(this.app, error, { retry: () => void this.load(source, query) });
       this.shown.push(panel);
       this.results.replaceChildren(title, panel.root);
     }
+  }
+
+  /**
+   * Filtering the results by genre. A listing does not say the genres of its series, their pages do: they are
+   * read (a few at a time, and kept) when the filter is asked for, or at once when one is already chosen. Until
+   * its genres are known, a series passes a filter that only leaves genres out, and not one that keeps some.
+   */
+  private genreFilter(items: readonly SeriesSummary[], cards: readonly HTMLElement[]): HTMLElement {
+    const { i18n, catalog, discoverGenres: filter } = this.app;
+    const known = new Map<string, readonly string[]>();
+    let started = false;
+    let answered = 0;
+    let drawing = false;
+    const start = h('button', { class: 'chip chip-button genre-start pressable', type: 'button' }, icon('sort', 14), i18n.t('discover.genres'));
+    const status = h('p', { class: 'genre-hint', 'aria-live': 'polite' });
+    const nothing = h('p', { class: 'genre-empty', hidden: true }, i18n.t('discover.genresNone'));
+    const bar = new GenreBar({ i18n, filter, onChange: () => draw() });
+    this.shown.push(bar);
+
+    const draw = (): void => {
+      const said = items.map((item) => ({ genres: known.get(item.url) }));
+      bar.paint(said.filter((one) => one.genres !== undefined));
+      let passing = 0;
+      said.forEach((one, index) => {
+        const card = cards[index];
+        const pass = filter.matches(one);
+        if (card) card.hidden = !pass;
+        if (pass) passing++;
+      });
+      start.hidden = started;
+      const reading = started && answered < items.length;
+      status.textContent = reading
+        ? i18n.t('discover.genresReading', { done: answered, total: items.length })
+        : filter.active
+          ? i18n.t('library.filtered', { shown: passing, total: items.length })
+          : started
+            ? i18n.t('library.genresHint')
+            : '';
+      status.hidden = status.textContent === '';
+      nothing.hidden = reading || passing > 0;
+    };
+    // Many answers come in a burst: the results are filtered again once per frame.
+    const later = (): void => {
+      if (drawing) return;
+      drawing = true;
+      requestAnimationFrame(() => {
+        drawing = false;
+        if (!this.isDestroyed) draw();
+      });
+    };
+    const begin = (): void => {
+      started = true;
+      for (const item of items) {
+        void catalog.genres(item.url, () => !this.isDestroyed).then((genres) => {
+          answered++;
+          if (genres) known.set(item.url, genres);
+          later();
+        });
+      }
+      draw();
+    };
+    this.listen(start, 'click', begin);
+    if (filter.active && items.length > 0) begin();
+    else draw();
+    return h('div', { class: 'discover-genres' }, h('div', { class: 'genre-tools' }, start, bar.root), status, nothing);
   }
 
   override destroy(): void {

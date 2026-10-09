@@ -38,6 +38,8 @@ export interface AppContext {
   readonly downloads: Downloads;
   /** The genres the shelf is filtered by, remembered. */
   readonly genreFilter: GenreFilter;
+  /** The genres Discover's results are filtered by, remembered apart from the shelf's. */
+  readonly discoverGenres: GenreFilter;
   readonly settings: Settings;
   readonly transport: Transport;
   readonly clipboard: Clipboard;
