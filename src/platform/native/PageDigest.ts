@@ -163,12 +163,15 @@ export function digest(source: DigestSource): string {
   const ogDescription = metaContent(html, 'og:description');
   const synopsis = (ogDescription || metaContent(html, 'description')).slice(0, SYNOPSIS_CHARS).trim();
   // A reader that is given its pages in a script (a list of addresses, "images":["…"]): the first script that names several, around the first.
+  const genreAt = html.slice(bodyAt).search(/genres?\b/i);
   const listing = inline.map((script) => script.replaceAll('\\/', '/')).find((script) => (script.match(PICTURE_ADDRESS) ?? []).length >= 3);
   const listingAt = listing ? listing.search(PICTURE_ADDRESS) : -1;
   const readerMarkup = [
     ...around(html, 'the first blob: picture', html.search(/<img\b[^>]*\bsrc=["']blob:/i)),
     ...around(html, 'the first <canvas>', html.search(/<canvas\b/i)),
     ...around(html, 'the text of the description', synopsis ? html.indexOf(synopsis, bodyAt) : -1),
+    // Where a series page says its genres, which a filter by genre reads.
+    ...around(html, 'the first mention of a genre', genreAt < 0 ? -1 : bodyAt + genreAt),
     ...(listing ? ['--- the first script that lists pictures, around the first', ...fold(listing.slice(Math.max(0, listingAt - LISTING_BEFORE), listingAt + LISTING_AFTER))] : []),
   ];
   const blobs = tags.filter((tag) => /\bsrc=["']blob:/i.test(tag)).length;

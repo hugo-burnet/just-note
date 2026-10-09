@@ -5,7 +5,7 @@ import type { Library } from './library/Library.ts';
 import { Limiter } from './Limiter.ts';
 import { Memo } from './Memo.ts';
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from './model.ts';
-import type { ChapterOptions, Source } from './source/Source.ts';
+import type { ChapterOptions, Glance, Source } from './source/Source.ts';
 import type { ResolvedLink, SourceRegistry } from './source/SourceRegistry.ts';
 
 const TTL_MS = 5 * 60_000;
@@ -34,11 +34,11 @@ export class Catalog {
   private readonly completeMemo: Memo<SourceTarget | null>;
   private readonly shelf: CoverShelf | undefined;
   private readonly coverLimit = new Limiter(COVERS_AT_ONCE);
-  private readonly askingCover = new Map<string, Promise<string | null>>();
   private readonly saved: SavedContent | undefined;
   private readonly genreShelf: GenreShelf | undefined;
   private readonly genreLimit = new Limiter(GENRES_AT_ONCE);
-  private readonly askingGenres = new Map<string, Promise<readonly string[] | null>>();
+  /** The pages of series of listings being read for their cover or their genres: one reading for both. */
+  private readonly glancing = new Map<string, Promise<Glance | null>>();
 
   /**
    * `covers` and `genres`: where the covers and the genres found for listings are kept from one start to the next.
@@ -75,24 +75,12 @@ export class Catalog {
   /**
    * The genres of a series of a listing, which only its page says: what is known of it (kept, or in the library),
    * else its page, a few at a time, and only for a series still wanted when its turn comes. Null when they
-   * cannot be had. It never puts the series in the library; opening it afterwards is instant.
+   * cannot be had. It never puts the series in the library.
    */
   genres(url: string, wanted: () => boolean = () => true): Promise<readonly string[] | null> {
     const known = this.genreShelf?.get(url) ?? this.library.get(url)?.genres;
     if (known) return Promise.resolve(known);
-    const pending = this.askingGenres.get(url);
-    if (pending) return pending;
-    const asked = this.genreLimit
-      .run(async () => {
-        if (!wanted()) return null;
-        const { genres } = await this.seriesMemo.get(url, () => this.readSeries(url));
-        this.genreShelf?.set(url, genres);
-        return genres;
-      })
-      .catch(() => null)
-      .finally(() => this.askingGenres.delete(url));
-    this.askingGenres.set(url, asked);
-    return asked;
+    return this.glance(url, wanted, this.genreLimit).then((seen) => seen?.genres ?? null);
   }
 
   /**
@@ -112,18 +100,30 @@ export class Catalog {
   cover(url: string, wanted: () => boolean = () => true): Promise<string | null> {
     const known = this.shelf?.get(url);
     if (known) return Promise.resolve(known);
-    const pending = this.askingCover.get(url);
+    return this.glance(url, wanted, this.coverLimit).then((seen) => seen?.cover ?? null);
+  }
+
+  /**
+   * The page of a series of a listing, read once for its cover and its genres alike (a site behind an anti-bot
+   * check answers slowly: one reading, not two), and what it says kept. Where the listing's covers are poor, the
+   * page is only glanced at, as most of those series are never opened; elsewhere it is read whole, and opening the
+   * series afterwards is instant.
+   */
+  private glance(url: string, wanted: () => boolean, limit: Limiter): Promise<Glance | null> {
+    const pending = this.glancing.get(url);
     if (pending) return pending;
-    const asked = this.coverLimit
-      .run(async () => {
+    const asked = limit
+      .run(async (): Promise<Glance | null> => {
         if (!wanted()) return null;
-        const cover = await this.sourceFor(url).coverOf(url);
-        if (cover) this.shelf?.set(url, cover);
-        return cover;
+        const source = this.sourceFor(url);
+        const { cover, genres } = source.betterCovers ? await source.glance(url) : await this.seriesMemo.get(url, () => this.readSeries(url));
+        if (cover && source.betterCovers) this.shelf?.set(url, cover);
+        this.genreShelf?.set(url, genres);
+        return { cover, genres };
       })
       .catch(() => null)
-      .finally(() => this.askingCover.delete(url));
-    this.askingCover.set(url, asked);
+      .finally(() => this.glancing.delete(url));
+    this.glancing.set(url, asked);
     return asked;
   }
 

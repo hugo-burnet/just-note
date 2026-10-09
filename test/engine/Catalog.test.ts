@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Catalog, CoverShelf, GenreShelf, Library, Source, SourceRegistry } from '../../src/engine/index.ts';
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../src/engine/index.ts';
-import type { ChapterOptions } from '../../src/engine/source/Source.ts';
+import type { ChapterOptions, Glance } from '../../src/engine/source/Source.ts';
 import { makeIO, MemoryStore } from './helpers.ts';
 
 class StubSource extends Source {
@@ -11,7 +11,7 @@ class StubSource extends Source {
   readonly languages = ['en'];
   readonly reading = { mode: 'scroll', rtl: false } as const;
   readonly calls = { series: 0, chapter: 0, list: 0 };
-  override readonly betterCovers = true;
+  override readonly betterCovers: boolean = true;
   /** What the pages of series were asked for their covers, and how the test answers. */
   readonly coversAsked: string[] = [];
   coverAnswer: (url: string) => Promise<string | null> = async (url) => `${url}/cover.jpg`;
@@ -40,9 +40,9 @@ class StubSource extends Source {
     return { url, title: 'Stub series', cover: null, author: '', status: '', genres: [], description: '', chapters: [] };
   }
 
-  override async coverOf(url: string): Promise<string | null> {
+  override async glance(url: string): Promise<Glance> {
     this.coversAsked.push(url);
-    return this.coverAnswer(url);
+    return { cover: await this.coverAnswer(url), genres: ['Seinen'] };
   }
 
   async getList(): Promise<SeriesSummary[]> {
@@ -237,8 +237,13 @@ test('a downloaded chapter is read from the device, and a series whose site cann
   await assert.rejects(() => catalog.series('https://stub.test/series/2', { fresh: true }), /boom/);
 });
 
+/** A site whose listings have good covers: the page of a series is read whole, as it may well be opened next. */
+class WholePagesSource extends StubSource {
+  override readonly betterCovers = false;
+}
+
 test('the genres of a series of a listing are read from its page once, kept, and do not put it in the library', async () => {
-  const source = new StubSource(makeIO({}).io);
+  const source = new WholePagesSource(makeIO({}).io);
   const store = new MemoryStore();
   const library = new Library(store);
   const catalog = new Catalog(new SourceRegistry([source]), library, () => 0, undefined, undefined, new GenreShelf(store));
@@ -255,4 +260,19 @@ test('the genres of a series of a listing are read from its page once, kept, and
   assert.equal(await catalog.genres('https://stub.test/series/2'), null);
   assert.equal(await catalog.genres('https://stub.test/series/3', () => false), null);
   assert.equal(source.calls.series, 2);
+});
+
+test('where the covers of a listing are poor, its page is read once for the cover and the genres alike', async () => {
+  const source = new StubSource(makeIO({}).io);
+  const store = new MemoryStore();
+  const catalog = new Catalog(new SourceRegistry([source]), new Library(store), () => 0, new CoverShelf(store), undefined, new GenreShelf(store));
+  // Asked for at once, as Discover does when a card comes into view while the genres are read.
+  const [cover, genres] = await Promise.all([catalog.cover(URL_1), catalog.genres(URL_1)]);
+  assert.equal(cover, `${URL_1}/cover.jpg`);
+  assert.deepEqual(genres, ['Seinen']);
+  // Then one after the other: what the first reading found is kept.
+  assert.deepEqual(await catalog.genres('https://stub.test/series/2'), ['Seinen']);
+  assert.equal(await catalog.cover('https://stub.test/series/2'), 'https://stub.test/series/2/cover.jpg');
+  assert.deepEqual(source.coversAsked, [URL_1, 'https://stub.test/series/2']);
+  assert.equal(source.calls.series, 0, 'the page is glanced at, not read whole');
 });
