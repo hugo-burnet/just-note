@@ -24,17 +24,23 @@ export const BLOB_HOOK = `(function () {
  * Scrolls the page the way a reader does, a screen at a time (a page that loads its pictures as they
  * come into view only loads what it sees), until the pictures that `selector` matches are all
  * there and nothing changes any more; then gives the bytes of each, in the order they are in the
- * page, to the plugin. It ends with `done`, or with `fail` and the reason.
+ * page, to the plugin. It ends with `done` (and a line on what it found), or with `fail` and the reason.
+ *
+ * `slots` is a selector for the places the page keeps for its pictures, when it has them before it has
+ * the pictures: there are as many pictures as places, and a chapter in which some did not come in time
+ * fails instead of being short. Where there is no such selector, or it matches nothing, a picture that
+ * has come is all there is to go by.
  *
  * The pictures are read from the blobs the hook kept, else asked for by their address, else drawn
  * on a canvas (a picture whose address has been let go of is still on screen).
  */
-export function pictureScript(selector: string): string {
+export function pictureScript(selector: string, slots = ''): string {
   return `(function () {
   var bridge = window.JustReadPictures;
   var token = window.__justReadToken;
   var SELECTOR = ${JSON.stringify(selector)};
-  var STEP_MS = 350;
+  var SLOTS = ${JSON.stringify(slots)};
+  var STEP_MS = 250;
   var QUIET_STEPS = 6;
   var BUDGET_MS = 45000;
   var NOTHING_MS = 12000;
@@ -42,6 +48,7 @@ export function pictureScript(selector: string): string {
   function sleep(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
   function pictures() { return Array.prototype.slice.call(document.querySelectorAll(SELECTOR)); }
   function loaded(img) { return img.complete && img.naturalWidth > 0; }
+  function places() { return SLOTS ? document.querySelectorAll(SLOTS).length : 0; }
   // A reader may scroll inside a box of its own instead of the page: the nearest ancestor of a picture that does.
   function box() {
     var first = pictures()[0];
@@ -82,10 +89,10 @@ export function pictureScript(selector: string): string {
       // At the bottom: wait for what is still coming in.
       scrollTo(height);
       var list = pictures();
-      var signature = list.length + '/' + list.filter(loaded).length + '/' + height;
+      var signature = list.length + '/' + list.filter(loaded).length + '/' + places() + '/' + height;
       quiet = signature === last ? quiet + 1 : 0;
       last = signature;
-      if (list.length > 0 && list.every(loaded) && quiet >= QUIET_STEPS) return;
+      if (list.length > 0 && list.every(loaded) && list.length >= places() && quiet >= QUIET_STEPS) return;
       if (list.length === 0 && Date.now() - started > NOTHING_MS) return;
       await sleep(STEP_MS);
     }
@@ -121,13 +128,16 @@ export function pictureScript(selector: string): string {
   async function main() {
     await scroll();
     var list = pictures();
+    var wanted = places();
+    var summary = 'pictures ' + list.length + ', places ' + wanted + ', page height ' + heightOf();
     // A chapter with a page missing is worse than none: say so instead of shifting the others.
     if (!list.every(loaded)) throw new Error('A picture did not load (' + list.filter(loaded).length + ' of ' + list.length + ').');
+    if (list.length < wanted) throw new Error('Only ' + list.length + ' of ' + wanted + ' pages came.');
     for (var i = 0; i < list.length; i++) {
       var blob = await blobOf(list[i]);
       bridge.add(token, blob.type || '', await base64Of(blob));
     }
-    bridge.done(token);
+    bridge.done(token, summary);
   }
 
   main().catch(function (error) { bridge.fail(token, String((error && error.message) || error)); });

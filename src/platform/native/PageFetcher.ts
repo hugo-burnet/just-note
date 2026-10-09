@@ -24,6 +24,8 @@ export interface FetchedPage {
   readonly failures?: readonly string[];
   /** The pictures asked for with `FetchOptions.pictures`, in the order they are in the page. */
   readonly pictures?: readonly CapturedPicture[];
+  /** What the script that took them found, in a line (how many pictures, how many places for them). */
+  readonly note?: string;
 }
 
 export interface PageFetcher {
@@ -70,8 +72,8 @@ export class WebViewPageFetcher implements PageFetcher {
   private readonly plugin = registerPlugin<PageFetcherPlugin>('PageFetcher');
 
   async fetch(url: string, options: FetchOptions = {}): Promise<FetchedPage> {
-    const { statusLabel, readingLabel, cancelLabel, settleMs, scroll, pictures: selector } = options;
-    const reading = selector ? { startScript: BLOB_HOOK, script: pictureScript(selector) } : {};
+    const { statusLabel, readingLabel, cancelLabel, settleMs, scroll, pictures: selector, slots } = options;
+    const reading = selector ? { startScript: BLOB_HOOK, script: pictureScript(selector, slots) } : {};
     const { pictures: count = 0, ...page } = await this.plugin.fetch({
       url,
       timeoutMs: TIMEOUT_MS,

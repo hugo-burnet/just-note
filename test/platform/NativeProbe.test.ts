@@ -89,11 +89,11 @@ const reader = (extra: Partial<FetchedPage> = {}): FetchedPage => ({ ...passed, 
 test('probe: a page that shows blob: pictures is looked at once more with the script that takes them, and the report says what it took', async () => {
   const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, ...new Array<number>(2000).fill(7)]).toString('base64');
   const webp = Buffer.from(['R', 'I', 'F', 'F'].map((c) => c.charCodeAt(0)).concat([1, 0, 0, 0], ['W', 'E', 'B', 'P'].map((c) => c.charCodeAt(0)), [1, 2, 3])).toString('base64');
-  const { probe, fetcher } = setup(challenged, reader({ pictures: [{ type: 'image/jpeg', data: jpeg }, { type: '', data: webp }] }));
+  const { probe, fetcher } = setup(challenged, reader({ pictures: [{ type: 'image/jpeg', data: jpeg }, { type: '', data: webp }], note: 'pictures 2, places 2, page height 3000' }));
   const report = await probe.fetch(HOME, { statusLabel: 'Checking…', readingLabel: 'Loading…', cancelLabel: 'Cancel' });
   assert.equal(fetcher.asked.length, 2);
-  assert.deepEqual(fetcher.asked[1]?.options, { statusLabel: 'Checking…', readingLabel: 'Loading…', cancelLabel: 'Cancel', pictures: 'img[src^="blob:"]' });
-  assert.match(report, /--- pictures the reader script collected \(2, \d+ KB in all\)\n1: image\/jpeg, really image\/jpeg, 2 KB\n2: \(no type\), really image\/webp, 0 KB\n/);
+  assert.deepEqual(fetcher.asked[1]?.options, { statusLabel: 'Checking…', readingLabel: 'Loading…', cancelLabel: 'Cancel', pictures: 'img[src^="blob:"]', slots: '[data-page]' });
+  assert.match(report, /--- pictures the reader script collected \(2, \d+ KB in all\)\nit found: pictures 2, places 2, page height 3000\n1: image\/jpeg, really image\/jpeg, 2 KB\n2: \(no type\), really image\/webp, 0 KB\n/);
 });
 
 test('probe: a script that finds nothing, or fails, is a line of the report, not a failure of it', async () => {
@@ -147,6 +147,55 @@ test('probe: what the page requested of the other hosts of its site is asked for
   const tried = http.asked.find((request) => request.url.includes('p001'));
   assert.equal(tried?.headers['Referer'], 'https://m.example.test/');
   assert.equal(tried?.headers['Cookie'], 'cf_clearance=x');
+});
+
+const PICTURE = 'https://data.example.test/n/series/12/34/mobile/1_34a98a05ca97ad8e145f1713180df903.jpg';
+const dataRequests = [`GET ${PICTURE}`, 'GET https://data.example.test/n/series/12/34/mobile/2_ffffffffffffffffffffffffffffffff.jpg'];
+
+test('probe: the first picture is asked for with each thing a server may want to see, and what each was answered is in the report', async () => {
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46]).toString('base64');
+  const { probe, http } = setup(
+    (request) => {
+      if (!request.headers['Cookie']) return challenged();
+      if (!request.url.includes('data.example.test')) return reply(200, '<html>raw page');
+      // This server wants an Origin; without one it answers with an error page, which is text, not base64.
+      return request.headers['Origin'] ? reply(200, jpeg, { 'content-type': 'image/jpeg' }) : reply(403, '<html>Forbidden', { 'content-type': 'text/html' });
+    },
+    { ...passed, requests: dataRequests },
+  );
+  const report = await probe.fetch(HOME);
+  const lines = report.split('\n');
+  const at = lines.indexOf('--- the first picture, asked for with what a server may want to see');
+  assert.ok(at > 0, report);
+  assert.deepEqual(lines.slice(at + 1, at + 5), [
+    'Referer: the site: 403 text/html, 0 KB, starts with 3c68746d6c3e466f <html>Forbidden',
+    'Referer: the site, Origin: the site: 200 image/jpeg, 0 KB, starts with ffd8ffe000104a46 ......JF',
+    'Referer: the page, Origin: the site: 200 image/jpeg, 0 KB, starts with ffd8ffe000104a46 ......JF',
+    'no Referer: 403 text/html, 0 KB, starts with 3c68746d6c3e466f <html>Forbidden',
+  ]);
+  // The variants really differ on the wire.
+  const sent = http.asked.filter((request) => request.url === PICTURE).map((request) => [request.headers['Origin'], request.headers['Referer']]);
+  assert.deepEqual(sent.slice(1), [
+    [undefined, 'https://m.example.test/'],
+    ['https://m.example.test', 'https://m.example.test/'],
+    ['https://m.example.test', HOME],
+    [undefined, ''],
+  ]);
+});
+
+test('probe: it says whether the name of the first picture is written in the page, as the WebView shows it and as the phone reads it', async () => {
+  const withName = { ...passed, html: `<html><script>var pages = ["1_34a98a05ca97ad8e145f1713180df903", "2_ffff"]</script>`, requests: dataRequests };
+  const phoneReads = (request: NativeRequest): NativeResponse => (request.headers['Cookie'] ? reply(200, '<html>no list here') : challenged());
+  const { probe } = setup(phoneReads, withName);
+  const report = await probe.fetch(HOME);
+  assert.match(report, /--- is the name of the first picture \(1_34a98a05ca97ad8e145f1713180df903\) written in the page\?\nas the WebView shows it: yes, around: .*var pages = \["1_34a98a05ca97ad8e145f1713180df903", "2_ffff"\].*\nas the phone reads it: no\n/);
+});
+
+test('probe: an error page where a picture was expected is reported with its status, not lost', async () => {
+  const { probe } = setup((request) => (request.headers['Cookie'] ? reply(404, 'Not found') : challenged()), { ...passed, requests: dataRequests });
+  const report = await probe.fetch(HOME);
+  assert.match(report, /\n404 \(no type\), 0 KB, starts with 4e6f7420666f756e Not found\n/);
+  assert.doesNotMatch(report, /no answer/);
 });
 
 test('probe: a page without blob: pictures is not looked at twice', async () => {

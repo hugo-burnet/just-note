@@ -6,6 +6,7 @@ import { BLOB_HOOK, pictureScript } from '../../src/platform/native/pictureScrip
 // are put in, and loaded, as the page is scrolled to them, a bridge to hear what they report, and
 // a clock that moves when the script sleeps (so that its limits can be reached at once).
 const SELECTOR = 'img[src^="blob:"]';
+const PLACES = '.image-container[data-page]';
 const SCREEN = 800;
 const TOKEN = 'secret';
 
@@ -35,6 +36,10 @@ class PretendReader {
   scrolledTo = 0;
   readonly heard: Array<{ type: string; bytes: string }> = [];
   readonly outcome: string[] = [];
+  /** What the script said it had found, with `done`. */
+  readonly notes: string[] = [];
+  /** How many places the page keeps for its pictures (what PLACES matches). */
+  places = 0;
   /** What the hook kept, by address. */
   readonly blobs = new Map<string, Blob>();
   /** What the page still lets `fetch` have (an address it has not let go of). */
@@ -63,7 +68,7 @@ class PretendReader {
           assert.equal(token, TOKEN);
           reader.heard.push({ type, bytes: Buffer.from(data, 'base64').toString() });
         },
-        done: (token: string): void => void reader.outcome.push(`done ${token}`),
+        done: (token: string, note: string): void => void (reader.outcome.push(`done ${token}`), reader.notes.push(note)),
         fail: (token: string, message: string): void => void reader.outcome.push(`fail ${token} ${message}`),
       },
       __justReadToken: TOKEN,
@@ -89,6 +94,8 @@ class PretendReader {
       body: { scrollHeight: 6000 },
       querySelectorAll: (selector: string): PretendPicture[] => {
         reader.selectors.push(selector);
+        // The places the page keeps for its pictures: there from the start, whatever has come in.
+        if (selector === PLACES) return Array.from({ length: reader.places }, () => picture(0, 0));
         return reader.pictures.filter((one) => one.insertAt <= reader.at + SCREEN).map((one) => Object.assign(one, { parentElement: reader.parentOf() }));
       },
       createElement: () => ({
@@ -183,6 +190,49 @@ test('script: a reader that scrolls inside a box of its own is scrolled there, n
   assert.deepEqual(reader.outcome, [`done ${TOKEN}`]);
   assert.deepEqual(reader.heard.map((one) => one.bytes), ['page 1', 'page 2', 'page 3']);
   assert.ok(reader.inner.scrollTop >= 4000, `the box was scrolled to ${reader.inner.scrollTop}`);
+});
+
+test('script: the places the page keeps for its pictures say how many there should be, and the script waits for the last to come', async () => {
+  // The fourth only comes in once the script has been at the bottom of the page for a while: the three
+  // that are there are loaded and stable long before, and without the places that would be the end of it.
+  const late = { ...picture(4, 0), insertAt: 99_999 };
+  const reader = new PretendReader([picture(1, 0), picture(2, 1500), picture(3, 3000), late]);
+  reader.places = 4;
+  for (const n of [1, 2, 3, 4]) reader.blobs.set(`blob:https://m.example.test/${n}`, blobOf(`page ${n}`));
+  const arrive = setInterval(() => (reader.clock > 8_000 ? Object.assign(late, { insertAt: 0, loadAt: 0 }) : undefined), 1);
+  try {
+    await reader.run(pictureScript(SELECTOR, PLACES));
+  } finally {
+    clearInterval(arrive);
+  }
+  assert.deepEqual(reader.outcome, [`done ${TOKEN}`]);
+  assert.deepEqual(reader.heard.map((one) => one.bytes), ['page 1', 'page 2', 'page 3', 'page 4']);
+  assert.match(reader.notes[0] ?? '', /^pictures 4, places 4, page height \d+$/);
+
+  // Told nothing of the places, the same script goes away with the three that were there.
+  const blind = new PretendReader([picture(1, 0), picture(2, 1500), picture(3, 3000), { ...picture(4, 0), insertAt: 99_999 }]);
+  for (const n of [1, 2, 3]) blind.blobs.set(`blob:https://m.example.test/${n}`, blobOf(`page ${n}`));
+  await blind.run(pictureScript(SELECTOR));
+  assert.equal(blind.heard.length, 3);
+});
+
+test('script: pictures that do not reach the number of places are a failure that says so, not a short chapter', async () => {
+  const reader = new PretendReader([picture(1, 0), picture(2, 0), picture(3, 0)]);
+  reader.places = 5;
+  for (const n of [1, 2, 3]) reader.blobs.set(`blob:https://m.example.test/${n}`, blobOf(`page ${n}`));
+  await reader.run(pictureScript(SELECTOR, PLACES));
+  assert.deepEqual(reader.outcome, [`fail ${TOKEN} Only 3 of 5 pages came.`]);
+  assert.deepEqual(reader.heard, []);
+});
+
+test('script: with no places given, or places that match nothing, the pictures that came are all there is to go by', async () => {
+  for (const places of [undefined, PLACES]) {
+    const reader = new PretendReader([picture(1, 0), picture(2, 1500)]);
+    for (const n of [1, 2]) reader.blobs.set(`blob:https://m.example.test/${n}`, blobOf(`page ${n}`));
+    await reader.run(pictureScript(SELECTOR, places));
+    assert.deepEqual(reader.outcome, [`done ${TOKEN}`], String(places));
+    assert.equal(reader.heard.length, 2);
+  }
 });
 
 test('script: a picture the hook did not keep is asked for by its address, and when the page let go of that too, it is drawn', async () => {

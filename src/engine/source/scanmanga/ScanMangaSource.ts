@@ -7,8 +7,10 @@ import { Memo } from '../../Memo.ts';
 import { MAX_ITEMS, ScanMangaSeriesParser } from './ScanMangaSeriesParser.ts';
 import { ScanMangaUrls } from './ScanMangaUrls.ts';
 
-// The pages of a chapter are <img> elements the site's reader fills in with blob: addresses.
+// The pages of a chapter are <img> elements the site's reader fills in with blob: addresses, each in a
+// div.image-container that is there (numbered, with the size of its picture) before the picture is.
 const PAGE_PICTURES = 'img[src^="blob:"]';
+const PAGE_PLACES = '.image-container[data-page]';
 
 /**
  * Scan-Manga (scan-manga.com): French scans, mostly manhwa and webtoons. Cloudflare checks its
@@ -83,7 +85,7 @@ export class ScanMangaSource extends Source {
     if (!this.transport.render) {
       throw new SourceError('unsupported', 'The pictures of this site are built by its scripts: only the installed app can read them.', { url });
     }
-    const rendered = await this.transport.render(page, { pictures: PAGE_PICTURES });
+    const rendered = await this.transport.render(page, { pictures: PAGE_PICTURES, slots: PAGE_PLACES });
     if (rendered.pictures.length === 0) {
       throw new SourceError(looksBlocked(rendered.text) ? 'blocked' : 'no_pages', 'No pages found in the chapter.', {
         url,

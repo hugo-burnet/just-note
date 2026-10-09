@@ -12,7 +12,7 @@ const ROUNDS = 3;
 
 /** Shows a page in the WebView of the app and gives back the pictures its scripts built. */
 export interface PageRenderer {
-  render(address: string, selector: string): Promise<FetchedPage>;
+  render(address: string, selector: string, slots?: string): Promise<FetchedPage>;
 }
 
 /** One at a time: the WebView is a full-screen dialog, and two cannot be answered together. */
@@ -70,9 +70,9 @@ export class ChallengeGate implements Sites, PageRenderer {
    * that `selector` matches, in the order they are in the page). It is the WebView that passes a check
    * on the way, and what it earns is kept as for any other page.
    */
-  render(address: string, selector: string): Promise<FetchedPage> {
+  render(address: string, selector: string, slots?: string): Promise<FetchedPage> {
     const url = this.client.resolve(address);
-    return this.queue.run(() => this.visit(url, { ...this.dialog(), pictures: selector }));
+    return this.queue.run(() => this.visit(url, { ...this.dialog(), pictures: selector, ...(slots ? { slots } : {}) }));
   }
 
   /**

@@ -44,6 +44,12 @@ test('render: the WebView is told what to collect and what to say, and the pictu
   assert.equal(http.asked.length, 0);
 });
 
+test('render: the places the page keeps for its pictures are handed to the WebView, to know how many to wait for', async () => {
+  const { transport, fetcher } = setup(() => ({ pictures: [captured()] }));
+  await transport.render?.(CHAPTER, { pictures: SELECTOR, slots: '.image-container[data-page]' });
+  assert.deepEqual(fetcher.asked[0]?.options, { ...DIALOG, pictures: SELECTOR, slots: '.image-container[data-page]' });
+});
+
 test('render: what is not a picture fails the chapter instead of being shown as one', async () => {
   const { transport } = setup(() => ({ pictures: [captured(), captured('text/html')] }));
   await assert.rejects(() => transport.render?.(CHAPTER, { pictures: SELECTOR }) ?? Promise.resolve(), (error: unknown) => error instanceof TransportError && error.code === 'not_an_image');

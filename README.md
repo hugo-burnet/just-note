@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 298 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 305 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -211,7 +211,10 @@ a short report to copy: how the page describes itself, the kinds of page it link
 markup around the first link of the commonest kinds (and around a `blob:` picture, a canvas,
 the synopsis), what it loads, what the page requested while it loaded, the pictures it names,
 and the start of its body. After the WebView it asks once more with the phone's own network
-and the cookie the WebView earned, and says how that was answered.
+and the cookie the WebView earned, and says how that was answered; it does the same for what the page
+requested of its site's other hosts (the first bytes of each answer, the first picture with each thing a
+server may want to see, and whether the picture's name is written in the page itself), which is what tells
+whether a site can be read without running its scripts.
 
 The reader does the same when a site turns the phone away (`ChallengeGate`): the WebView
 (`PageFetcherPlugin.java`) is shown in front of the app, so that a check which needs a tap
@@ -230,8 +233,9 @@ selector matches have all come in, and their bytes are taken from the blobs the 
 else asked for, else drawn. The plugin keeps them and the app takes them one at a time; they
 are stored like any picture of the sites, under addresses of the site that never reach the
 network, and the list of a chapter is stored too, so a chapter read once opens again without
-the WebView. A source asks for this with `transport.render(url, { pictures: selector })`,
-which only the installed app has; a module that needs it says `nativeOnly` and is left out
+the WebView. A source asks for this with `transport.render(url, { pictures: selector, slots })`
+(`slots` selects the places the page keeps for its pictures: a chapter that has fewer pictures than
+places fails instead of being short), which only the installed app has; a module that needs it says `nativeOnly` and is left out
 of the browser build.
 
 A chapter link pasted from Scan-Manga does not name its series (its address has no room for the
@@ -244,7 +248,7 @@ Not done yet: sharing a link to the app, and its own launcher icon.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 298 unit tests
+npm run check        # types (app and worker) and the 305 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

@@ -164,6 +164,8 @@ public class PageFetcherPlugin extends Plugin {
         private FrameLayout cover;
         private boolean loaded = false;
         private volatile boolean finished = false;
+        // What the script of the app found, in a line, for the report of a Diagnostic.
+        private volatile String note = "";
         private long startedAt;
 
         Session(
@@ -371,7 +373,10 @@ public class PageFetcherPlugin extends Plugin {
                     result.put("cookies", cookies == null ? "" : cookies);
                     result.put("requests", snapshot(requests));
                     result.put("failures", snapshot(failures));
-                    if (script != null) result.put("pictures", captured.size());
+                    if (script != null) {
+                        result.put("pictures", captured.size());
+                        result.put("note", note);
+                    }
                     // What the check gave is kept on disk now: a later run of the app finds it (see held).
                     CookieManager.getInstance().flush();
                     finish(result, null, null);
@@ -413,8 +418,9 @@ public class PageFetcherPlugin extends Plugin {
             }
 
             @JavascriptInterface
-            public void done(String presented) {
+            public void done(String presented, String found) {
                 if (!token.equals(presented)) return;
+                note = found == null ? "" : found;
                 handler.post(() -> collect());
             }
 
