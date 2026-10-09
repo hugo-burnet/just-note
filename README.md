@@ -115,12 +115,13 @@ On the phone: open the page, then *Install app* / *Add to Home Screen*. On Andro
 **Share → Just Read** from the browser then opens a link directly (iOS has no share
 target: paste the link instead).
 
-**The APK (Android).** `.github/workflows/apk.yml` builds it whenever the app changes, and
-on demand (Actions tab → *Android* → *Run workflow*). On a phone: open the run, tap
-**just-read-apk** under *Artifacts* (a zip), open the zip with the Files app and tap
-`just-read.apk`; Android asks once to allow installs from that app. Every build is signed
-with the same key and numbered after the run, so a newer APK installs over an older one and
-keeps the library. That key is `android/app/debug.keystore`, public on purpose: this is an
+**The APK (Android).** `.github/workflows/apk.yml` builds it whenever the app changes and
+publishes it as the pre-release **apk-latest**, which each build replaces (the notes say which
+branch and commit it came from). On a phone, open
+`https://github.com/hugo-burnet/just-note/releases/download/apk-latest/just-read.apk`: the file
+downloads as it is, and Android asks once to allow installs from the browser. Every build is
+signed with the same key and numbered after the run, so a newer APK installs over an older one
+and keeps the library. That key is `android/app/debug.keystore`, public on purpose: this is an
 app you install yourself, not a store release. On a computer, with JDK 21 and the Android
 SDK: `npm run apk`.
 

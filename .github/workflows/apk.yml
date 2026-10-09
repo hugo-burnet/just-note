@@ -1,14 +1,18 @@
 name: Android
 
 # Builds the installable app (Capacitor): the same screens as the web app, but it reads the
-# sites from the phone itself, so it needs no proxy. The APK is in the run's artifacts.
+# sites from the phone itself, so it needs no proxy.
 #
-# On a phone: open the run, tap "just-read-apk" under Artifacts (a zip), open the zip with
-# the Files app and tap just-read.apk. Android asks once to allow installs from that app.
-# Every build is signed with the same key and numbered after the run, so a newer one
-# installs over an older one and keeps the library.
+# The APK is published as a pre-release called apk-latest, which each build replaces, so that
+# one address always gives the newest file (no zip to open). On a phone, tap:
+#   https://github.com/hugo-burnet/just-note/releases/download/apk-latest/just-read.apk
+# Android asks once to allow installs from the browser. Every build is signed with the same key
+# and numbered after the run, so a newer one installs over an older one and keeps the library.
+# A build of any branch replaces it: the release notes say which branch and commit it was made from.
 on:
   push:
+    # Branches only: apk-latest is a tag, and moving it must not start another build.
+    branches: ['**']
     paths:
       - 'src/**'
       - 'public/**'
@@ -26,14 +30,15 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: android-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # A newer push replaces a build still running for the same branch. Only this job: the
+    # release below must never be cut short between deleting the old one and making the new one.
+    concurrency:
+      group: android-build-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -66,8 +71,48 @@ jobs:
           mkdir -p out
           cp android/app/build/outputs/apk/debug/app-debug.apk out/just-read.apk
           ls -l out
+      # Only to hand the file to the next job: the APK to install is the release's.
       - uses: actions/upload-artifact@v4
         with:
           name: just-read-apk
           path: out/just-read.apk
+          retention-days: 3
           if-no-files-found: error
+
+  release:
+    needs: apk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # One release at a time; a build that arrives while another is waiting takes its place.
+    concurrency:
+      group: apk-release
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: apk-latest
+      BRANCH: ${{ github.ref_name }}
+      # Through the environment, never pasted into the script: it is text someone typed.
+      COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: just-read-apk
+          path: out
+      - name: Replace the pre-release that holds the newest APK
+        run: |
+          set -euo pipefail
+          subject="${COMMIT_MESSAGE%%$'\n'*}"
+          {
+            echo "Built from \`$BRANCH\` at \`${GITHUB_SHA:0:7}\`${subject:+: $subject}"
+            echo
+            echo "To install, open this page on the phone and tap \`just-read.apk\`. Android asks once to allow installs from the browser. A newer build installs over an older one and keeps the library."
+          } > notes.md
+          gh release delete "$TAG" --cleanup-tag --yes || true
+          gh release create "$TAG" out/just-read.apk \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Just Read for Android, build $GITHUB_RUN_NUMBER" \
+            --notes-file notes.md
+          echo "[just-read.apk](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/just-read.apk)" >> "$GITHUB_STEP_SUMMARY"
