@@ -49,19 +49,15 @@ runs it sees everything you read and can alter what you are shown.
   languages, both reading modes, a link shared to the app, and the installed app
   offline with its servers switched off. The app and the proxy run on two different
   origins there, as they do on GitHub Pages with a Worker.
-- **Not verified: the adapters against the real sites, a whole chapter at least.**
-  FanFox and WEBTOON were written from what is known of the sites and tested on
-  synthetic pages shaped like them (the machine this was built on could not reach
-  them). LelScan was written from its real pages, which the *Probe* workflow fetched
-  (the series list, a series, chapters, a decimal chapter, images), and WEBTOON's French
-  home page and search were fetched the same way; but no chapter has gone through the
-  app on a real site yet. Expect the first real run to need an adjustment. When a page
-  cannot be read, the error screen has a **Copy details** button: paste its content to
-  get the adapter fixed.
-- **Not verified: the APK on a phone.** It was written without a device; the CI only
-  shows that it builds, and the transport it uses is unit-tested with a fake network. The
-  WebView plugin behind Settings → Diagnostic (Java, `android/`) has only been compiled.
-  Expect the look of the system bars and the first real pages to need an adjustment.
+- **Verified on a phone, by the author's report: the APK installs, and FanFox and WEBTOON
+  read in it.** Both adapters were written from what is known of the sites and tested on
+  synthetic pages shaped like them (the machine this was built on could not reach them).
+- **Not verified: LelScan on the real site.** It was written from its real pages, which the
+  *Probe* workflow fetched (the series list, a series, chapters, a decimal chapter, images),
+  but no chapter of it has been reported through the app. When a page cannot be read, the
+  error screen has a **Copy details** button: paste its content to get the adapter fixed.
+- **Not verified: the WebView plugin behind Settings → Diagnostic** (Java, `android/`). The CI
+  has compiled it; nobody has run it on a phone yet.
 - Some sites cannot be read from a web app at all: the ones that check their visitors
   with an anti-bot challenge (Cloudflare's *Just a moment…*) answer the proxy with a page
   that only a real browser can pass. Scan-Manga and SushiScan are two (their mobile
@@ -99,8 +95,8 @@ is nothing to compile for them. Only the app goes through Vite.
      *Edit Cloudflare Workers* template (dash.cloudflare.com/profile/api-tokens) and add it
      to the repository as the secret `CLOUDFLARE_API_TOKEN`; then run the *Proxy* workflow
      from the Actions tab. `.github/workflows/proxy.yml` also redeploys the Worker whenever
-     `proxy/` or `src/engine/` changes (the list of sites there is what the Worker may
-     reach, so adding a site means deploying it again); or
+     `proxy/` or `src/engine/` changes on the default branch (the list of sites there is what
+     the Worker may reach, so adding a site means deploying it again); or
    - run `npx wrangler login` and `npx wrangler deploy`; or
    - in the Cloudflare dashboard: *Workers & Pages → Create → Import a repository*, pick
      this repository, name the Worker `just-read-proxy` (it must match `wrangler.toml`)
@@ -108,8 +104,8 @@ is nothing to compile for them. Only the app goes through Vite.
 3. **Settings → Secrets and variables → Actions → Variables:** add `PROXY_URL` with the
    address of that Worker. It becomes the default *Proxy address* of the app (users can
    change it in Settings).
-4. Push to the default branch. `.github/workflows/pages.yml` checks, builds and
-   publishes; other branches only run `ci.yml`.
+4. Push to the default branch (`main`). `.github/workflows/pages.yml` checks, builds and
+   publishes; other branches only run `ci.yml` (and `apk.yml`, which builds the Android app).
 
 On the phone: open the page, then *Install app* / *Add to Home Screen*. On Android,
 **Share → Just Read** from the browser then opens a link directly (iOS has no share
