@@ -68,8 +68,64 @@ test('digest: the pictures a script names are found, with their slashes put righ
 
 test('digest: the <img> tags are counted and the first ones quoted, with their lazy attributes', () => {
   const report = digest(source);
-  assert.match(report, /--- elements: a=\d+ img=2 canvas=0 iframe=0 video=0 form=0\n/);
+  assert.match(report, /--- elements: a=\d+ img=2 blob-img=0 canvas=0 iframe=0 video=0 form=0\n/);
   assert.match(report, /--- first <img> tags \(2 in all\)\n<img src="https:\/\/static\.example\.test\/cover\/lantern\.jpg" alt="">\n<img data-src="https:\/\/static\.example\.test\/cover\/ember\.png">\n/);
+});
+
+// A chapter page: a reader that fills in its pictures once it has built them, and a synopsis in the body.
+const READER = [
+  '<html><head><title>Lantern Keeper » Chapter 7</title><meta property="og:description" content="Mara keeps the last lantern of a city that no longer sleeps, and learns why it must never go out...">',
+  '</head><body class="lel"><nav>menu</nav>',
+  '<div class="synopsis"><p>Mara keeps the last lantern of a city that no longer sleeps, and learns why it must never go out, even for a night.</p></div>',
+  '<div id="strip"><div class="slot" data-n="1"><img class="page" src="blob:https://m.example.test/1f6c-aaaa" data-n="1"></div>',
+  '<div class="slot" data-n="2"><img class="page" data-n="2"></div><canvas id="zoom" width="10" height="10"></canvas></div></body></html>',
+].join('\n');
+
+test('digest: a reader that builds its pictures shows them as blob: addresses, counted and quoted, with its canvas', () => {
+  const report = digest({ ...source, body: READER });
+  assert.match(report, /--- elements: a=0 img=2 blob-img=1 canvas=1 /);
+  assert.match(report, /--- markup around the first blob: picture\n.*<div class="slot" data-n="1"><img class="page" src="blob:https:\/\/m\.example\.test\/1f6c-aaaa" data-n="1"><\/div>/s);
+  assert.match(report, /--- markup around the first <canvas>\n.*<canvas id="zoom" width="10" height="10"><\/canvas>/s);
+});
+
+test('digest: the synopsis is found in the body by the first words of the description, and the head quotes it', () => {
+  const report = digest({ ...source, body: READER });
+  assert.match(report, /og:description: Mara keeps the last lantern.*\.\.\.\n/);
+  assert.match(report, /--- markup around the text of the description\n.*<div class="synopsis"><p>Mara keeps the last lantern/s);
+});
+
+test('digest: a page without those has none of those windows', () => {
+  const report = digest(source);
+  assert.doesNotMatch(report, /markup around the first blob|markup around the first <canvas>|markup around the text of the description/);
+  assert.doesNotMatch(report, /--- requests|--- answered with an error|with the cookie/);
+});
+
+test('digest: what the phone is answered with the WebView\'s cookie is said, next to what it was answered without', () => {
+  const report = digest({ ...source, via: 'webview', status: 403, withCookie: '200' });
+  assert.match(report, /own network answered: 403\nwith the cookie the WebView earned, it is answered: 200\naddress: /);
+});
+
+test('digest: the requests of a page are grouped by kind, the site\'s own first, and the failed ones listed', () => {
+  const requests = [
+    'GET https://ads.other.test/pixel.gif?x=1',
+    'GET https://ads.other.test/pixel.gif?x=2',
+    'GET https://static.example.test/img/page/001.jpg',
+    'GET https://static.example.test/img/page/002.jpg',
+    'GET https://static.example.test/img/page/003.jpg',
+    'POST https://m.example.test/api/lel/576336.json',
+    'GET https://m.example.test/api/lel/576337.json',
+  ];
+  const report = digest({ ...source, requests, failures: ['403 https://static.example.test/img/page/004.jpg', '404 https://m.example.test/favicon.ico'] });
+  const lines = report.split('\n');
+  const at = lines.indexOf('--- requests the page made (7)');
+  assert.ok(at > 0, 'the section is there');
+  assert.deepEqual(lines.slice(at + 1, at + 5), [
+    '3x GET static.example.test/img/page   e.g. https://static.example.test/img/page/001.jpg',
+    '1x GET m.example.test/api/lel   e.g. https://m.example.test/api/lel/576337.json',
+    '1x POST m.example.test/api/lel   e.g. https://m.example.test/api/lel/576336.json',
+    '2x GET ads.other.test/pixel.gif?…   e.g. https://ads.other.test/pixel.gif?x=1',
+  ]);
+  assert.match(report, /--- answered with an error \(2\)\n403 https:\/\/static\.example\.test\/img\/page\/004\.jpg\n404 /);
 });
 
 test('digest: the body is quoted from <body, not from the head, folded to the width of a screen', () => {
@@ -89,6 +145,12 @@ test('digest: a page of any size stays short enough to paste', () => {
   const report = digest({ ...source, body: page });
   assert.ok(report.length < 12_000, `${report.length} characters`);
   assert.match(report, /--- link shapes \(700 links, 2 shapes\)\n400x \/#-#/);
+});
+
+test('digest: a page that made hundreds of requests still stays short enough to paste', () => {
+  const requests = Array.from({ length: 600 }, (_, i) => `GET https://host${i % 40}.example.test/folder${i % 7}/sub${i % 5}/file${i}.js`);
+  const report = digest({ ...source, requests, failures: requests.slice(0, 50).map((request) => `403 ${request.slice(4)}`) });
+  assert.ok(report.length < 9_000, `${report.length} characters`);
 });
 
 test('digest: an empty page still gives a report', () => {

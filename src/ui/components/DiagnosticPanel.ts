@@ -10,13 +10,14 @@ function describe(error: unknown): string {
 }
 
 /**
- * Fetches a page the way a browser would, past an anti-bot check, and shows a report to copy:
+ * Fetches pages the way a browser would, past an anti-bot check, and shows one report to copy:
  * what a site really sends, seen from this phone, which is what a module for it is written from.
+ * Several addresses (one per line) are fetched in turn, so that one paste is enough.
  */
 export class DiagnosticPanel extends Component {
   private readonly app: AppContext;
   private readonly probe: PageProbe;
-  private readonly field: HTMLInputElement;
+  private readonly field: HTMLTextAreaElement;
   private readonly fetchButton: HTMLButtonElement;
   private readonly copyButton: HTMLButtonElement;
   private readonly status: HTMLElement;
@@ -25,9 +26,9 @@ export class DiagnosticPanel extends Component {
 
   constructor(app: AppContext, probe: PageProbe) {
     const { i18n } = app;
-    const field = h('input', {
-      class: 'field',
-      type: 'url',
+    const field = h('textarea', {
+      class: 'field field-area',
+      rows: 3,
       placeholder: i18n.t('link.placeholder'),
       inputmode: 'url',
       autocapitalize: 'off',
@@ -53,23 +54,27 @@ export class DiagnosticPanel extends Component {
 
   private async run(): Promise<void> {
     const { i18n, toasts } = this.app;
-    const address = this.field.value.trim();
-    if (!/^https?:\/\//i.test(address)) {
+    const addresses = this.field.value.split(/\s+/).filter(Boolean);
+    if (addresses.length === 0 || addresses.some((address) => !/^https?:\/\//i.test(address))) {
       toasts.show(i18n.t('diagnostic.noAddress'));
       return;
     }
     this.fetchButton.disabled = true;
-    this.status.textContent = i18n.t('diagnostic.working');
-    let outcome: string;
-    try {
-      this.report = await this.probe.fetch(address, { statusLabel: i18n.t('diagnostic.checking'), cancelLabel: i18n.t('common.cancel') });
-      outcome = i18n.t('diagnostic.done', { n: this.report.length });
-    } catch (error) {
-      this.report = `Just Read page report\nfailed: ${describe(error)}`;
-      outcome = i18n.t('diagnostic.failed');
+    const reports: string[] = [];
+    let failed = false;
+    for (const [index, address] of addresses.entries()) {
+      if (this.isDestroyed) return;
+      this.status.textContent = i18n.t('diagnostic.progress', { n: index + 1, total: addresses.length });
+      try {
+        reports.push(await this.probe.fetch(address, { statusLabel: i18n.t('challenge.checking'), cancelLabel: i18n.t('common.cancel') }));
+      } catch (error) {
+        failed = true;
+        reports.push(`Just Read page report\nfailed: ${describe(error)}\naddress: ${address}`);
+      }
     }
+    this.report = reports.join('\n\n');
     if (this.isDestroyed) return;
-    this.status.textContent = outcome;
+    this.status.textContent = i18n.t(failed ? 'diagnostic.failed' : 'diagnostic.done', { n: this.report.length });
     this.fetchButton.disabled = false;
     this.output.textContent = this.report;
     this.output.hidden = false;

@@ -2,51 +2,21 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { USER_AGENT } from '../../proxy/UpstreamClient.ts';
 import { TransportError } from '../../src/engine/index.ts';
-import type { NativeHttp, NativeRequest, NativeResponse } from '../../src/platform/native/NativeHttp.ts';
+import type { NativeRequest, NativeResponse } from '../../src/platform/native/NativeHttp.ts';
 import { NativeProbe } from '../../src/platform/native/NativeProbe.ts';
-import { OpenPolicy } from '../../src/platform/native/OpenPolicy.ts';
-import type { FetchedPage, PageFetcher } from '../../src/platform/native/PageFetcher.ts';
-import { SiteClient } from '../../src/platform/native/SiteClient.ts';
-import type { FetchOptions } from '../../src/platform/Platform.ts';
+import type { FetchedPage } from '../../src/platform/native/PageFetcher.ts';
+import { FakeFetcher, FakeHttp } from './fakes.ts';
 
 const HOME = 'https://m.example.test/?po';
-
-class FakeHttp implements NativeHttp {
-  readonly asked: NativeRequest[] = [];
-  private readonly answer: (request: NativeRequest) => NativeResponse;
-
-  constructor(answer: (request: NativeRequest) => NativeResponse) {
-    this.answer = answer;
-  }
-
-  async get(request: NativeRequest): Promise<NativeResponse> {
-    this.asked.push(request);
-    return this.answer(request);
-  }
-}
-
-class FakeFetcher implements PageFetcher {
-  readonly asked: Array<{ url: string; options: FetchOptions | undefined }> = [];
-  private readonly page: FetchedPage | Error;
-
-  constructor(page: FetchedPage | Error) {
-    this.page = page;
-  }
-
-  async fetch(url: string, options?: FetchOptions): Promise<FetchedPage> {
-    this.asked.push({ url, options });
-    if (this.page instanceof Error) throw this.page;
-    return this.page;
-  }
-}
 
 const reply = (status: number, body: string, headers: Record<string, string> = {}): NativeResponse => ({ status, headers, body });
 const passed: FetchedPage = { html: '<html><a href="/series/lantern">Lantern</a>', url: HOME, userAgent: 'webview', cookies: 'cf_clearance=x' };
 
-function setup(answer: (request: NativeRequest) => NativeResponse, page: FetchedPage | Error = passed) {
+function setup(answer: (request: NativeRequest) => NativeResponse, shown: FetchedPage | Error = passed) {
   const http = new FakeHttp(answer);
-  const fetcher = new FakeFetcher(page);
-  return { http, fetcher, probe: new NativeProbe(new SiteClient(http, new OpenPolicy()), fetcher) };
+  const fetcher = new FakeFetcher(() => (shown instanceof Error ? passed : shown));
+  if (shown instanceof Error) fetcher.failure = shown;
+  return { http, fetcher, probe: new NativeProbe(http, fetcher) };
 }
 
 test('probe: a site that answers is reported as the phone saw it, and no WebView is opened', async () => {
@@ -74,6 +44,44 @@ test('probe: a check that turns the phone away is passed by a WebView, which the
   assert.match(report, /own network answered: 403/);
   assert.match(report, /\/series\/lantern/);
   assert.doesNotMatch(report, /Just a moment/);
+});
+
+const challenged = (): NativeResponse => reply(403, '<title>Just a moment...</title>', { 'cf-mitigated': 'challenge' });
+
+test('probe: after the WebView, the phone asks once more with what the WebView earned, and the report says how it was answered', async () => {
+  const { probe, http } = setup((request) => (request.headers['Cookie'] ? reply(200, '<html>raw') : challenged()));
+  const report = await probe.fetch(HOME);
+  assert.match(report, /own network answered: 403\nwith the cookie the WebView earned, it is answered: 200\n/);
+  // The cookie goes with the User-Agent the WebView had: a clearance is only good for the browser that earned it.
+  const [first, again] = http.asked;
+  assert.equal(first?.headers['Cookie'], undefined);
+  assert.equal(again?.headers['Cookie'], 'cf_clearance=x');
+  assert.equal(again?.headers['User-Agent'], 'webview');
+});
+
+test('probe: a site that turns the phone away even with the cookie says so', async () => {
+  const { probe } = setup(challenged);
+  assert.match(await probe.fetch(HOME), /with the cookie the WebView earned, it is answered: 403, the check again\n/);
+  const down = setup((request) => {
+    if (request.headers['Cookie']) throw Object.assign(new Error('boom'), { code: 'UnknownHostException' });
+    return challenged();
+  });
+  assert.match(await down.probe.fetch(HOME), /it is answered: no answer \(upstream_unreachable\)\n/);
+});
+
+test('probe: every look starts from nothing: what an earlier one earned is not carried over', async () => {
+  const { probe, http } = setup((request) => (request.headers['Cookie'] ? reply(200, '<html>raw') : challenged()));
+  await probe.fetch(HOME);
+  await probe.fetch(HOME);
+  assert.deepEqual(http.asked.map((request) => request.headers['Cookie']), [undefined, 'cf_clearance=x', undefined, 'cf_clearance=x']);
+});
+
+test('probe: what the page asked for while it loaded, and what failed, is in the report', async () => {
+  const requests = ['GET https://m.example.test/api/chapter/5.json', 'GET https://static.example.test/img/page/1.jpg', 'GET https://ads.other.test/pixel.gif'];
+  const { probe } = setup(challenged, { ...passed, requests, failures: ['403 https://static.example.test/img/page/2.jpg'] });
+  const report = await probe.fetch(HOME);
+  assert.match(report, /--- requests the page made \(3\)\n1x GET m\.example\.test\/api\/chapter {3}e\.g\. https:\/\/m\.example\.test\/api\/chapter\/5\.json\n/);
+  assert.match(report, /--- answered with an error \(1\)\n403 https:\/\/static\.example\.test\/img\/page\/2\.jpg\n/);
 });
 
 test('probe: what the caller asks of the WebView wins over what the probe would ask', async () => {

@@ -1,13 +1,18 @@
+import { HostPolicy } from '../../../proxy/HostPolicy.ts';
 import { MAX_HTML_BYTES } from '../../../proxy/limits.ts';
 import { TransportError } from '../../engine/index.ts';
 import type { FetchedText, TextRequest } from '../../engine/index.ts';
-import type { Connection } from '../Platform.ts';
+import type { Connection, DialogLabels } from '../Platform.ts';
 import { IMAGE_CACHE, MAX_IMAGES, MAX_PAGES, PAGE_CACHE } from '../web/cacheNames.ts';
+import { ChallengeGate } from './ChallengeGate.ts';
+import { CredentialJar } from './CredentialJar.ts';
 import type { NativeHttp } from './NativeHttp.ts';
 import { NativeImages } from './NativeImages.ts';
+import type { PageFetcher } from './PageFetcher.ts';
 import { CacheApiStore } from './ResponseStore.ts';
 import type { ResponseStore } from './ResponseStore.ts';
 import { SiteClient } from './SiteClient.ts';
+import type { Sites } from './SiteClient.ts';
 
 /**
  * The installed app's way to reach the sites: straight from the phone, with no proxy. What
@@ -15,20 +20,23 @@ import { SiteClient } from './SiteClient.ts';
  * copy of a page stands in for a site that cannot be reached or that refuses the request.
  */
 export class NativeTransport implements Connection {
-  private readonly client: SiteClient;
+  private readonly client: Sites;
   private readonly pages: ResponseStore;
   private readonly images: NativeImages;
 
-  constructor(client: SiteClient, pages: ResponseStore, images: NativeImages) {
+  constructor(client: Sites, pages: ResponseStore, images: NativeImages) {
     this.client = client;
     this.pages = pages;
     this.images = images;
   }
 
-  static over(http: NativeHttp): NativeTransport {
-    const client = new SiteClient(http);
-    const images = new NativeImages(client, new CacheApiStore(IMAGE_CACHE, MAX_IMAGES));
-    return new NativeTransport(client, new CacheApiStore(PAGE_CACHE, MAX_PAGES), images);
+  /** `fetcher`: the WebView that passes the anti-bot check of a site that turns the phone away; `dialog` says what the user is told meanwhile. */
+  static over(http: NativeHttp, fetcher?: PageFetcher, dialog?: () => DialogLabels): NativeTransport {
+    const jar = new CredentialJar();
+    const client = new SiteClient(http, new HostPolicy(), jar);
+    const sites = fetcher ? new ChallengeGate(client, jar, fetcher, dialog) : client;
+    const images = new NativeImages(sites, new CacheApiStore(IMAGE_CACHE, MAX_IMAGES));
+    return new NativeTransport(sites, new CacheApiStore(PAGE_CACHE, MAX_PAGES), images);
   }
 
   async text(url: string, request: TextRequest = {}): Promise<FetchedText> {

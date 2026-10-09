@@ -9,6 +9,8 @@ import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -20,6 +22,10 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
@@ -63,6 +69,7 @@ public class PageFetcherPlugin extends Plugin {
                 + "ready:document.readyState});})()";
         private static final long POLL_MS = 600;
         private static final long SETTLE_STEP_MS = 700;
+        private static final int MAX_LOGGED = 500;
 
         private final Activity activity;
         private final PluginCall call;
@@ -73,6 +80,10 @@ public class PageFetcherPlugin extends Plugin {
         private final String statusLabel;
         private final String cancelLabel;
         private final Handler handler = new Handler(Looper.getMainLooper());
+        // What the page asks for, and what the site answers with an error: where a reader gets its pictures from.
+        // Both are written from the WebView's own threads.
+        private final List<String> requests = Collections.synchronizedList(new ArrayList<String>());
+        private final List<String> failures = Collections.synchronizedList(new ArrayList<String>());
         private Dialog dialog;
         private WebView web;
         private boolean loaded = false;
@@ -103,6 +114,18 @@ public class PageFetcherPlugin extends Plugin {
                     @Override
                     public void onPageFinished(WebView view, String finishedUrl) {
                         loaded = true;
+                    }
+
+                    // Only looks: the request goes on as it was.
+                    @Override
+                    public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                        if (requests.size() < MAX_LOGGED) requests.add(request.getMethod() + " " + request.getUrl());
+                        return null;
+                    }
+
+                    @Override
+                    public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
+                        if (failures.size() < MAX_LOGGED) failures.add(errorResponse.getStatusCode() + " " + request.getUrl());
                     }
                 }
             );
@@ -206,11 +229,19 @@ public class PageFetcherPlugin extends Plugin {
                     result.put("url", current);
                     result.put("userAgent", web.getSettings().getUserAgentString());
                     result.put("cookies", cookies == null ? "" : cookies);
+                    result.put("requests", snapshot(requests));
+                    result.put("failures", snapshot(failures));
                     finish(result, null);
                 } catch (Exception failure) {
                     finish(null, "The page could not be read: " + failure.getMessage());
                 }
             });
+        }
+
+        private static JSONArray snapshot(List<String> logged) {
+            synchronized (logged) {
+                return new JSONArray(new ArrayList<String>(logged));
+            }
         }
 
         private void finish(JSObject result, String error) {

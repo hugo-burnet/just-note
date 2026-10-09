@@ -49,6 +49,9 @@ export interface Platform {
   readonly usesProxy: boolean;
   /** null where there is no WebView of the app's own to pass an anti-bot check with (the browser). */
   readonly probe: PageProbe | null;
-  /** `proxyBase` reads the setting each time, so a change applies at once. */
-  connect(proxyBase: () => string): Connection;
+  /**
+   * `proxyBase` reads the setting each time, so a change applies at once. `dialog` is what the user is
+   * told while a WebView checks a site (only where there is one), in the language of the app.
+   */
+  connect(proxyBase: () => string, dialog: () => DialogLabels): Connection;
 }

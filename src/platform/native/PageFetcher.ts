@@ -9,6 +9,10 @@ export interface FetchedPage {
   /** What the site saw the WebView call itself: a cookie earned there is only good with the same one. */
   readonly userAgent: string;
   readonly cookies: string;
+  /** What the page asked for while it loaded ("GET https://…"), in order. */
+  readonly requests?: readonly string[];
+  /** The ones the site answered with an error ("403 https://…"). */
+  readonly failures?: readonly string[];
 }
 
 export interface PageFetcher {

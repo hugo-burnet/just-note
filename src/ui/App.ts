@@ -52,7 +52,10 @@ export class App implements AppContext {
   constructor(platform: Platform, elements: AppElements) {
     this.settings = new Settings(platform.store, platform.defaults);
     this.library = new Library(platform.store);
-    this.transport = platform.connect(() => this.settings.get().proxyBase);
+    this.transport = platform.connect(
+      () => this.settings.get().proxyBase,
+      () => ({ statusLabel: this.i18n.t('challenge.checking'), cancelLabel: this.i18n.t('common.cancel') }),
+    );
     this.clipboard = platform.clipboard;
     this.usesProxy = platform.usesProxy;
     this.probe = platform.probe;

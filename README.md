@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 206 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 240 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -56,15 +56,18 @@ runs it sees everything you read and can alter what you are shown.
   *Probe* workflow fetched (the series list, a series, chapters, a decimal chapter, images),
   but no chapter of it has been reported through the app. When a page cannot be read, the
   error screen has a **Copy details** button: paste its content to get the adapter fixed.
-- **Not verified: the WebView plugin behind Settings → Diagnostic** (Java, `android/`). The CI
-  has compiled it; nobody has run it on a phone yet.
+- **Verified on a phone, by the author's report: Settings → Diagnostic passes Scan-Manga's
+  anti-bot check** with a WebView (`PageFetcherPlugin.java`) and reports the home, a series
+  and a chapter. **Not verified: what came after** — reading through that WebView in the
+  reader (below), the report's lines on what the page requested, and several addresses in
+  one report.
 - Some sites cannot be read from a web app at all: the ones that check their visitors
   with an anti-bot challenge (Cloudflare's *Just a moment…*) answer the proxy with a page
   that only a real browser can pass. Scan-Manga and SushiScan are two (their mobile
   sites too). The APK asks from the phone, but it runs no JavaScript either, so a check
-  may turn it away the same way. *Settings → Diagnostic* (APK only) lets a WebView of the app
-  pass the check and copies a report of what the site sends, which is what a module is
-  written from. Reading such a site in the reader through that WebView is not done yet.
+  turns it away the same way: there, a WebView of the app passes the check (see *The APK*),
+  and *Settings → Diagnostic* copies a report of what the site sends, which is what a module
+  is written from. Scan-Manga has no module yet.
 - LelScan has no search of its own: searching filters its list of series. A chapter takes
   one request per page (the images are not named alike from one series to the next), so a
   long chapter takes a few seconds to open.
@@ -199,18 +202,30 @@ same codes, so the screens say the same things. Pictures are downloaded by the a
 to `<img>` as `blob:` addresses. What is read is kept in the WebView's Cache API under the
 service worker's cache names (so *Settings → Data* empties both), and the service worker is
 not registered. The proxy address setting is hidden. *Settings → Diagnostic* is the Probe
-workflow, from the phone: it fetches any https address with the phone's own network, and
-through a WebView (`PageFetcherPlugin.java`, shown in front of the app so that a check which
-needs a tap can be answered) when an anti-bot check turns that away, and gives a short
-report to copy: how the page describes itself, the kinds of page it links to with the markup
-around the first link of the commonest kinds, what it loads, the pictures it names, and the
-start of its body. Not done yet: sharing a link to the app, its own
-launcher icon, and reading a site behind a check in the reader.
+workflow, from the phone: it fetches any https address (one per line, one report) with the
+phone's own network, and through a WebView when an anti-bot check turns that away, and gives
+a short report to copy: how the page describes itself, the kinds of page it links to with the
+markup around the first link of the commonest kinds (and around a `blob:` picture, a canvas,
+the synopsis), what it loads, what the page requested while it loaded, the pictures it names,
+and the start of its body. After the WebView it asks once more with the phone's own network
+and the cookie the WebView earned, and says how that was answered.
+
+The reader does the same when a site turns the phone away (`ChallengeGate`): the WebView
+(`PageFetcherPlugin.java`) is shown in front of the app, so that a check which needs a tap
+can be answered, and is given the very address that was refused. What it earns (the cookie,
+and the User-Agent it is tied to) is kept per host and sent with the next requests, so the
+phone's own network is used again and the WebView only comes back when the clearance runs out.
+If the phone is still turned away with the cookie, a page is read from the WebView's copy;
+pictures are not (they stay broken for a few minutes rather than open the WebView for each).
+Requests turned away together share one WebView. A check that is not passed (cancelled, or
+timed out) is the *human check* error.
+
+Not done yet: sharing a link to the app, and its own launcher icon.
 
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 206 unit tests
+npm run check        # types (app and worker) and the 240 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

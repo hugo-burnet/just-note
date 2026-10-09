@@ -2,7 +2,7 @@ import { IMAGE_TYPES, MAX_IMAGE_BYTES } from '../../../proxy/limits.ts';
 import { TransportError } from '../../engine/index.ts';
 import type { NativeResponse } from './NativeHttp.ts';
 import type { ResponseStore } from './ResponseStore.ts';
-import type { SiteClient } from './SiteClient.ts';
+import type { Sites } from './SiteClient.ts';
 
 /** How an <img> is pointed at bytes the app holds itself. */
 export interface BlobUrls {
@@ -25,12 +25,12 @@ export const MAX_LIVE_IMAGES = 120;
  * error event is what the screens react to (and a retry asks again from scratch).
  */
 export class NativeImages {
-  private readonly client: SiteClient;
+  private readonly client: Sites;
   private readonly store: ResponseStore;
   private readonly blobs: BlobUrls;
   private readonly live = new Map<string, Promise<string>>();
 
-  constructor(client: SiteClient, store: ResponseStore, blobs: BlobUrls = browserBlobUrls) {
+  constructor(client: Sites, store: ResponseStore, blobs: BlobUrls = browserBlobUrls) {
     this.client = client;
     this.store = store;
     this.blobs = blobs;

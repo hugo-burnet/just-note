@@ -2,65 +2,16 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { USER_AGENT } from '../../proxy/UpstreamClient.ts';
 import { TransportError } from '../../src/engine/index.ts';
-import type { NativeHttp, NativeRequest, NativeResponse } from '../../src/platform/native/NativeHttp.ts';
+import type { NativeRequest } from '../../src/platform/native/NativeHttp.ts';
 import { MAX_LIVE_IMAGES, NativeImages } from '../../src/platform/native/NativeImages.ts';
-import type { BlobUrls } from '../../src/platform/native/NativeImages.ts';
 import { NativeTransport } from '../../src/platform/native/NativeTransport.ts';
-import type { ResponseStore } from '../../src/platform/native/ResponseStore.ts';
 import { SiteClient } from '../../src/platform/native/SiteClient.ts';
+import { FakeBlobs, FakeHttp, MemoryStore, page, picture, settle } from './fakes.ts';
+import type { Answer } from './fakes.ts';
 
 const SERIES = 'https://fanfox.net/manga/moonlight_courier/';
 const PICTURE = 'https://fmcdn.mfcdn.net/store/moonlight_courier/001.jpg';
 const REFERER = 'https://fanfox.net/';
-
-type Answer = NativeResponse | Error;
-
-class FakeHttp implements NativeHttp {
-  readonly asked: NativeRequest[] = [];
-  private readonly answer: (request: NativeRequest) => Answer;
-
-  constructor(answer: (request: NativeRequest) => Answer) {
-    this.answer = answer;
-  }
-
-  async get(request: NativeRequest): Promise<NativeResponse> {
-    this.asked.push(request);
-    const answer = this.answer(request);
-    if (answer instanceof Error) throw answer;
-    return answer;
-  }
-}
-
-class MemoryStore implements ResponseStore {
-  readonly kept = new Map<string, Response>();
-
-  async get(key: string): Promise<Response | undefined> {
-    return this.kept.get(key)?.clone();
-  }
-
-  async put(key: string, response: Response): Promise<void> {
-    this.kept.set(key, response);
-  }
-}
-
-class FakeBlobs implements BlobUrls {
-  readonly created: Blob[] = [];
-  readonly revoked: string[] = [];
-
-  create(blob: Blob): string {
-    this.created.push(blob);
-    return `blob:test/${this.created.length}`;
-  }
-
-  revoke(url: string): void {
-    this.revoked.push(url);
-  }
-}
-
-const page = (body: string, status = 200, headers: Record<string, string> = {}): NativeResponse => ({ status, headers, body });
-// Three bytes (1, 2, 3), the way Capacitor hands binary data across.
-const picture = (type = 'image/jpeg'): NativeResponse => ({ status: 200, headers: { 'content-type': type }, body: 'AQID' });
-const settle = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 function setup(answer: (request: NativeRequest) => Answer, store = new MemoryStore(), pictures = new MemoryStore()) {
   const http = new FakeHttp(answer);
