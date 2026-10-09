@@ -36,6 +36,8 @@ export class PretendReader {
   readonly outcome: string[] = [];
   /** What the script said it had found, with `done`. */
   readonly notes: string[] = [];
+  /** How far it said it had got, each time it said. */
+  readonly progress: number[] = [];
   /** How many places the page keeps for its pictures (what PLACES matches). */
   places = 0;
   /** Places that are more than numbers: what the script describes in its report. */
@@ -82,6 +84,10 @@ export class PretendReader {
         add: async (token: string, type: string, data: string): Promise<void> => {
           assert.equal(token, TOKEN);
           reader.heard.push({ type, bytes: Buffer.from(data, 'base64').toString() });
+        },
+        progress: (token: string, percent: number): void => {
+          assert.equal(token, TOKEN);
+          reader.progress.push(percent);
         },
         done: (token: string, note: string): void => void (reader.outcome.push(`done ${token}`), reader.notes.push(note)),
         fail: (token: string, message: string): void => void reader.outcome.push(`fail ${token} ${message}`),

@@ -24,7 +24,8 @@ export const BLOB_HOOK = `(function () {
  * Scrolls the page the way a reader does, a screen at a time (a page that loads its pictures as they
  * come into view only loads what it sees), until the pictures that `selector` matches are all
  * there and nothing changes any more; then gives the bytes of each, in the order they are in the
- * page, to the plugin. It ends with `done` (and a line on what it found), or with `fail` and the reason.
+ * page, to the plugin. It tells the plugin how far it has got (`progress`, in percent: the user is looking at
+ * a spinner), and ends with `done` (and a line on what it found), or with `fail` and the reason.
  *
  * `slots` is a selector for the places the page keeps for its pictures, when it has them before it has
  * the pictures: the script goes on waiting while the pictures are fewer than the places. A page may keep
@@ -49,8 +50,18 @@ export function pictureScript(selector: string, slots = ''): string {
   var BUDGET_MS = 45000;
   var BUDGET_MAX_MS = 65000;
   var NOTHING_MS = 12000;
+  // Of the way to the end, the part that is the scrolling: the rest is reading the pictures.
+  var SCROLLED = 85;
+
+  var shown = -1;
 
   function sleep(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
+  // Only ever up, and only when it changes: the plugin writes it on the screen.
+  function progress(percent) {
+    if (percent <= shown) return;
+    shown = percent;
+    bridge.progress(token, percent);
+  }
   function pictures() { return Array.prototype.slice.call(document.querySelectorAll(SELECTOR)); }
   function loaded(img) { return img.complete && img.naturalWidth > 0; }
   function places() { return SLOTS ? document.querySelectorAll(SLOTS).length : 0; }
@@ -112,6 +123,7 @@ export function pictureScript(selector: string, slots = ''): string {
       if (y + view < height) {
         y = Math.min(y + Math.round(view * 0.8), height);
         scrollTo(y);
+        progress(Math.min(SCROLLED, Math.floor((SCROLLED * y) / height)));
         await sleep(STEP_MS);
         quiet = 0;
         continue;
@@ -174,6 +186,7 @@ export function pictureScript(selector: string, slots = ''): string {
     for (var i = 0; i < list.length; i++) {
       var blob = await blobOf(list[i]);
       bridge.add(token, blob.type || '', await base64Of(blob));
+      progress(SCROLLED + Math.floor(((100 - SCROLLED) * (i + 1)) / list.length));
     }
     bridge.done(token, summary);
   }

@@ -118,6 +118,19 @@ test('script: with no places given, or places that match nothing, the pictures t
   }
 });
 
+test('script: it says how far it has got, only ever up, from the scrolling to the last picture read', async () => {
+  const reader = new PretendReader([picture(1, 0), picture(2, 1500), picture(3, 3000), picture(4, 4500)]);
+  for (const n of [1, 2, 3, 4]) reader.blobs.set(`blob:https://m.example.test/${n}`, blobOf(`page ${n}`));
+  await reader.run(pictureScript(SELECTOR));
+  assert.deepEqual(reader.outcome, [`done ${TOKEN}`]);
+  const { progress } = reader;
+  assert.ok(progress.length >= 4, progress.join(' '));
+  assert.deepEqual(progress, [...progress].sort((a, b) => a - b), 'never back');
+  assert.equal(new Set(progress).size, progress.length, 'never twice the same');
+  assert.ok(progress.some((percent) => percent < 85), 'the scrolling is the first part');
+  assert.equal(progress.at(-1), 100);
+});
+
 test('script: a picture the hook did not keep is asked for by its address, and when the page let go of that too, it is drawn', async () => {
   const reader = new PretendReader([picture(1, 0), picture(2, 0), picture(3, 0)]);
   reader.blobs.set('blob:https://m.example.test/1', blobOf('page 1'));

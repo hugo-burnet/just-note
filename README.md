@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 309 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 310 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -62,10 +62,10 @@ runs it sees everything you read and can alter what you are shown.
   page); and the script that scrolls a chapter took its 22 pictures, valid JPEGs, from the page.
   Also in the app: the Scan-Manga lists (with the covers the site shows on them, which are small), a
   series page (title, author, genre, synopsis, chapters), and a chapter link pasted into the library.
-  **Not verified: reading a chapter in the reader** (the chapter is read through the WebView, behind a
-  spinner; a manga chapter whose page numbers twice as many elements as it has pictures was turned
-  away by an earlier build, which this one waits for a few seconds and then reads), the clearance the
-  WebView already held being reused, and how long a chapter takes to open.
+  **Not verified: reading a chapter in the reader** (through the WebView, behind a spinner), the clearance
+  the WebView already held being reused, and how long a chapter takes to open. (A manga chapter was turned
+  away by an earlier build: its hidden pager numbers as many elements as the chapter has pictures, which
+  the module no longer counts.)
 - Some sites cannot be read from a web app at all: the ones that check their visitors
   with an anti-bot challenge (Cloudflare's *Just a moment…*) answer the proxy with a page
   that only a real browser can pass. Scan-Manga and SushiScan are two (their mobile
@@ -230,8 +230,10 @@ Requests turned away together share one WebView. A check that is not passed (can
 timed out) is the *human check* error.
 
 A reader that builds its pictures with scripts (Scan-Manga's shows each as a `blob:` address)
-is read in the same WebView: the page is scrolled a screen at a time until the pictures its
-selector matches have all come in, and their bytes are taken from the blobs the page made
+is read in the same WebView, behind a spinner that says how far it has got (the page goes on behind it
+as if it were seen, but a page scrolling by itself, advertisements and all, is nothing to look at; it is only
+shown while the site's check is being passed, or when that is slow): the page is scrolled a screen at a time
+until the pictures its selector matches have all come in, and their bytes are taken from the blobs the page made
 (a script run before the page's own keeps them, as a page may let go of the address at once),
 else asked for, else drawn. The plugin keeps them and the app takes them one at a time; they
 are stored like any picture of the sites, under addresses of the site that never reach the
@@ -253,7 +255,7 @@ Not done yet: sharing a link to the app, and its own launcher icon.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 309 unit tests
+npm run check        # types (app and worker) and the 310 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg

@@ -162,6 +162,8 @@ public class PageFetcherPlugin extends Plugin {
         private Dialog dialog;
         private WebView web;
         private FrameLayout cover;
+        private TextView label;
+        private final Runnable revealLater = this::reveal;
         private boolean loaded = false;
         private volatile boolean finished = false;
         // What the script of the app found, in a line, for the report of a Diagnostic.
@@ -228,7 +230,7 @@ public class PageFetcherPlugin extends Plugin {
             }
             if (startScript != null) injectBeforeThePage();
 
-            TextView label = new TextView(activity);
+            label = new TextView(activity);
             label.setText(statusLabel);
             label.setTextColor(Color.WHITE);
             label.setTextSize(16);
@@ -251,7 +253,7 @@ public class PageFetcherPlugin extends Plugin {
                 cover.setClickable(true);
                 cover.addView(new ProgressBar(activity), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
                 stage.addView(cover, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-                handler.postDelayed(() -> reveal(), REVEAL_AFTER_MS);
+                handler.postDelayed(revealLater, REVEAL_AFTER_MS);
             }
             LinearLayout root = new LinearLayout(activity);
             root.setOrientation(LinearLayout.VERTICAL);
@@ -277,6 +279,13 @@ public class PageFetcherPlugin extends Plugin {
         // Shows the page: it is a check that someone has to answer, or it is taking its time.
         private void reveal() {
             if (!finished && cover != null) cover.setVisibility(View.GONE);
+        }
+
+        // The page has been let through and the app's own script is about to scroll it: that is nothing to look
+        // at (a page going by at that speed, with its advertisements), and the label says how far it has got.
+        private void conceal() {
+            handler.removeCallbacks(revealLater);
+            if (cover != null) cover.setVisibility(View.VISIBLE);
         }
 
         // Runs `startScript` in the page before any script of the page does, on the site's own origins.
@@ -355,6 +364,7 @@ public class PageFetcherPlugin extends Plugin {
 
         // The script of the app scrolls the page, then gives the pictures to Pictures, which ends with done or fail.
         private void runScript() {
+            conceal();
             handler.postDelayed(() -> finish(null, "pictures", "The pictures did not come in time."), SCRIPT_TIMEOUT_MS);
             web.evaluateJavascript("window.__justReadToken=" + JSONObject.quote(token) + ";" + script, null);
         }
@@ -415,6 +425,14 @@ public class PageFetcherPlugin extends Plugin {
             public void add(String presented, String type, String data) {
                 if (finished || !token.equals(presented)) return;
                 captured.add(new String[] { type, data });
+            }
+
+            @JavascriptInterface
+            public void progress(String presented, int percent) {
+                if (finished || !token.equals(presented)) return;
+                handler.post(() -> {
+                    if (!finished && label != null) label.setText(statusLabel + " " + percent + " %");
+                });
             }
 
             @JavascriptInterface
