@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -17,7 +18,9 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
@@ -133,6 +136,9 @@ public class PageFetcherPlugin extends Plugin {
         private static final long SETTLE_STEP_MS = 700;
         // Scrolling a chapter, and reading each of its pictures, is given this long once the page is ready.
         private static final long SCRIPT_TIMEOUT_MS = 90000;
+        // A page that is only read for its pictures is kept out of sight (a spinner covers it) unless it is
+        // slow, or turns out to be a check that someone has to answer.
+        private static final long REVEAL_AFTER_MS = 15000;
         private static final int MAX_LOGGED = 500;
 
         private final Activity activity;
@@ -155,6 +161,7 @@ public class PageFetcherPlugin extends Plugin {
         private final List<String> failures = Collections.synchronizedList(new ArrayList<String>());
         private Dialog dialog;
         private WebView web;
+        private FrameLayout cover;
         private boolean loaded = false;
         private volatile boolean finished = false;
         private long startedAt;
@@ -232,11 +239,23 @@ public class PageFetcherPlugin extends Plugin {
             bar.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             bar.addView(cancel);
 
+            FrameLayout stage = new FrameLayout(activity);
+            stage.addView(web, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            if (script != null) {
+                // The page goes on behind the cover exactly as if it were seen: a page that is hidden, or drawn with no
+                // alpha, is throttled, and its pictures would not come in.
+                cover = new FrameLayout(activity);
+                cover.setBackgroundColor(Color.parseColor("#0f1015"));
+                cover.setClickable(true);
+                cover.addView(new ProgressBar(activity), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+                stage.addView(cover, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                handler.postDelayed(() -> reveal(), REVEAL_AFTER_MS);
+            }
             LinearLayout root = new LinearLayout(activity);
             root.setOrientation(LinearLayout.VERTICAL);
             root.setBackgroundColor(Color.parseColor("#0f1015"));
             root.addView(bar);
-            root.addView(web, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+            root.addView(stage, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
             // The bars of the system are drawn over the dialog on recent Android: keep clear of them.
             root.setOnApplyWindowInsetsListener((view, insets) -> {
                 view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
@@ -251,6 +270,11 @@ public class PageFetcherPlugin extends Plugin {
             startedAt = SystemClock.elapsedRealtime();
             web.loadUrl(url);
             handler.postDelayed(poll, POLL_MS);
+        }
+
+        // Shows the page: it is a check that someone has to answer, or it is taking its time.
+        private void reveal() {
+            if (!finished && cover != null) cover.setVisibility(View.GONE);
         }
 
         // Runs `startScript` in the page before any script of the page does, on the site's own origins.
@@ -288,6 +312,7 @@ public class PageFetcherPlugin extends Plugin {
                     if (finished) return;
                     try {
                         JSONObject state = new JSONObject((String) new JSONTokener(value).nextValue());
+                        if (script != null && state.optBoolean("running", false)) reveal();
                         if (!state.optBoolean("running", true) && "complete".equals(state.optString("ready"))) {
                             if (script != null) runScript();
                             else settle();
