@@ -46,7 +46,7 @@
 
 .frame[data-state='loading'],
 .frame[data-state='failed'] {
-  aspect-ratio: 2 / 3;
+  aspect-ratio: var(--page-aspect, 2 / 3);
 }
 
 .frame[data-state='loading'] img,

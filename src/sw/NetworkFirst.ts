@@ -1,5 +1,5 @@
 import type { CacheBudget } from './CacheBudget.ts';
-import { MATCH } from './Strategy.ts';
+import { ResponseCache } from './ResponseCache.ts';
 import type { Strategy } from './Strategy.ts';
 
 export interface NetworkFirstOptions {
@@ -22,29 +22,29 @@ export interface NetworkFirstOptions {
 /** Fresh when online, the last copy when offline. */
 export class NetworkFirst implements Strategy {
   private readonly options: NetworkFirstOptions;
+  private readonly cache: ResponseCache;
 
   constructor(options: NetworkFirstOptions) {
     this.options = options;
+    this.cache = new ResponseCache(options.cacheName, options.budget);
   }
 
   async handle(request: Request): Promise<Response> {
-    const { cacheName, budget, staleOnServerError } = this.options;
-    const cache = await caches.open(cacheName);
+    const { staleOnServerError } = this.options;
     const key = this.options.key ?? request;
     try {
       const response = await this.fetch(request);
       if (response.ok) {
-        await cache.put(key, response.clone());
-        void budget?.trim(cache);
+        await this.cache.put(key, response);
         return response;
       }
       if (staleOnServerError && response.status >= 500) {
-        const stale = await cache.match(key, MATCH);
+        const stale = await this.cache.match(key);
         if (stale) return stale;
       }
       return response;
     } catch (error) {
-      const cached = await cache.match(key, MATCH);
+      const cached = await this.cache.match(key);
       if (cached) return cached;
       throw error;
     }

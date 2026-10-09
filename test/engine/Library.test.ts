@@ -100,7 +100,7 @@ test('damaged or unwritable storage does not break the library', () => {
   const lib = new Library(store);
   assert.deepEqual(lib.list(), []);
 
-  const full = { get: () => null, set: () => { throw new Error('quota'); }, remove: () => {} };
+  const full = { get: () => null, set: () => { throw new Error('quota'); }, remove: () => {}, keys: () => [] };
   const inMemory = new Library(full);
   inMemory.save(series(1));
   assert.equal(inMemory.list().length, 1);

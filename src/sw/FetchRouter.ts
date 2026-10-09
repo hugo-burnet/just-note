@@ -1,4 +1,4 @@
-import { MAX_IMAGES, MAX_PAGES } from '../platform/web/cacheNames.ts';
+import { MAX_IMAGES, MAX_PAGES, MAX_IMAGE_BYTES, MAX_PAGE_BYTES } from '../platform/web/cacheNames.ts';
 import { CacheBudget } from './CacheBudget.ts';
 import { CacheFirst } from './CacheFirst.ts';
 import { NetworkFirst } from './NetworkFirst.ts';
@@ -27,9 +27,9 @@ export class FetchRouter {
   constructor(options: RouterOptions) {
     this.origin = new URL(options.scope).origin;
     const shell = options.shellCache;
-    this.images = new ProxiedImages(options.imageCache, new CacheBudget(MAX_IMAGES));
+    this.images = new ProxiedImages(options.imageCache, new CacheBudget(MAX_IMAGES, MAX_IMAGE_BYTES));
     // nocache=1 never gets here: a one-off answer (it carries a token) is not worth keeping.
-    this.pages = new NetworkFirst({ cacheName: options.pageCache, budget: new CacheBudget(MAX_PAGES), staleOnServerError: true });
+    this.pages = new NetworkFirst({ cacheName: options.pageCache, budget: new CacheBudget(MAX_PAGES, MAX_PAGE_BYTES), staleOnServerError: true });
     // Every page of the app is the same document, including "/?url=…" from the share sheet.
     this.navigations = new NetworkFirst({ cacheName: shell, key: new Request(new URL('index.html', options.scope)), timeoutMs: SHELL_TIMEOUT_MS, revalidate: true });
     this.files = new NetworkFirst({ cacheName: shell, timeoutMs: SHELL_TIMEOUT_MS, revalidate: true });

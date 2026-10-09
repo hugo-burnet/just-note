@@ -1,5 +1,5 @@
 import type { CacheBudget } from './CacheBudget.ts';
-import { MATCH } from './Strategy.ts';
+import { ResponseCache } from './ResponseCache.ts';
 import type { Strategy } from './Strategy.ts';
 
 /**
@@ -11,17 +11,14 @@ import type { Strategy } from './Strategy.ts';
  * (still being set up) loses nothing but the offline copy.
  */
 export class ProxiedImages implements Strategy {
-  private readonly cacheName: string;
-  private readonly budget: CacheBudget;
+  private readonly cache: ResponseCache;
 
   constructor(cacheName: string, budget: CacheBudget) {
-    this.cacheName = cacheName;
-    this.budget = budget;
+    this.cache = new ResponseCache(cacheName, budget);
   }
 
   async handle(request: Request): Promise<Response> {
-    const cache = await caches.open(this.cacheName);
-    const hit = await cache.match(request.url, MATCH);
+    const hit = await this.cache.match(request.url);
     if (hit) return hit;
     let response: Response;
     try {
@@ -29,7 +26,7 @@ export class ProxiedImages implements Strategy {
     } catch {
       return fetch(request);
     }
-    if (response.ok) void cache.put(request.url, response.clone()).then(() => this.budget.trim(cache));
+    if (response.ok) await this.cache.put(request.url, response);
     return response;
   }
 }

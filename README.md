@@ -21,6 +21,16 @@ inside the reader) starts on **Auto**, which follows the site; choosing *Scroll*
 *Left to right* or *Right to left* overrides it for every site, and *Auto* gives the
 decision back.
 
+*Settings → Data* exports the library, current pages and finished chapters as a
+versioned JSON file. Importing validates the whole file (up to 5 MiB) before merging:
+newer progress wins, finished chapters are combined, and unrelated series stay.
+The APK presents selectable JSON with a copy button; save the copied text as a `.json`
+file to import it elsewhere. Backups exclude downloaded images and connection settings.
+
+Offline downloads are bounded by **128 MiB / 400 images** and **16 MiB / 80 pages**
+on both web and native. Actual decoded bytes are counted; oldest downloads leave first.
+An answer larger than its budget stays readable online without displacing other copies.
+
 ```
  phone / browser                                  a proxy you deploy               the site
 ┌─────────────────────────────┐   /api/html     ┌────────────────────────┐      ┌───────────────┐
@@ -43,12 +53,20 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 206 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 244 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
   offline with its servers switched off. The app and the proxy run on two different
   origins there, as they do on GitHub Pages with a Worker.
+- **Regression checks:** two browser tabs keep each other's library and progress, and
+  changes from another tab update the visible shelf. The native TypeScript reader is
+  also exercised in Chromium: retries in both modes, nearby image loading, and a
+  140-image chapter revisited offline after unused blob addresses have been released.
+  These checks do not replace running the APK on a phone.
+- **Backups and layout:** browser download, invalid file rejection, restoration after
+  reload, native JSON copying, byte budgets under concurrent writes, keyboard card
+  actions, labelled navigation, and French settings at 320 px and on desktop.
 - **Verified on a phone, by the author's report: the APK installs, and FanFox and WEBTOON
   read in it.** Both adapters were written from what is known of the sites and tested on
   synthetic pages shaped like them (the machine this was built on could not reach them).
@@ -208,13 +226,21 @@ launcher icon, and reading a site behind a check in the reader.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 206 unit tests
+npm run check        # types (app and worker) and the 244 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
+npm run test:e2e -- regressions # shared storage and native image regressions
+npm run test:e2e -- backup      # backups, byte budgets and responsive layout
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg
 ```
 
 ## Safety notes
+
+- Library details, reading positions and finished chapters are stored separately, so
+  one tab cannot replace another tab's whole library. Existing data is migrated on
+  first use; its old storage records remain as a recovery copy until the library is
+  cleared. If storage is full, online reading still works and this session keeps its
+  unsaved library changes in memory.
 
 - The proxy relays only allowlisted hosts (redirects included), only over https, raster
   images only, with size and time limits. Pages it relays are served as `text/plain`. The

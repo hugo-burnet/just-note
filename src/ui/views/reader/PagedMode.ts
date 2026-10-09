@@ -1,7 +1,8 @@
 import { ReaderGestures } from '../../../engine/index.ts';
 import type { Direction } from '../../../engine/index.ts';
 import { h } from '../../core/dom.ts';
-import { ReadingSurface, retried } from './ReadingSurface.ts';
+import { ReadingSurface } from './ReadingSurface.ts';
+import { ImageLoader } from '../../core/ImageLoader.ts';
 import type { SurfaceOptions } from './ReadingSurface.ts';
 
 const PREFETCH_AHEAD = 2;
@@ -18,10 +19,14 @@ export class PagedMode extends ReadingSurface {
   private shown = -1;
   private token = 0;
   private touch: { x: number; y: number } | null = null;
+  private readonly loader: ImageLoader;
+  private attempt = 0;
 
   constructor(options: SurfaceOptions) {
     super(h('div', { class: 'stage', 'data-mode': 'paged' }), options);
     this.rtl = options.rtl;
+    this.loader = new ImageLoader(options.transport);
+    this.own(() => this.loader.destroy());
     const retry = h('button', { class: 'btn retry pressable', type: 'button' }, options.retryLabel);
     this.paged.append(this.image, retry);
     this.root.append(this.paged);
@@ -32,7 +37,7 @@ export class PagedMode extends ReadingSurface {
     this.listen(this.image, 'error', () => {
       this.paged.dataset.state = 'failed';
     });
-    this.listen(retry, 'click', () => void this.show(this.shown, 1));
+    this.listen(retry, 'click', () => void this.show(this.shown, ++this.attempt));
     this.listen<MouseEvent>(this.paged, 'click', (event) => {
       if ((event.target as Element).closest('button')) return;
       const intent = ReaderGestures.tap(event.clientX / window.innerWidth, this.rtl);
@@ -49,6 +54,7 @@ export class PagedMode extends ReadingSurface {
   }
 
   goTo(page: number): void {
+    this.attempt = 0;
     void this.show(page, 0);
   }
 
@@ -74,7 +80,14 @@ export class PagedMode extends ReadingSurface {
     const token = ++this.token;
     this.shown = page;
     this.paged.dataset.state = 'busy';
-    const source = retried(await this.address(page), attempt);
+    let source: string | null;
+    try {
+      source = await this.loader.load(this.options.pages[page] ?? '', attempt);
+    } catch {
+      if (token === this.token && !this.isDestroyed) this.paged.dataset.state = 'failed';
+      return;
+    }
+    if (!source || token !== this.token || this.isDestroyed) return;
     // Keep the previous page up until this one is ready to paint.
     const probe = new Image();
     probe.src = source;
@@ -88,12 +101,20 @@ export class PagedMode extends ReadingSurface {
     for (const next of [page + 1, page + PREFETCH_AHEAD, page - 1]) void this.warm(next);
   }
 
-  private async address(page: number): Promise<string> {
-    return this.options.transport.imageSource(this.options.pages[page] ?? '');
-  }
-
   private async warm(page: number): Promise<void> {
     if (page < 0 || page >= this.options.pages.length) return;
-    new Image().src = await this.address(page);
+    const loader = new ImageLoader(this.options.transport);
+    try {
+      const src = await loader.load(this.options.pages[page] ?? '');
+      if (src && !this.isDestroyed) {
+        const image = new Image();
+        image.src = src;
+        await image.decode();
+      }
+    } catch {
+      // The visible image reports failures when this page is opened.
+    } finally {
+      loader.destroy();
+    }
   }
 }

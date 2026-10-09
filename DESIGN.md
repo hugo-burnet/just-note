@@ -25,11 +25,17 @@ Everything else is shades of the same ink.
 
 ## What makes it feel like an app
 
-- **A floating dock** instead of a header menu: a glass pill with three tabs, only the
-  current one shows its name. It steps aside when the keyboard is up and on pushed
+- **A floating dock** instead of a header menu: three labelled tabs, with an orange
+  highlight on the active one. It steps aside when the keyboard is up and on pushed
   screens (a series, the reader).
 - **Large titles that collapse** (as on iOS): the big title scrolls away and a small one
-  takes its place in a bar that frosts once content slides under it.
+  takes its place in a bar that frosts once content slides under it. Root screens add a
+  short subtitle and a quiet brand line to make their purpose clear.
+- **A readable shelf:** two columns even on a small phone, rounded cover cards with
+  visible reading counts, and a separate keyboard-accessible action button. Desktop
+  adds columns within the same readable width. Settings use two columns on wide screens.
+- **Data stays understandable:** the backup panel explains how imports merge progress,
+  reports errors inline, and keeps the erase action apart from export and import.
 - **Screens that move like screens**: a pushed screen slides in from the right, and going
   back brings the previous one in from the left; tabs cross-fade. The router numbers its
   history entries to know which way it is going, and Back never leaves the app by
@@ -95,6 +101,6 @@ in an adapter.
   which creates elements and sets text; there is no `innerHTML` anywhere.
 - **No framework.** Screens are classes with an owner of listeners and timers
   (`Component`), so leaving a screen never leaves anything running. The whole app is
-  about 77 kB of JavaScript (24 kB gzipped) and 28 kB of CSS.
+  built with the same TypeScript and CSS tooling for web and native.
 - **Everything must also work in a WebView**: relative asset paths, hash addresses, no
   dependency on a service worker for the app to function (it only adds offline use).

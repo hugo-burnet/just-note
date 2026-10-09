@@ -38,12 +38,23 @@ export interface Transport {
   text(url: string, request?: TextRequest): Promise<FetchedText>;
   /** The address to give an <img> so that the site's image shows up. */
   imageSource(url: string): Promise<string>;
+  /** Holds an image until its consumer releases it; retry bypasses a failed cached image. */
+  acquireImage?(url: string, retry?: boolean): Promise<ImageResource>;
+}
+
+export interface ImageResource {
+  readonly src: string;
+  release(): void;
 }
 
 export interface KeyValueStore {
   get(key: string): string | null;
-  set(key: string, value: string): void;
+  /** false means this write is available only for the current session. */
+  set(key: string, value: string): boolean | void;
   remove(key: string): void;
+  keys(): string[];
+  /** Changes from another instance of the app. null means all keys changed. */
+  subscribe?(listener: (key: string | null) => void): () => void;
 }
 
 export interface SourceIO {

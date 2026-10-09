@@ -34,7 +34,7 @@ export class DiscoverView extends View {
     const query = this.route.params.q ?? '';
 
     this.setTitle(i18n.t('discover.title'));
-    const header = new LargeHeader({ title: i18n.t('discover.title') });
+    const header = new LargeHeader({ title: i18n.t('discover.title'), subtitle: i18n.t('discover.subtitle') });
     this.own(() => header.destroy());
     this.root.append(header.root, header.title, h('div', { class: 'wrap stack' }, this.sources(source), this.search(source, query)), h('div', { class: 'wrap' }, this.results));
     this.app.router.restoreScroll();

@@ -108,7 +108,7 @@ test('damaged storage falls back to the defaults', () => {
 });
 
 test('a storage that refuses writes still lets the session change settings', () => {
-  const refusing = { get: () => null, set: () => { throw new Error('quota'); }, remove: () => {} };
+  const refusing = { get: () => null, set: () => { throw new Error('quota'); }, remove: () => {}, keys: () => [] };
   const settings = new Settings(refusing);
   settings.set({ mode: 'paged' });
   assert.equal(settings.get().mode, 'paged');

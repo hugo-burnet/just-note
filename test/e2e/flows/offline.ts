@@ -46,11 +46,14 @@ export async function offline({ browser, stage, runner }: Context): Promise<void
 
   await step('the images were kept as plain answers, not as opaque ones that eat the storage quota', async () => {
     await page.waitForFunction(async () => (await (await caches.open('jr-img')).keys()).length >= 3);
-    const types = await page.evaluate(async () => {
+    const copies = await page.evaluate(async () => {
       const cache = await caches.open('jr-img');
-      return Promise.all((await cache.keys()).map(async (request) => (await cache.match(request))?.type));
+      return Promise.all((await cache.keys()).map(async (request) => {
+        const response = await cache.match(request);
+        return { type: response?.type, bytes: response ? (await response.arrayBuffer()).byteLength : 0 };
+      }));
     });
-    assert.ok(types.length >= 3 && types.every((type) => type === 'cors'), JSON.stringify(types));
+    assert.ok(copies.length >= 3 && copies.every(({ type, bytes }) => (type === 'cors' || type === 'default') && bytes > 0), JSON.stringify(copies));
   });
 
   await step('answers that carry one-off tokens are not kept in the page cache', async () => {

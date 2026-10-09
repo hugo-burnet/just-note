@@ -58,4 +58,8 @@ export class MemoryStore implements KeyValueStore {
   remove(key: string): void {
     this.data.delete(key);
   }
+
+  keys(): string[] {
+    return [...this.data.keys()];
+  }
 }

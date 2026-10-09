@@ -1,8 +1,8 @@
 import { MAX_HTML_BYTES } from '../../../proxy/limits.ts';
 import { TransportError } from '../../engine/index.ts';
-import type { FetchedText, TextRequest } from '../../engine/index.ts';
+import type { FetchedText, ImageResource, TextRequest } from '../../engine/index.ts';
 import type { Connection } from '../Platform.ts';
-import { IMAGE_CACHE, MAX_IMAGES, MAX_PAGES, PAGE_CACHE } from '../web/cacheNames.ts';
+import { IMAGE_CACHE, MAX_IMAGES, MAX_PAGES, MAX_IMAGE_BYTES, MAX_PAGE_BYTES, PAGE_CACHE } from '../web/cacheNames.ts';
 import type { NativeHttp } from './NativeHttp.ts';
 import { NativeImages } from './NativeImages.ts';
 import { CacheApiStore } from './ResponseStore.ts';
@@ -27,8 +27,8 @@ export class NativeTransport implements Connection {
 
   static over(http: NativeHttp): NativeTransport {
     const client = new SiteClient(http);
-    const images = new NativeImages(client, new CacheApiStore(IMAGE_CACHE, MAX_IMAGES));
-    return new NativeTransport(client, new CacheApiStore(PAGE_CACHE, MAX_PAGES), images);
+    const images = new NativeImages(client, new CacheApiStore(IMAGE_CACHE, MAX_IMAGES, MAX_IMAGE_BYTES));
+    return new NativeTransport(client, new CacheApiStore(PAGE_CACHE, MAX_PAGES, MAX_PAGE_BYTES), images);
   }
 
   async text(url: string, request: TextRequest = {}): Promise<FetchedText> {
@@ -48,6 +48,10 @@ export class NativeTransport implements Connection {
 
   imageSource(url: string): Promise<string> {
     return this.images.source(url);
+  }
+
+  acquireImage(url: string, retry = false): Promise<ImageResource> {
+    return this.images.acquire(url, retry);
   }
 
   /** There is no proxy to ask: the app is as healthy as its network. */

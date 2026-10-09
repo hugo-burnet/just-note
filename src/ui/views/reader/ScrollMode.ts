@@ -1,6 +1,7 @@
 import type { Direction } from '../../../engine/index.ts';
 import { h } from '../../core/dom.ts';
-import { ReadingSurface, retried } from './ReadingSurface.ts';
+import { ReadingSurface } from './ReadingSurface.ts';
+import { ImageLoader } from '../../core/ImageLoader.ts';
 import type { SurfaceOptions } from './ReadingSurface.ts';
 
 /**
@@ -10,6 +11,8 @@ import type { SurfaceOptions } from './ReadingSurface.ts';
 export class ScrollMode extends ReadingSurface {
   private readonly frames: HTMLElement[] = [];
   private readonly observer: IntersectionObserver;
+  private readonly nearby: IntersectionObserver;
+  private readonly visibility = new Map<Element, (visible: boolean) => void>();
 
   constructor(options: SurfaceOptions) {
     super(h('div', { class: 'stage', 'data-mode': 'scroll' }), options);
@@ -29,6 +32,10 @@ export class ScrollMode extends ReadingSurface {
       { root: this.root, rootMargin: '-45% 0px -45% 0px' },
     );
     this.own(() => this.observer.disconnect());
+    this.nearby = new IntersectionObserver((entries) => {
+      for (const entry of entries) this.visibility.get(entry.target)?.(entry.isIntersecting);
+    }, { root: this.root, rootMargin: '100% 0px' });
+    this.own(() => this.nearby.disconnect());
 
     this.listen(this.root, 'click', (event) => {
       if (!(event.target as Element).closest('a, button')) options.handlers.toggleChrome();
@@ -37,10 +44,15 @@ export class ScrollMode extends ReadingSurface {
     this.listen(this.root, 'wheel', () => options.handlers.hideChrome(), { passive: true });
 
     // Land where the reader left off, and only then start watching which page is in the middle.
-    requestAnimationFrame(() => {
+    const firstFrame = requestAnimationFrame(() => {
+      if (this.isDestroyed) return;
       this.frames[options.startPage]?.scrollIntoView({ block: 'start' });
-      for (const frame of this.frames) this.observer.observe(frame);
+      for (const frame of this.frames) {
+        this.observer.observe(frame);
+        this.nearby.observe(frame);
+      }
     });
+    this.own(() => cancelAnimationFrame(firstFrame));
   }
 
   goTo(page: number): void {
@@ -52,26 +64,44 @@ export class ScrollMode extends ReadingSurface {
   }
 
   private frame(address: string, index: number): HTMLElement {
-    const image = h('img', { alt: '', decoding: 'async', loading: 'lazy', draggable: 'false' });
+    const image = h('img', { alt: '', decoding: 'async', draggable: 'false' });
     const retry = h('button', { class: 'btn retry pressable', type: 'button' }, this.options.retryLabel);
     const frame = h('div', { class: 'frame', 'data-index': index, 'data-state': 'loading' }, image, retry);
     let attempt = 0;
+    let active = false;
+    const loader = new ImageLoader(this.options.transport);
+    this.own(() => loader.destroy());
     const load = async (): Promise<void> => {
       frame.dataset.state = 'loading';
-      const source = await this.options.transport.imageSource(address);
-      if (!this.isDestroyed) image.src = retried(source, attempt);
+      try {
+        const source = await loader.load(address, attempt);
+        if (source && active && !this.isDestroyed) image.src = source;
+      } catch {
+        if (active && !this.isDestroyed) frame.dataset.state = 'failed';
+      }
     };
     this.listen(image, 'load', () => {
+      if (!active) return;
+      frame.style.setProperty('--page-aspect', `${image.naturalWidth} / ${image.naturalHeight}`);
       frame.dataset.state = 'ready';
     });
     this.listen(image, 'error', () => {
-      frame.dataset.state = 'failed';
+      if (active) frame.dataset.state = 'failed';
     });
     this.listen(retry, 'click', () => {
       attempt++;
       void load();
     });
-    void load();
+    this.visibility.set(frame, (visible) => {
+      if (visible === active) return;
+      active = visible;
+      if (active) void load();
+      else {
+        loader.clear();
+        image.removeAttribute('src');
+        frame.dataset.state = 'loading';
+      }
+    });
     return frame;
   }
 }

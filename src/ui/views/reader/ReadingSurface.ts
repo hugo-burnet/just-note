@@ -41,7 +41,3 @@ export abstract class ReadingSurface extends Component {
   /** The reading direction changed. Only the surface that turns pages cares. */
   setDirection(_rtl: boolean): void {}
 }
-
-/** The address of an image once more, made different so that a failed answer is not served again. */
-export const retried = (address: string, attempt: number): string =>
-  attempt === 0 ? address : `${address}${address.includes('?') ? '&' : '?'}r=${attempt}`;

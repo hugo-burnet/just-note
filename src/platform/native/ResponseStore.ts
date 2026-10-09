@@ -1,3 +1,5 @@
+import { CacheBudget, withCacheLock } from '../web/CacheBudget.ts';
+
 /** A place where answers are kept by address, so that what was read stays readable offline. */
 export interface ResponseStore {
   get(key: string): Promise<Response | undefined>;
@@ -12,11 +14,11 @@ export interface ResponseStore {
  */
 export class CacheApiStore implements ResponseStore {
   private readonly name: string;
-  private readonly limit: number;
+  private readonly budget: CacheBudget;
 
-  constructor(name: string, limit: number) {
+  constructor(name: string, limit: number, bytes = Infinity) {
     this.name = name;
-    this.limit = limit;
+    this.budget = new CacheBudget(limit, bytes);
   }
 
   async get(key: string): Promise<Response | undefined> {
@@ -29,10 +31,9 @@ export class CacheApiStore implements ResponseStore {
 
   async put(key: string, response: Response): Promise<void> {
     try {
-      const cache = await caches.open(this.name);
-      await cache.put(key, response);
-      const keys = await cache.keys();
-      for (const oldest of keys.slice(0, Math.max(0, keys.length - this.limit))) await cache.delete(oldest);
+      await withCacheLock(this.name, async () => {
+        await this.budget.put(await caches.open(this.name), key, response);
+      });
     } catch {
       // No offline copy of this one.
     }

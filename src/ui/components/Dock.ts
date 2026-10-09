@@ -50,6 +50,7 @@ export class Dock extends Component {
   /** Shows the dock on a root screen, with its tab lit; hides it for a pushed screen (null). */
   show(tab: TabId | null): void {
     this.root.dataset.visible = String(tab !== null);
+    this.root.inert = tab === null;
     for (const [id, link] of this.links) {
       if (id === tab) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');

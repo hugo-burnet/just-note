@@ -4,7 +4,7 @@ import type { MessageKey } from './en.ts';
 import { fr } from './fr.ts';
 
 export type Locale = 'en' | 'fr';
-export type PluralKey = 'series.chapters' | 'library.count';
+export type PluralKey = 'series.chapters' | 'library.count' | 'settings.backupImported';
 export type Params = Readonly<Record<string, string | number>>;
 
 const DICTIONARIES: Record<Locale, Readonly<Record<MessageKey, string>>> = { en, fr };

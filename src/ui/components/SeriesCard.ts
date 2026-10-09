@@ -1,6 +1,7 @@
 import type { AppContext } from '../core/AppContext.ts';
 import { Component } from '../core/Component.ts';
 import { h } from '../core/dom.ts';
+import { icon } from '../core/icons.ts';
 import { Routes } from '../core/Routes.ts';
 import { Cover } from './Cover.ts';
 
@@ -12,6 +13,7 @@ export interface SeriesCardOptions {
   readonly meta?: string;
   /** 0 to 1: how much of the series is read. Omitted: no bar. */
   readonly progress?: number;
+  readonly progressLabel?: string | undefined;
   /** Position in the grid, which sets when the card appears. */
   readonly index: number;
   /** A long press, or a right click. */
@@ -20,7 +22,7 @@ export interface SeriesCardOptions {
 
 export class SeriesCard extends Component {
   constructor(app: AppContext, options: SeriesCardOptions) {
-    super(h('a', { class: 'card pressable', href: Routes.series(options.url) }));
+    super(h('article', { class: 'card' }));
     this.root.style.setProperty('--i', String(Math.min(options.index, 10)));
 
     const cover = new Cover(app.transport, { url: options.cover, title: options.title });
@@ -30,10 +32,15 @@ export class SeriesCard extends Component {
       bar.style.setProperty('--p', String(Math.min(Math.max(options.progress, 0), 1)));
       cover.root.append(bar);
     }
-    this.root.append(cover.root, h('p', { class: 'card-title' }, options.title));
-    if (options.meta) this.root.append(h('p', { class: 'card-meta' }, options.meta));
+    if (options.progressLabel) cover.root.append(h('span', { class: 'cover-progress' }, options.progressLabel));
+    const link = h('a', { class: 'card-link pressable', href: Routes.series(options.url) }, cover.root, h('p', { class: 'card-title' }, options.title));
+    this.root.append(link);
+    if (options.meta) link.append(h('p', { class: 'card-meta' }, options.meta));
 
     if (options.onMenu) {
+      const menu = h('button', { class: 'card-menu icon-btn pressable', type: 'button', 'aria-label': app.i18n.t('library.cardMenu', { title: options.title }) }, icon('more', 18));
+      this.listen(menu, 'click', () => options.onMenu?.());
+      this.root.append(menu);
       this.listen(this.root, 'contextmenu', (event) => {
         event.preventDefault();
         options.onMenu?.();

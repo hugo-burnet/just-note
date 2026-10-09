@@ -1,15 +1,11 @@
 import type { KeyValueStore } from '../../engine/index.ts';
 
-/**
- * localStorage, with a memory copy in front: when the storage is blocked or
- * full (private windows, quota) the app keeps working for the session.
- */
+/** Reads shared storage afresh; only writes that could not be persisted stay in memory. */
 export class LocalStorageStore implements KeyValueStore {
-  private readonly memory = new Map<string, string>();
+  private readonly pending = new Map<string, string | null>();
 
   get(key: string): string | null {
-    const cached = this.memory.get(key);
-    if (cached !== undefined) return cached;
+    if (this.pending.has(key)) return this.pending.get(key) ?? null;
     try {
       return localStorage.getItem(key);
     } catch {
@@ -17,21 +13,48 @@ export class LocalStorageStore implements KeyValueStore {
     }
   }
 
-  set(key: string, value: string): void {
-    this.memory.set(key, value);
+  set(key: string, value: string): boolean {
     try {
       localStorage.setItem(key, value);
+      this.pending.delete(key);
+      return true;
     } catch {
-      // Kept in memory only.
+      this.pending.set(key, value);
+      return false;
     }
   }
 
   remove(key: string): void {
-    this.memory.delete(key);
     try {
       localStorage.removeItem(key);
+      this.pending.delete(key);
     } catch {
-      // Nothing more to do.
+      this.pending.set(key, null);
     }
+  }
+
+  keys(): string[] {
+    const keys = new Set<string>();
+    try {
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (key !== null) keys.add(key);
+      }
+    } catch {
+      // Only the session's writes are available when storage is blocked.
+    }
+    for (const [key, value] of this.pending) {
+      if (value === null) keys.delete(key);
+      else keys.add(key);
+    }
+    return [...keys];
+  }
+
+  subscribe(listener: (key: string | null) => void): () => void {
+    const changed = (event: StorageEvent): void => {
+      if (event.storageArea === localStorage) listener(event.key);
+    };
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
   }
 }

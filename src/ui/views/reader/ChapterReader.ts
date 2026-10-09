@@ -3,6 +3,7 @@ import type { ChapterRef, Direction, ReadingMode, ReadingStyle } from '../../../
 import type { AppContext } from '../../core/AppContext.ts';
 import { Component } from '../../core/Component.ts';
 import { h } from '../../core/dom.ts';
+import { ImageLoader } from '../../core/ImageLoader.ts';
 import { icon } from '../../core/icons.ts';
 import { Routes } from '../../core/Routes.ts';
 import { PagedMode } from './PagedMode.ts';
@@ -135,7 +136,20 @@ export class ChapterReader extends Component {
     if (!next) return;
     try {
       const { pages } = await this.app.catalog.chapter(next.url);
-      for (const page of pages.slice(0, WARM_PAGES)) new Image().src = await this.app.transport.imageSource(page);
+      if (this.isDestroyed) return;
+      await Promise.all(pages.slice(0, WARM_PAGES).map(async (page) => {
+        const loader = new ImageLoader(this.app.transport);
+        try {
+          const src = await loader.load(page);
+          if (src && !this.isDestroyed) {
+            const image = new Image();
+            image.src = src;
+            await image.decode();
+          }
+        } finally {
+          loader.destroy();
+        }
+      }));
     } catch {
       // A head start, nothing more: opening the chapter will report a real failure.
     }
@@ -206,7 +220,7 @@ export class ChapterReader extends Component {
 
   private key(event: KeyboardEvent): void {
     const blocked = event.metaKey || event.ctrlKey || event.altKey || event.target instanceof HTMLInputElement;
-    if (blocked || document.documentElement.classList.contains('sheet-open')) return;
+    if (blocked || document.querySelector('.sheet-host:not([inert])')) return;
     if (event.key === 'Escape') {
       this.leave();
       return;

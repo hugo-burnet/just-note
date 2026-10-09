@@ -3,6 +3,7 @@ import { h } from '../core/dom.ts';
 
 export interface LargeHeaderOptions {
   readonly title: string;
+  readonly subtitle?: string;
   /** Buttons at the right of the bar. */
   readonly actions?: readonly HTMLElement[];
 }
@@ -27,7 +28,8 @@ export class LargeHeader extends Component {
       ),
     );
     this.large = h('h1', { class: 'large-title' }, options.title);
-    this.title = h('div', { class: 'wrap' }, this.large);
+    this.title = h('div', { class: 'wrap page-heading' }, h('span', { class: 'eyebrow brand-name' }, 'Just Read'), this.large,
+      options.subtitle ? h('p', { class: 'page-subtitle' }, options.subtitle) : null);
 
     let frame = 0;
     const update = (): void => {

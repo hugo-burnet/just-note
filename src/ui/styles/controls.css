@@ -25,7 +25,7 @@
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, color-mix(in oklch, var(--accent) 88%, white), var(--accent-strong));
+  background: linear-gradient(180deg, color-mix(in oklch, var(--accent-strong) 95%, white), var(--accent-strong));
   color: var(--accent-ink);
   box-shadow:
     0 10px 26px -10px color-mix(in oklch, var(--accent) 75%, transparent),

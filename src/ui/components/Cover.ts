@@ -1,6 +1,7 @@
 import type { Transport } from '../../engine/index.ts';
 import { Component } from '../core/Component.ts';
 import { h } from '../core/dom.ts';
+import { ImageLoader } from '../core/ImageLoader.ts';
 
 export interface CoverOptions {
   readonly url: string | null;
@@ -33,8 +34,10 @@ export class Cover extends Component {
       this.root.append(this.initials());
     });
     this.root.append(image);
-    void transport.imageSource(options.url).then((src) => {
-      if (!this.isDestroyed) image.src = src;
+    const loader = new ImageLoader(transport);
+    this.own(() => loader.destroy());
+    void loader.load(options.url).then((src) => {
+      if (src && !this.isDestroyed) image.src = src;
     });
   }
 

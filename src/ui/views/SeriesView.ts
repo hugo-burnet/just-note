@@ -6,6 +6,7 @@ import { ErrorPanel } from '../components/ErrorPanel.ts';
 import type { AppContext } from '../core/AppContext.ts';
 import type { Component } from '../core/Component.ts';
 import { h } from '../core/dom.ts';
+import { ImageLoader } from '../core/ImageLoader.ts';
 import { icon } from '../core/icons.ts';
 import { Routes } from '../core/Routes.ts';
 import type { Route } from '../core/Routes.ts';
@@ -17,10 +18,13 @@ export class SeriesView extends View {
   private readonly requested: string;
   private url = '';
   private readonly shown: Component[] = [];
+  private readonly backdrop: ImageLoader;
 
   constructor(app: AppContext, route: Route) {
     super(app, 'series');
     this.requested = route.params.u ?? '';
+    this.backdrop = new ImageLoader(app.transport);
+    this.own(() => this.backdrop.destroy());
   }
 
   async open(): Promise<void> {
@@ -172,14 +176,15 @@ export class SeriesView extends View {
 
   /** The cover blown up behind the page, and its colour lent to the accent. */
   private async light(cover: string, backdrop: HTMLImageElement): Promise<void> {
-    const src = await this.app.transport.imageSource(cover);
-    if (this.isDestroyed) return;
+    const src = await this.backdrop.load(cover);
+    if (!src || this.isDestroyed) return;
     backdrop.src = src;
     const tint = await this.app.colors.sample(src);
     if (tint && !this.isDestroyed) applyTint(this.root, tint);
   }
 
   private clear(): void {
+    this.backdrop.clear();
     for (const component of this.shown.splice(0)) component.destroy();
     this.root.replaceChildren();
   }

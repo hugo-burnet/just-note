@@ -50,18 +50,27 @@ export class Sheet extends Component {
     this.own(() => document.documentElement.classList.remove('sheet-open'));
     parent.append(this.root);
     nextFrame(() => {
+      if (this.isDestroyed || this.closing) return;
       this.root.dataset.open = 'true';
       this.panel.querySelector<HTMLElement>('input, button')?.focus({ preventScroll: true });
     });
   }
 
-  async close(): Promise<void> {
-    if (this.closing) return;
+  close(): Promise<void> {
+    if (this.closing || this.isDestroyed) return this.closed;
     this.closing = true;
     this.root.dataset.open = 'false';
-    await new Promise<void>((resolve) => setTimeout(resolve, CLOSE_MS));
-    (this.opener as HTMLElement | null)?.focus?.({ preventScroll: true });
-    this.destroy();
+    this.root.inert = true;
+    this.root.setAttribute('aria-hidden', 'true');
+    this.after(CLOSE_MS, () => {
+      if (this.opener?.isConnected) (this.opener as HTMLElement).focus?.({ preventScroll: true });
+      this.destroy();
+    });
+    return this.closed;
+  }
+
+  override destroy(): void {
+    super.destroy();
     this.settle();
   }
 

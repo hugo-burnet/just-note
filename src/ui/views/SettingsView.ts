@@ -1,4 +1,5 @@
 import { DiagnosticPanel } from '../components/DiagnosticPanel.ts';
+import { BackupPanel } from '../components/BackupPanel.ts';
 import { LargeHeader } from '../components/LargeHeader.ts';
 import { Segmented } from '../components/Segmented.ts';
 import type { AppContext } from '../core/AppContext.ts';
@@ -7,7 +8,8 @@ import { h } from '../core/dom.ts';
 import { View } from '../core/View.ts';
 import { languageName } from '../i18n/languages.ts';
 import type { PageProbe } from '../../platform/Platform.ts';
-import { CONTENT_CACHES } from '../../platform/web/cacheNames.ts';
+import { CONTENT_CACHES, MAX_IMAGE_BYTES, MAX_PAGE_BYTES } from '../../platform/web/cacheNames.ts';
+import { icon } from '../core/icons.ts';
 
 /** Appearance, reading, connection, data: grouped like the settings of a phone. */
 export class SettingsView extends View {
@@ -38,14 +40,14 @@ export class SettingsView extends View {
     const current = settings.get();
     this.setTitle(i18n.t('settings.title'));
 
-    const header = new LargeHeader({ title: i18n.t('settings.title') });
+    const header = new LargeHeader({ title: i18n.t('settings.title'), subtitle: i18n.t('settings.subtitle') });
     this.parts.push(header);
     this.root.append(
       header.root,
       header.title,
       h(
         'div',
-        { class: 'wrap' },
+        { class: 'wrap settings-layout' },
         this.group('settings.appearance', [
           this.row(i18n.t('settings.theme'), this.segmented(i18n.t('settings.theme'), current.theme, [
             { value: 'auto', label: i18n.t('settings.themeAuto') },
@@ -78,8 +80,8 @@ export class SettingsView extends View {
         ...(this.app.usesProxy ? [this.connection()] : []),
         ...(this.app.probe ? [this.diagnostic(this.app.probe)] : []),
         this.data(),
-        h('p', { class: 'fineprint selectable' }, i18n.t('settings.privacy')),
-        h('p', { class: 'fineprint' }, `${i18n.t('app.name')} ${__APP_VERSION__}`),
+        h('footer', { class: 'settings-footer' }, h('p', { class: 'fineprint selectable' }, i18n.t('settings.privacy')),
+          h('p', { class: 'fineprint' }, `${i18n.t('app.name')} ${__APP_VERSION__}`)),
       ),
     );
     this.app.router.restoreScroll();
@@ -123,10 +125,14 @@ export class SettingsView extends View {
 
   private data(): HTMLElement {
     const { i18n, library, sheets, toasts } = this.app;
-    const cache = h('button', { class: 'row-action pressable', type: 'button' }, i18n.t('settings.clearCache'));
+    const backup = new BackupPanel(this.app);
+    this.parts.push(backup);
+    const cache = h('button', { class: 'row-action pressable', type: 'button' }, h('span', null, i18n.t('settings.clearCache')), icon('refresh', 18));
     this.listen(cache, 'click', async () => {
-      if ('caches' in window) await Promise.all(CONTENT_CACHES.map((name) => caches.delete(name)));
-      toasts.show(i18n.t('settings.cacheCleared'));
+      try {
+        if ('caches' in window) await Promise.all(CONTENT_CACHES.map((name) => caches.delete(name)));
+        toasts.show(i18n.t('settings.cacheCleared'));
+      } catch { toasts.show(i18n.t('settings.cacheFailed')); }
     });
     const erase = h('button', { class: 'row-action danger pressable', type: 'button' }, i18n.t('settings.clearLibrary'));
     this.listen(erase, 'click', async () => {
@@ -140,7 +146,7 @@ export class SettingsView extends View {
       library.clear();
       toasts.show(i18n.t('settings.libraryCleared'));
     });
-    return this.group('settings.data', [cache, erase]);
+    return this.group('settings.data', [backup.root, h('p', { class: 'cache-hint row-hint' }, i18n.t('settings.cacheBudget', { images: MAX_IMAGE_BYTES / 1024 ** 2, pages: MAX_PAGE_BYTES / 1024 ** 2 })), cache, erase]);
   }
 
   private segmented<T extends string>(label: string, value: T, choices: ReadonlyArray<{ value: T; label: string }>, onChange: (value: T) => void): HTMLElement {

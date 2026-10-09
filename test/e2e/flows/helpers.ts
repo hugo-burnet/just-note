@@ -42,11 +42,15 @@ export async function scrollToFrame(page: Page, index: number): Promise<void> {
 }
 
 /** Waits until the page shown in turned-page mode is the nth image of the chapter, and drawn. */
-export const waitShown = (page: Page, n: number): Promise<unknown> =>
-  page.waitForFunction((wanted) => {
+export const waitShown = async (page: Page, n: number): Promise<unknown> => {
+  try { return await page.waitForFunction((wanted) => {
     const image = document.querySelector<HTMLImageElement>('.paged img.single');
     return image !== null && image.naturalWidth > 0 && new RegExp(`/${wanted}\\.(png|jpe?g)`).test(decodeURIComponent(image.currentSrc));
-  }, n);
+  }, n); } catch (error) {
+    const state = await page.locator('.paged img.single').evaluate((el) => ({ src: (el as HTMLImageElement).currentSrc, width: (el as HTMLImageElement).naturalWidth }));
+    throw new Error(`Page ${n} did not appear: ${JSON.stringify(state)}`, { cause: error });
+  }
+};
 
 /** Opens the reading options from the reader's controls. */
 export async function openReadingOptions(page: Page): Promise<void> {

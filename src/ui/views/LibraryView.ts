@@ -6,6 +6,7 @@ import { SeriesCard } from '../components/SeriesCard.ts';
 import type { AppContext } from '../core/AppContext.ts';
 import type { Component } from '../core/Component.ts';
 import { h } from '../core/dom.ts';
+import { ImageLoader } from '../core/ImageLoader.ts';
 import { icon } from '../core/icons.ts';
 import { Routes } from '../core/Routes.ts';
 import { View } from '../core/View.ts';
@@ -15,24 +16,29 @@ export class LibraryView extends View {
   readonly tab = 'library' as const;
   private readonly content = h('div', { class: 'wrap' });
   private readonly shown: Component[] = [];
+  private backdrop: ImageLoader | null = null;
 
   constructor(app: AppContext) {
     super(app, 'library');
+    this.own(() => this.backdrop?.destroy());
   }
 
   open(): void {
     const { i18n } = this.app;
     this.setTitle();
-    const add = h('button', { class: 'icon-btn icon-btn-glass pressable', type: 'button', 'aria-label': i18n.t('library.add') }, icon('plus'));
+    const add = h('button', { class: 'btn btn-soft header-add pressable', type: 'button', 'aria-label': i18n.t('library.add') }, icon('plus', 18), h('span', null, i18n.t('library.add')));
     this.listen(add, 'click', () => this.app.sheets.addLink());
-    const header = new LargeHeader({ title: i18n.t('library.title'), actions: [add] });
+    const header = new LargeHeader({ title: i18n.t('library.title'), subtitle: i18n.t('library.subtitle'), actions: [add] });
     this.own(() => header.destroy());
     this.root.append(header.root, header.title, this.content);
     this.render();
+    this.own(this.app.library.subscribe(() => this.render()));
     this.app.router.restoreScroll();
   }
 
   private render(): void {
+    this.backdrop?.destroy();
+    this.backdrop = null;
     for (const component of this.shown.splice(0)) component.destroy();
     this.content.replaceChildren();
     const { library, i18n } = this.app;
@@ -45,7 +51,9 @@ export class LibraryView extends View {
     if (resuming?.position) this.content.append(this.resumeCard(resuming, resuming.position));
     const grid = h('div', { class: 'grid' });
     entries.forEach((entry, index) => grid.append(this.card(entry, index)));
-    this.content.append(h('section', { class: 'section' }, h('h2', { class: 'section-title' }, i18n.plural('library.count', entries.length)), grid));
+    this.content.append(h('section', { class: 'section shelf' }, h('div', { class: 'shelf-heading' },
+      h('h2', { class: 'section-title' }, i18n.t('library.shelf')), h('span', { class: 'chip' }, i18n.plural('library.count', entries.length))),
+      h('p', { class: 'shelf-hint' }, i18n.t('library.recent')), grid));
   }
 
   private card(entry: LibraryEntry, index: number): HTMLElement {
@@ -57,6 +65,7 @@ export class LibraryView extends View {
       cover: entry.cover,
       meta: entry.position?.title ?? i18n.t('library.notStarted'),
       progress: total > 0 ? library.readCount(entry.url) / total : undefined,
+      progressLabel: total > 0 ? i18n.t('library.progress', { read: library.readCount(entry.url), total }) : undefined,
       index,
       onMenu: () => void this.confirmRemoval(entry),
     });
@@ -74,7 +83,12 @@ export class LibraryView extends View {
     bar.style.setProperty('--p', String(total > 0 ? library.readCount(entry.url) / total : 0));
 
     const backdrop = h('img', { class: 'continue-backdrop', alt: '' });
-    if (entry.cover) void transport.imageSource(entry.cover).then((src) => (backdrop.src = src));
+    if (entry.cover) {
+      this.backdrop = new ImageLoader(transport);
+      void this.backdrop.load(entry.cover).then((src) => {
+        if (src && !this.isDestroyed) backdrop.src = src;
+      });
+    }
 
     return h(
       'a',

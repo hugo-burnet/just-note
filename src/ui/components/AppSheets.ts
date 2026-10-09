@@ -9,6 +9,7 @@ import type { SheetOptions } from './Sheet.ts';
 export class AppSheets implements SheetHost {
   private readonly app: AppContext;
   private readonly parent: HTMLElement;
+  private active: Sheet | null = null;
 
   constructor(app: AppContext, parent: HTMLElement) {
     this.app = app;
@@ -20,7 +21,7 @@ export class AppSheets implements SheetHost {
       let answer = false;
       const yes = h('button', { class: `btn btn-block pressable ${options.destructive ? 'btn-danger' : 'btn-primary'}`, type: 'button' }, options.confirm);
       const no = h('button', { class: 'btn btn-block btn-soft pressable', type: 'button' }, this.app.i18n.t('common.cancel'));
-      const sheet = new Sheet(this.parent, {
+      const sheet = this.present({
         title: options.title,
         text: options.text,
         actions: h('div', { class: 'sheet-actions' }, yes, no),
@@ -42,14 +43,24 @@ export class AppSheets implements SheetHost {
       });
       return button;
     });
-    const sheet = new Sheet(this.parent, { title, actions: h('div', { class: 'sheet-actions' }, buttons) });
+    const sheet = this.present({ title, actions: h('div', { class: 'sheet-actions' }, buttons) });
   }
 
   present(options: SheetOptions): Sheet {
-    return new Sheet(this.parent, options);
+    return this.replace(() => new Sheet(this.parent, options));
   }
 
   addLink(): void {
-    openLinkSheet(this.app, this.parent);
+    this.replace(() => openLinkSheet(this.app, this.parent));
+  }
+
+  private replace(create: () => Sheet): Sheet {
+    this.active?.destroy();
+    const sheet = create();
+    this.active = sheet;
+    void sheet.closed.then(() => {
+      if (this.active === sheet) this.active = null;
+    });
+    return sheet;
   }
 }

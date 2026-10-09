@@ -7,10 +7,12 @@
 import { chromium } from 'playwright';
 import type { Context } from './Context.ts';
 import { browseAndSettings } from './flows/browse.ts';
+import { backupAndDesign } from './flows/backup.ts';
 import { onDesktop } from './flows/desktop.ts';
 import { readFanFox } from './flows/fanfox.ts';
 import { readLelScan } from './flows/lelscan.ts';
 import { offline } from './flows/offline.ts';
+import { regressions } from './flows/regressions.ts';
 import { update } from './flows/update.ts';
 import { readWebtoon } from './flows/webtoon.ts';
 import { Pictures } from './Pictures.ts';
@@ -28,6 +30,8 @@ const FLOWS: ReadonlyArray<readonly [string, (context: Context) => Promise<void>
   ['lelscan', readLelScan],
   ['browse', browseAndSettings],
   ['desktop', onDesktop],
+  ['regressions', regressions],
+  ['backup', backupAndDesign],
   ['update', update],
   ['offline', offline],
 ];
