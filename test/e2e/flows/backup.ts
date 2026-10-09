@@ -22,7 +22,8 @@ export async function backupAndDesign({ browser, stage, runner }: Context): Prom
     await page.waitForFunction(() => !!window.regression);
     await page.evaluate((url) => {
       const library = window.regression.library;
-      library.save({ url, title: 'Moonlight Courier', cover: null, chapters: [1, 2, 3] });
+      // Its genres known, as for any series read since they are kept: it is not read again behind the test's back.
+      library.save({ url, title: 'Moonlight Courier', cover: null, chapters: [1, 2, 3], genres: ['Adventure'] });
       library.setPosition(url, { chapter: `${url}v01/c002/1.html`, key: 'c002', title: 'Chapter 2', page: 7 });
       library.markRead(url, 'c001');
     }, FANFOX_SERIES);
@@ -36,6 +37,7 @@ export async function backupAndDesign({ browser, stage, runner }: Context): Prom
       const data = JSON.parse(raw);
       assert.equal(data.entries[0].position.page, 7);
       assert.deepEqual(data.entries[0].finished, ['c001']);
+      assert.deepEqual(data.entries[0].genres, ['Adventure']);
     });
     await step('invalid imports leave the library intact and report the error inline', async () => {
       await page.locator('input[type=file]').setInputFiles({ name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from('{') });
