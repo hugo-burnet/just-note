@@ -12,6 +12,12 @@ export interface LoadedDocument {
   readonly url: string;
 }
 
+/** What the page of a series says of it at a glance (see Source.glance). */
+export interface Glance {
+  readonly cover: string | null;
+  readonly genres: readonly string[];
+}
+
 /**
  * A source teaches the app one website: it recognises the site's links and turns
  * its pages into series, chapters and images. Adding a site means writing a
@@ -28,7 +34,7 @@ export abstract class Source {
 
   /**
    * Whether the covers in this site's listings are poor ones (thumbnails, a crop): the one on the series page
-   * is then worth asking for (`coverOf`) as the listing is looked at.
+   * is then worth asking for (`glance`) as the listing is looked at.
    */
   readonly betterCovers: boolean = false;
 
@@ -78,9 +84,13 @@ export abstract class Source {
 
   abstract getList(url: string): Promise<SeriesSummary[]>;
 
-  /** The cover on the page of a series. A source overrides it to ask for less than the whole series. */
-  async coverOf(url: string): Promise<string | null> {
-    return (await this.getSeries(url)).cover;
+  /**
+   * What the page of a series says of it at a glance, for a listing: its cover and its genres, from one reading
+   * of the page. A source overrides it to ask for less than the whole series.
+   */
+  async glance(url: string): Promise<Glance> {
+    const { cover, genres } = await this.getSeries(url);
+    return { cover, genres };
   }
 
   /** `options.background`: it is read ahead, nobody is waiting (only a source that has to open a browser for it cares). */

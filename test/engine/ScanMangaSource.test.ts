@@ -46,7 +46,7 @@ test('getSeries reads the title, the cover, who made it, and lists the chapters 
   assert.equal(series.url, seriesAddress(LANTERN));
   assert.equal(series.cover, coverAddress(LANTERN, 1));
   assert.equal(series.author, 'Mara Quill et Tov Reed');
-  assert.deepEqual(series.genres, ['Seinen']);
+  assert.deepEqual(series.genres, ['Manga', 'Seinen']);
   assert.deepEqual(series.chapters.map((chapter) => [chapter.key, chapter.number, chapter.title]), [
     ['c1', 1, 'Chapitre 1'],
     ['c2', 2, 'Chapitre 2'],
@@ -57,10 +57,18 @@ test('getSeries reads the title, the cover, who made it, and lists the chapters 
   assert.deepEqual(series.chapters.map((chapter) => chapter.url), ['1', '2', '2-5', '3'].map((n) => chapterAddress(LANTERN, n)));
 });
 
+test('getSeries keeps the kind of work and its genre, both filtered by, even when the title has a dash of its own', async () => {
+  const dashed = { ...LANTERN, title: 'Lantern Keeper - Night Watch' };
+  const { source } = scanmanga({ [seriesAddress(dashed)]: seriesPage(dashed) });
+  const series = await source.getSeries(seriesAddress(dashed));
+  assert.deepEqual(series.genres, ['Manga', 'Seinen']);
+  assert.equal(series.author, 'Mara Quill et Tov Reed');
+});
+
 test('Scan-Manga lists thumbnails, so it says its series pages have better covers, and gives that of a page without keeping the page', async () => {
   const { source, transport } = scanmanga({ [seriesAddress(LANTERN)]: seriesPage(LANTERN) });
   assert.equal(source.betterCovers, true);
-  assert.equal(await source.coverOf(seriesAddress(LANTERN)), coverAddress(LANTERN, 1));
+  assert.deepEqual(await source.glance(seriesAddress(LANTERN)), { cover: coverAddress(LANTERN, 1), genres: ['Manga', 'Seinen'] });
   assert.deepEqual(transport.asked, [{ url: seriesAddress(LANTERN), request: { cache: false } }]);
 });
 

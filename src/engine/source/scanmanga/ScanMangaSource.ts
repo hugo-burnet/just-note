@@ -3,7 +3,7 @@ import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../mo
 import type { ReadingStyle } from '../../reader/ReadingStyle.ts';
 import { absolute, clean, looksBlocked } from '../../text.ts';
 import { Source } from '../Source.ts';
-import type { ChapterOptions } from '../Source.ts';
+import type { ChapterOptions, Glance } from '../Source.ts';
 import { Memo } from '../../Memo.ts';
 import { MAX_ITEMS, ScanMangaSeriesParser } from './ScanMangaSeriesParser.ts';
 import { ScanMangaUrls } from './ScanMangaUrls.ts';
@@ -51,10 +51,11 @@ export class ScanMangaSource extends Source {
     return this.series.parseSeries(doc, text, url);
   }
 
-  /** Of the many series a listing shows, none is worth keeping the page of, as it is asked for only for the cover. */
-  override async coverOf(url: string): Promise<string | null> {
+  /** Of the many series a listing shows, none is worth keeping the page of, as it is asked for only for the cover and the genres. */
+  override async glance(url: string): Promise<Glance> {
     const { doc, text } = await this.load(url, { cache: false });
-    return this.series.parseSeries(doc, text, url).cover;
+    const { cover, genres } = this.series.parseSeries(doc, text, url);
+    return { cover, genres };
   }
 
   async getList(url: string): Promise<SeriesSummary[]> {

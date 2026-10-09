@@ -16,7 +16,8 @@ const plain = (text: string): string =>
 const titled = (slug: string): string => slug.replace(/[-_]+/g, ' ').trim();
 
 // "Lire Some Title VF - Manga / Seinen (2023 - Some Author)": the kind of work, its genre, its year and its author.
-const ABOUT = /\s-\s[^/()]+\/\s*([^()]+?)\s*\((\d{4})\s-\s(.+)\)\s*$/;
+// A title may have " - " of its own: the kind is what comes after the last one before the slash.
+const ABOUT = /\s-\s((?:(?!\s-\s)[^/()])+?)\s*\/\s*([^()]+?)\s*\((\d{4})\s-\s(.+)\)\s*$/;
 
 // A card whose picture is still to come shows a placeholder (lazy_130x45.jpg), and keeps the real one in data-original.
 const PLACEHOLDER = /lazy_/i;
@@ -52,9 +53,10 @@ export class ScanMangaSeriesParser {
       url,
       title: this.title(doc) || titled(ScanMangaUrls.slugOf(url)) || url,
       cover: cover ? secure(cover) : null,
-      author: about?.[3] ?? '',
+      author: about?.[4] ?? '',
       status: '',
-      genres: about?.[1] ? [about[1]] : [],
+      // Both are filtered by: the kind (Manga, Manhwa, Webtoon...) as much as the genre.
+      genres: [...new Set([about?.[1], about?.[2]].map((one) => clean(one)).filter(Boolean))],
       description: this.description(doc),
       chapters,
     };
