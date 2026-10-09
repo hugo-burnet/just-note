@@ -1,7 +1,6 @@
 name: Android
 
-# Builds the installable app (Capacitor): the same screens as the web app, but it reads the
-# sites from the phone itself, so it needs no proxy.
+# Builds the app (Capacitor): it reads the sites from the phone itself.
 #
 # The APK is published as a pre-release called apk-latest, which each build replaces, so that
 # one address always gives the newest file (no zip to open). On a phone, tap:
@@ -16,7 +15,6 @@ on:
     paths:
       - 'src/**'
       - 'public/**'
-      - 'proxy/**'
       - 'android/**'
       - 'scripts/**'
       - 'index.html'

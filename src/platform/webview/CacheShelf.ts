@@ -8,8 +8,7 @@ const TEXTS = 'https://just-read.invalid/saved/';
 /**
  * The downloaded chapters, in a cache of the Cache API of their own (SAVED_CACHE), which the budgets of
  * what is read never trim. A picture is kept under its address (`keyOf` gives the form the platform's
- * reading looks it up by), so that the service worker on the web, and NativeImages in the app, find it there
- * first. `picture` gives the bytes of a picture: the copy kept while reading, else the network's.
+ * reading looks it up by), so that NativeImages finds it there first. `picture` gives the bytes of a picture: the copy kept while reading, else the network's.
  */
 export class CacheShelf implements OfflineShelf {
   private readonly picture: (address: string) => Promise<Response>;

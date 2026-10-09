@@ -6,8 +6,8 @@ import { ImageLoader, retried } from '../../src/ui/core/ImageLoader.ts';
 test('images: retry keeps blob addresses exact and places the HTTP cache key before any fragment', () => {
   assert.equal(retried('blob:https://app.test/image', 2), 'blob:https://app.test/image');
   assert.equal(retried('data:image/png;base64,AQID', 2), 'data:image/png;base64,AQID');
-  assert.equal(retried('https://proxy.test/api/img?u=picture#part', 2), 'https://proxy.test/api/img?u=picture&r=2#part');
-  assert.equal(retried('/api/img?u=picture&r=1#part', 2), '/api/img?u=picture&r=2#part');
+  assert.equal(retried('https://site.test/picture.jpg?v=1#part', 2), 'https://site.test/picture.jpg?v=1&r=2#part');
+  assert.equal(retried('/picture.jpg?v=1&r=1#part', 2), '/picture.jpg?v=1&r=2#part');
 });
 
 function setup() {

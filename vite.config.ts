@@ -1,16 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
-import { devProxy } from './scripts/vite/devProxy.ts';
 import { securityPolicy } from './scripts/vite/securityPolicy.ts';
-import { serviceWorker } from './scripts/vite/serviceWorker.ts';
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
-// A relative base lets the same build run from any path: GitHub Pages serves a
-// project site under /<repository>/, Capacitor serves it from its own origin.
+// The app's files, which Capacitor puts in the APK and serves from its own origin.
 export default defineConfig({
   base: './',
-  plugins: [devProxy(), securityPolicy(), serviceWorker('src/sw/main.ts')],
+  plugins: [securityPolicy()],
   define: { __APP_VERSION__: JSON.stringify(process.env.APP_VERSION ?? version) },
   build: {
     target: 'es2022',

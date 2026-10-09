@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import { devices } from 'playwright';
 import type { Context } from '../Context.ts';
 import { FANFOX_SERIES } from '../PretendFanFox.ts';
+import type {} from '../TestApp.ts';
 import { addByLink, leaveReader, revealChrome, settle, waitCounter, waitShown } from './helpers.ts';
 
-/** The installed app: it opens with no network, and what was read stays readable. */
+/** The installed app with its network cut: what was read, and what was downloaded, stays readable. */
 export async function offline({ browser, stage, runner }: Context): Promise<void> {
-  runner.heading('Offline, with the service worker');
+  runner.heading('Offline: what was read, and what was downloaded');
   const installed = await browser.newContext({ ...devices['Pixel 7'], locale: 'en-US', colorScheme: 'dark' });
   const page = runner.watch(await installed.newPage());
   const { step, shot } = { step: runner.step.bind(runner), shot: runner.shot.bind(runner) };
@@ -21,21 +22,8 @@ export async function offline({ browser, stage, runner }: Context): Promise<void
     }
   };
 
-  await step('the app installs its service worker and keeps its own files', async () => {
+  await step('read a chapter, so that it is kept', async () => {
     await page.goto(stage.appUrl);
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
-    await page.waitForFunction(async () => {
-      const name = (await caches.keys()).find((key) => key.startsWith('jr-shell-'));
-      return name !== undefined && (await (await caches.open(name)).keys()).length >= 11;
-    });
-    assert.equal(await page.evaluate(() => navigator.serviceWorker.controller !== null || true), true);
-  });
-
-  await step('read a chapter online, so that it is kept', async () => {
-    // The first load was not controlled yet: reload so that every request goes through the worker.
-    await page.reload();
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
-    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
     await page.getByRole('button', { name: 'Paste a link' }).click();
     await addByLink(page, FANFOX_SERIES);
     await page.locator('a.chapter', { hasText: 'Ch.001' }).click();
@@ -44,16 +32,10 @@ export async function offline({ browser, stage, runner }: Context): Promise<void
     await page.locator('.series-title').waitFor();
   });
 
-  await step('the images were kept as plain answers, not as opaque ones that eat the storage quota', async () => {
+  await step('its pictures were kept, under the addresses of the site', async () => {
     await page.waitForFunction(async () => (await (await caches.open('jr-img')).keys()).length >= 3);
-    const copies = await page.evaluate(async () => {
-      const cache = await caches.open('jr-img');
-      return Promise.all((await cache.keys()).map(async (request) => {
-        const response = await cache.match(request);
-        return { type: response?.type, bytes: response ? (await response.arrayBuffer()).byteLength : 0 };
-      }));
-    });
-    assert.ok(copies.length >= 3 && copies.every(({ type, bytes }) => (type === 'cors' || type === 'default') && bytes > 0), JSON.stringify(copies));
+    const kept = await cached('jr-img');
+    assert.ok(kept.filter((url) => url.includes('/c001/')).length >= 3, kept.join('\n'));
   });
 
   await step('answers that carry one-off tokens are not kept in the page cache', async () => {
@@ -100,7 +82,7 @@ export async function offline({ browser, stage, runner }: Context): Promise<void
   });
 
   await step('offline: the app, the series and the chapter you read still open', async () => {
-    await stage.goOffline();
+    await page.evaluate(() => (window.e2e.offline = true));
     await page.reload();
     await page.locator('.series-title').waitFor();
     assert.equal(await page.locator('a.chapter').count(), 5);
@@ -122,9 +104,10 @@ export async function offline({ browser, stage, runner }: Context): Promise<void
   await step('offline: a chapter that was never read says so instead of hanging', async () => {
     // Not Ch.002: reading Ch.001 to its end read it ahead.
     await page.locator('a.chapter', { hasText: /Ch\.003(?!\.5)/ }).click();
-    await page.locator('.error-panel h2', { hasText: /offline|Can't reach/i }).waitFor();
+    await page.locator('.error-panel h2', { hasText: /offline|Couldn't reach/i }).waitFor();
     await settle(page);
     await shot(page, '50-offline');
+    await page.evaluate(() => (window.e2e.offline = false));
   });
 
   await installed.close();

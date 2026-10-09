@@ -9,7 +9,7 @@ const ENGINE = fileURLToPath(new URL('../../src/engine/', import.meta.url));
 // Anything that reaches for the browser, the network or the disk by itself.
 const AMBIENT_GLOBALS = /\b(document|window|localStorage|sessionStorage|navigator|indexedDB|DOMParser|XMLHttpRequest|globalThis)\b|\bfetch\(/;
 // Anything outside the engine, except the platform-neutral standard library.
-const OUTSIDE_IMPORTS = /from\s+['"](?:node:|\.\.\/)+(?:\.\.\/)*(?:ui|platform|proxy|sw)\b|from\s+['"]node:/;
+const OUTSIDE_IMPORTS = /from\s+['"](?:node:|\.\.\/)+(?:\.\.\/)*(?:ui|platform)\b|from\s+['"]node:/;
 
 function* engineFiles(directory: string): Generator<string> {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {

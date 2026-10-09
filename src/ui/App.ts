@@ -1,6 +1,7 @@
+import type { Transport } from '../engine/index.ts';
 import { Catalog, CoverShelf, Downloads, GenreFilter, GenreShelf, inBackground, Library, Settings, SITES, SourceError, SourceRegistry, UpdateChecker } from '../engine/index.ts';
 import type { ResolvedLink } from '../engine/index.ts';
-import type { Connection, Platform } from '../platform/Platform.ts';
+import type { Platform } from '../platform/Platform.ts';
 import { AppSheets } from './components/AppSheets.ts';
 import { ColorSampler } from './components/ColorSampler.ts';
 import { Dock } from './components/Dock.ts';
@@ -11,7 +12,6 @@ import { Router } from './core/Router.ts';
 import type { ViewFactory } from './core/Router.ts';
 import { Routes } from './core/Routes.ts';
 import type { RouteName } from './core/Routes.ts';
-import { ShareTarget } from './core/ShareTarget.ts';
 import { ErrorPresenter } from './errors/ErrorPresenter.ts';
 import { I18n } from './i18n/I18n.ts';
 import { DiscoverView } from './views/DiscoverView.ts';
@@ -40,9 +40,8 @@ export class App implements AppContext {
   readonly downloads: Downloads;
   readonly genreFilter: GenreFilter;
   readonly discoverGenres: GenreFilter;
-  readonly transport: Connection;
+  readonly transport: Transport;
   readonly clipboard: Platform['clipboard'];
-  readonly usesProxy: boolean;
   readonly probe: Platform['probe'];
   readonly i18n = new I18n();
   readonly errors = new ErrorPresenter(this.i18n);
@@ -59,7 +58,6 @@ export class App implements AppContext {
     this.genreFilter = new GenreFilter(platform.store);
     this.discoverGenres = new GenreFilter(platform.store, 'discover');
     this.transport = platform.connect(
-      () => this.settings.get().proxyBase,
       () => ({
         statusLabel: this.i18n.t('challenge.checking'),
         readingLabel: this.i18n.t('challenge.reading'),
@@ -67,11 +65,10 @@ export class App implements AppContext {
       }),
     );
     this.clipboard = platform.clipboard;
-    this.usesProxy = platform.usesProxy;
     this.probe = platform.probe;
     const io = { transport: this.transport, parser: platform.parser };
     // A site that only a WebView can read is offered where the app has one.
-    const sites = SITES.filter((site) => !site.nativeOnly || !platform.usesProxy);
+    const sites = SITES;
     this.registry = new SourceRegistry(sites.map((site) => site.create(io)));
     // The same sources, for looking for new chapters behind the user's back: a site's human check is never shown for that.
     const quiet = new SourceRegistry(sites.map((site) => site.create({ ...io, transport: inBackground(this.transport) })));
@@ -98,9 +95,7 @@ export class App implements AppContext {
       this.dock.show(view.tab);
       this.appearance.setReading(view instanceof ReaderView);
     });
-    const shared = this.takeShared();
     this.router.start();
-    if (shared === false) this.toasts.show(this.i18n.t('link.unsupported'));
   }
 
   openLink(input: string): boolean {
@@ -118,10 +113,6 @@ export class App implements AppContext {
     return seriesLang === 'auto' ? this.i18n.current : seriesLang;
   }
 
-  checkProxy(): Promise<boolean> {
-    return this.transport.isHealthy();
-  }
-
   private screens(): ReadonlyMap<RouteName, ViewFactory> {
     return new Map<RouteName, ViewFactory>([
       ['library', () => new LibraryView(this)],
@@ -136,18 +127,5 @@ export class App implements AppContext {
     if (link.kind === 'chapter') return Routes.read(link.url);
     if (link.kind === 'series') return Routes.series(link.url);
     return Routes.discover({ source: link.source.id });
-  }
-
-  /**
-   * A link shared to the app opens straight away. Returns null when nothing was
-   * shared, false when something was but no source knows it. The address is
-   * cleaned either way, so that reloading does not open the link again.
-   */
-  private takeShared(): boolean | null {
-    const candidates = ShareTarget.candidates(location.search);
-    if (candidates.length === 0) return null;
-    const link = candidates.map((text) => this.registry.resolve(text)).find((found) => found !== null);
-    history.replaceState(null, '', `${location.pathname}${link ? this.addressOf(link) : location.hash}`);
-    return link !== undefined;
   }
 }

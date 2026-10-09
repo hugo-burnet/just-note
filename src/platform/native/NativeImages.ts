@@ -48,7 +48,7 @@ interface LiveImage {
 
 /**
  * The pictures of the sites, downloaded by the app (with the Referer their servers want)
- * and handed to <img> as blob: addresses. Like through the proxy, this never fails: when a
+ * and handed to <img> as blob: addresses. This never fails: when a
  * picture cannot be had the <img> is given the site's own address, fails by itself, and its
  * error event is what the screens react to (and a retry asks again from scratch).
  */

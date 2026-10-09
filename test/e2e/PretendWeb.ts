@@ -1,5 +1,3 @@
-import type { FetchFunction } from '../../proxy/UpstreamClient.ts';
-
 /** One made-up website: answers the requests that are for it, and leaves the others alone. */
 export interface Pretender {
   respond(url: URL): Response | null;
@@ -13,7 +11,7 @@ export interface Hit {
 export const page = (body: string, status = 200): Response =>
   new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8' } });
 
-/** The internet, as far as the proxy can see it in a test: a few pretend sites, and a record of what was asked of them. */
+/** The internet, as far as the app can see it in a test: a few pretend sites, and a record of what was asked of them. */
 export class PretendWeb {
   readonly hits: Hit[] = [];
   private readonly sites: readonly Pretender[];
@@ -22,9 +20,8 @@ export class PretendWeb {
     this.sites = sites;
   }
 
-  readonly fetch: FetchFunction = async (input, init) => {
-    const headers = init.headers as Record<string, string>;
-    this.hits.push({ url: input, referer: headers.referer ?? null });
+  readonly fetch = async (input: string, init: { readonly headers: Readonly<Record<string, string>> }): Promise<Response> => {
+    this.hits.push({ url: input, referer: init.headers['referer'] ?? null });
     const url = new URL(input);
     for (const site of this.sites) {
       const response = site.respond(url);

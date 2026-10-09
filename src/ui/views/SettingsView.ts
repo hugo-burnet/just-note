@@ -8,10 +8,10 @@ import { h } from '../core/dom.ts';
 import { View } from '../core/View.ts';
 import { languageName } from '../i18n/languages.ts';
 import type { PageProbe } from '../../platform/Platform.ts';
-import { CONTENT_CACHES, MAX_IMAGE_BYTES, MAX_PAGE_BYTES } from '../../platform/web/cacheNames.ts';
+import { CONTENT_CACHES, MAX_IMAGE_BYTES, MAX_PAGE_BYTES } from '../../platform/webview/cacheNames.ts';
 import { icon } from '../core/icons.ts';
 
-/** Appearance, reading, connection, data: grouped like the settings of a phone. */
+/** Appearance, reading, diagnostic, data: grouped like the settings of a phone. */
 export class SettingsView extends View {
   readonly tab = 'settings' as const;
   private readonly parts: Component[] = [];
@@ -81,7 +81,6 @@ export class SettingsView extends View {
             { value: 'rtl', label: i18n.t('reader.rtl') },
           ], (direction) => settings.set({ direction }))),
         ]),
-        ...(this.app.usesProxy ? [this.connection()] : []),
         ...(this.app.probe ? [this.diagnostic(this.app.probe)] : []),
         this.data(),
         h('footer', { class: 'settings-footer' }, h('p', { class: 'fineprint selectable' }, i18n.t('settings.privacy')),
@@ -89,36 +88,6 @@ export class SettingsView extends View {
       ),
     );
     this.app.router.restoreScroll();
-  }
-
-  private connection(): HTMLElement {
-    const { i18n, settings } = this.app;
-    const input = h('input', {
-      class: 'field',
-      type: 'text',
-      value: settings.get().proxyBase,
-      placeholder: 'https://…',
-      inputmode: 'url',
-      autocapitalize: 'off',
-      autocomplete: 'off',
-      spellcheck: 'false',
-      'aria-label': i18n.t('settings.proxy'),
-    });
-    const store = (): void => {
-      settings.set({ proxyBase: input.value.trim() });
-      // What the box shows is what is used: an emptied box shows the default again.
-      input.value = settings.get().proxyBase;
-    };
-    this.listen(input, 'change', store);
-
-    const status = h('span', { class: 'row-status', role: 'status' });
-    const test = h('button', { class: 'row-action pressable', type: 'button' }, h('span', null, i18n.t('settings.testProxy')), status);
-    this.listen(test, 'click', async () => {
-      store();
-      status.textContent = '…';
-      status.textContent = (await this.app.checkProxy()) ? i18n.t('settings.proxyOk') : i18n.t('settings.proxyFail');
-    });
-    return this.group('settings.connection', [this.row(i18n.t('settings.proxy'), input, i18n.t('settings.proxyHint')), test]);
   }
 
   private diagnostic(probe: PageProbe): HTMLElement {
@@ -191,7 +160,7 @@ export class SettingsView extends View {
     return h('div', { class: 'row' }, h('span', { class: 'row-label' }, label), control, hint ? h('p', { class: 'row-hint' }, hint) : null);
   }
 
-  private group(title: 'settings.appearance' | 'settings.reading' | 'settings.connection' | 'settings.diagnostic' | 'settings.data', rows: readonly HTMLElement[]): HTMLElement {
+  private group(title: 'settings.appearance' | 'settings.reading' | 'settings.diagnostic' | 'settings.data', rows: readonly HTMLElement[]): HTMLElement {
     return h('section', null, h('h2', { class: 'group-title' }, this.app.i18n.t(title)), h('div', { class: 'group' }, rows));
   }
 }

@@ -1,15 +1,14 @@
 # The Android reader
 
-The same build runs in a browser and inside Capacitor; `src/main.ts` picks the platform.
-`NativePlatform` reaches the sites with `CapacitorHttp`, the phone's own network stack: no
-CORS to obey, any Referer to send, so no proxy. It applies the proxy's rules (the same list
-of hosts, redirects checked one by one, the same size and type limits) and fails with the
-same codes, so the screens say the same things. Pictures are downloaded by the app (six at a time:
+`src/main.ts` composes the app over `NativePlatform`, which reaches the sites with `CapacitorHttp`,
+the phone's own network stack: no CORS to obey, any Referer to send. Only the hosts of the sites the
+app reads may be asked for (`HostPolicy`, from the same list the sources come from; redirects checked
+one by one), with size and type limits (`limits.ts`), and a refusal is a TransportError whose code the
+screens have words for. Pictures are downloaded by the app (six at a time:
 a chapter of two hundred pages is asked for as it nears the screen, not at once) and given
 to `<img>` as `blob:` addresses; a picture that could not be had says why under its *Retry* button
-("403 · host", `not_an_image`, `host_not_allowed`…). What is read is kept in the WebView's Cache API under the
-service worker's cache names (so *Settings → Data* empties both), and the service worker is
-not registered. The proxy address setting is hidden. *Settings → Diagnostic* is the Probe
+("403 · host", `not_an_image`, `host_not_allowed`…). What is read is kept in the WebView's Cache API (`cacheNames.ts`), which *Settings → Data*
+empties. *Settings → Diagnostic* is the Probe
 workflow, from the phone: it fetches any https address (one per line, one report) with the
 phone's own network, and through a WebView when an anti-bot check turns that away, and gives
 a short report to copy: how the page describes itself, the kinds of page it links to with the
@@ -51,7 +50,7 @@ being read. A source asks for this with `transport.render(url, { pictures: selec
 show are counted, a page may keep others hidden. The script waits for as many pictures as places, but for a
 few seconds only when they stay fewer, as a page may number other things the same way; one that runs out of
 time with fewer pictures than places fails, as the top of a chapter is not the chapter), which only the
-installed app has; a module that needs it says `nativeOnly` and is left out of the browser build.
+app has.
 
 A chapter link pasted from Scan-Manga does not name its series (its address has no room for the
 series' number), so the reader asks the source to complete it (`Source.complete`): the page of

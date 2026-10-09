@@ -9,11 +9,9 @@ const i18n = new I18n();
 i18n.setLanguage('en');
 const presenter = new ErrorPresenter(i18n);
 
-test('errors: each failure of the proxy or of a source has words of its own', () => {
+test('errors: each failure of the network or of a source has words of its own', () => {
   const cases: Array<[unknown, string]> = [
     [new TransportError('offline', 'x'), "You're offline"],
-    [new TransportError('network', 'x'), "Can't reach the app's server"],
-    [new TransportError('no_proxy', 'x'), "Can't reach the app's server"],
     [new TransportError('host_not_allowed', 'x', { host: 'evil.test' }), 'Blocked address'],
     [new TransportError('timeout', 'x'), 'The site took too long'],
     [new SourceError('blocked', 'x'), 'The site asked for a human check'],
@@ -25,11 +23,11 @@ test('errors: each failure of the proxy or of a source has words of its own', ()
   for (const [error, title] of cases) assert.equal(presenter.describe(error).title, title);
 });
 
-test('errors: a proxy that does not answer is named, so that a wrong address is easy to spot', () => {
-  const hint = presenter.describe(new TransportError('no_proxy', 'HTTP 404', { status: 404, proxy: 'https://you.github.io' })).hint;
-  assert.match(hint, /the app asked https:\/\/you\.github\.io\)/);
-  const report = JSON.parse(presenter.report(new TransportError('no_proxy', 'HTTP 404', { proxy: 'https://you.github.io' }))) as Record<string, unknown>;
-  assert.equal(report.proxy, 'https://you.github.io');
+test('errors: a host the app does not read is named, to be added to its site', () => {
+  const hint = presenter.describe(new TransportError('host_not_allowed', 'x', { host: 'cdn.example.net' })).hint;
+  assert.match(hint, /^cdn\.example\.net isn't one of the addresses/);
+  const report = JSON.parse(presenter.report(new TransportError('host_not_allowed', 'x', { host: 'cdn.example.net' }))) as Record<string, unknown>;
+  assert.equal(report.host, 'cdn.example.net');
 });
 
 test('errors: what the site answered decides between refused, not found and the rest', () => {

@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { buildSync } from 'esbuild';
 import type { Context } from '../Context.ts';
 import type {} from '../RegressionApp.ts';
 import { FANFOX_SERIES } from '../PretendFanFox.ts';
-import { settle } from './helpers.ts';
+import { dismissSheet, settle } from './helpers.ts';
 
 const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 
@@ -28,12 +27,10 @@ export async function backupAndDesign({ browser, stage, runner }: Context): Prom
       library.markRead(url, 'c001');
     }, FANFOX_SERIES);
     await page.goto(`${stage.appUrl}#/settings`);
-    await step('export downloads a portable file with progress and finished chapters', async () => {
-      const downloaded = page.waitForEvent('download');
+    await step('export shows a portable backup with progress and finished chapters, to copy', async () => {
       await page.getByRole('button', { name: 'Export library', exact: true }).click();
-      const download = await downloaded;
-      assert.match(download.suggestedFilename(), /^just-read-\d{4}-\d{2}-\d{2}\.json$/);
-      raw = await readFile((await download.path())!, 'utf8');
+      raw = await page.locator('.backup-text').inputValue();
+      await dismissSheet(page);
       const data = JSON.parse(raw);
       assert.equal(data.entries[0].position.page, 7);
       assert.deepEqual(data.entries[0].finished, ['c001']);
@@ -89,16 +86,14 @@ export async function backupAndDesign({ browser, stage, runner }: Context): Prom
       assert.ok(left && right && Math.abs(left.y - right.y) < 2 && right.x > left.x + left.width);
       await runner.shot(page, '62-settings-desktop');
     });
-    await step('web and native CacheStorage obey byte budgets under concurrent downloads', async () => {
+    await step('CacheStorage obeys its byte budget under concurrent downloads', async () => {
       await page.addScriptTag({ url: new URL('regressions.js', stage.appUrl).href, type: 'module' });
       await page.waitForFunction(() => !!window.regression);
-      for (const kind of ['native', 'worker'] as const) {
-        const result = await page.evaluate((kind) => window.regression.cacheBudget(kind), kind);
-        assert.deepEqual(result.keys.map((key) => new URL(key).pathname), ['/budget/b', '/budget/c']);
-        assert.equal(result.bytes, 8);
-        assert.equal(result.readable, '3333');
-        assert.equal(result.original, '3333');
-      }
+      const result = await page.evaluate(() => window.regression.cacheBudget());
+      assert.deepEqual(result.keys.map((key) => new URL(key).pathname), ['/budget/b', '/budget/c']);
+      assert.equal(result.bytes, 8);
+      assert.equal(result.readable, '3333');
+      assert.equal(result.original, '3333');
     });
     await step('the native export presents selectable JSON and copies the same backup', async () => {
       await page.evaluate(() => window.regression.showNativeBackup());

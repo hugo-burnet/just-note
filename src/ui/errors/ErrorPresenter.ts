@@ -12,15 +12,12 @@ interface ErrorLike {
   status?: number;
   upstreamStatus?: number;
   host?: string;
-  proxy?: string;
   debug?: unknown;
 }
 
 // Which text (error.<name>.title / .hint) goes with which code.
 const TEXT_FOR_CODE: Readonly<Record<string, string>> = {
   offline: 'offline',
-  network: 'noProxy',
-  no_proxy: 'noProxy',
   host_not_allowed: 'hostNotAllowed',
   timeout: 'timeout',
   blocked: 'blocked',
@@ -48,7 +45,7 @@ export class ErrorPresenter {
       const status = failure.upstreamStatus;
       name = status === 403 || status === 503 ? 'refused' : status === 404 ? 'notFound' : 'upstream';
     }
-    const params = { host: failure.host ?? '', status: failure.upstreamStatus ?? '', proxy: failure.proxy ?? '' };
+    const params = { host: failure.host ?? '', status: failure.upstreamStatus ?? '' };
     const title = name ? this.i18n.lookup(`error.${name}.title`, params) : undefined;
     const hint = name ? this.i18n.lookup(`error.${name}.hint`, params) : undefined;
     return {
@@ -68,7 +65,6 @@ export class ErrorPresenter {
         status: failure.status,
         upstreamStatus: failure.upstreamStatus,
         host: failure.host,
-        proxy: failure.proxy,
         debug: failure.debug,
         page: location.hash,
         agent: navigator.userAgent,

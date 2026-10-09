@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { HostPolicy } from '../../proxy/HostPolicy.ts';
+import { HostPolicy } from '../../src/platform/native/HostPolicy.ts';
 import { TransportError } from '../../src/engine/index.ts';
 import { ChallengeGate } from '../../src/platform/native/ChallengeGate.ts';
 import { CredentialJar } from '../../src/platform/native/CredentialJar.ts';

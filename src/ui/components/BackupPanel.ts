@@ -4,7 +4,7 @@ import { Component } from '../core/Component.ts';
 import { h } from '../core/dom.ts';
 import { icon } from '../core/icons.ts';
 
-type BackupContext = Pick<AppContext, 'library' | 'i18n' | 'usesProxy' | 'toasts'> & {
+type BackupContext = Pick<AppContext, 'library' | 'i18n' | 'toasts'> & {
   readonly clipboard: Pick<AppContext['clipboard'], 'writeText'>;
   readonly sheets: Pick<AppContext['sheets'], 'present'>;
 };
@@ -23,25 +23,14 @@ export class BackupPanel extends Component {
       h('div', { class: 'backup-actions' }, exportButton, importButton), input, status));
 
     this.listen(exportButton, 'click', () => {
+      // A WebView does not save a download anywhere one can find it: the backup is shown, to be copied.
       const raw = app.library.exportBackup();
-      if (!app.usesProxy) {
-        const text = h('textarea', { class: 'backup-text selectable', readonly: true, 'aria-label': i18n.t('settings.backupTitle') }, raw);
-        const copy = h('button', { class: 'btn btn-primary pressable', type: 'button' }, i18n.t('settings.copyBackup'));
-        copy.addEventListener('click', async () => {
-          app.toasts.show(i18n.t(await app.clipboard.writeText(raw) ? 'settings.backupCopied' : 'diagnostic.copyFailed'));
-        });
-        app.sheets.present({ title: i18n.t('settings.exportLibrary'), body: h('div', { class: 'stack' }, text, copy) });
-        return;
-      }
-      const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
-      const link = h('a', { href: url, download: `just-read-${new Date().toISOString().slice(0, 10)}.json` });
-      this.root.append(link);
-      link.click();
-      link.remove();
-      this.after(1000, () => URL.revokeObjectURL(url));
-      this.own(() => URL.revokeObjectURL(url));
-      status.textContent = i18n.t('settings.backupExported');
-      status.dataset.error = 'false';
+      const text = h('textarea', { class: 'backup-text selectable', readonly: true, 'aria-label': i18n.t('settings.backupTitle') }, raw);
+      const copy = h('button', { class: 'btn btn-primary pressable', type: 'button' }, i18n.t('settings.copyBackup'));
+      copy.addEventListener('click', async () => {
+        app.toasts.show(i18n.t(await app.clipboard.writeText(raw) ? 'settings.backupCopied' : 'diagnostic.copyFailed'));
+      });
+      app.sheets.present({ title: i18n.t('settings.exportLibrary'), body: h('div', { class: 'stack' }, text, copy) });
     });
     this.listen(importButton, 'click', () => input.click());
     this.listen(input, 'change', async () => {

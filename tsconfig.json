@@ -25,12 +25,8 @@
   },
   "include": [
     "src",
-    "proxy",
     "test",
     "scripts",
     "vite.config.ts"
-  ],
-  "exclude": [
-    "src/sw"
   ]
 }

@@ -26,9 +26,9 @@ function oklabAB(r: number, g: number, b: number): [number, number] {
 
 /**
  * Finds the dominant colour of a cover, so that the page it opens can be lit
- * with it. Reading pixels needs the image to be served with CORS headers (the
- * proxy does so for the app's own origin); when it is not, there is simply no
- * tint and the page keeps the app's accent.
+ * with it. Reading pixels needs an image the page may read (the blob: addresses
+ * the app makes for the pictures it downloads itself); when it may not, there is
+ * simply no tint and the page keeps the app's accent.
  */
 export class ColorSampler {
   private readonly cache = new Map<string, Tint | null>();

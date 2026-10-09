@@ -1,7 +1,6 @@
-import { HostPolicy } from '../../../proxy/HostPolicy.ts';
-import type { Target } from '../../../proxy/HostPolicy.ts';
-import { ProxyError } from '../../../proxy/ProxyError.ts';
-import { USER_AGENT } from '../../../proxy/UpstreamClient.ts';
+import { HostPolicy } from './HostPolicy.ts';
+import type { Target } from './HostPolicy.ts';
+import { USER_AGENT } from './limits.ts';
 import { TransportError } from '../../engine/index.ts';
 import type { Credentials } from './CredentialJar.ts';
 import type { NativeHttp, NativeResponse } from './NativeHttp.ts';
@@ -14,7 +13,7 @@ export interface Fetched {
   readonly url: URL;
 }
 
-/** Decides which addresses may be asked for, and what Referer goes with each. The proxy's HostPolicy is one. */
+/** Decides which addresses may be asked for, and what Referer goes with each (a TransportError for one that may not). HostPolicy is one. */
 export interface Policy {
   parse(value: string | null): Target;
 }
@@ -35,9 +34,9 @@ const MAX_REDIRECTS = 5;
 const TIMEOUT_MS = 30_000;
 
 /**
- * Reaches the sites the way the proxy does, but from the phone itself: only the hosts of
- * the listed sites (every redirect checked too), with the Referer their image servers
- * expect. It fails with the same codes as the proxy, so the screens say the same things.
+ * Reaches the sites from the phone itself: only the hosts of the listed sites (every redirect
+ * checked too), with the Referer their image servers expect. It fails with TransportErrors whose
+ * codes the screens have words for.
  */
 export class SiteClient implements Sites {
   private readonly http: NativeHttp;
@@ -98,13 +97,7 @@ export class SiteClient implements Sites {
   }
 
   private parse(address: string): Target {
-    try {
-      return this.policy.parse(address);
-    } catch (error) {
-      if (!(error instanceof ProxyError)) throw error;
-      const host = error.extra['host'];
-      throw new TransportError(error.code, error.message, { host: typeof host === 'string' ? host : undefined });
-    }
+    return this.policy.parse(address);
   }
 
   // A Referer the caller asks for must itself be an allowed host.

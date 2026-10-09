@@ -1,6 +1,6 @@
 name: Probe
 
-# Fetches a few pages the way the proxy does and prints what came back, so that a site
+# Fetches a few pages from GitHub's machines and prints what came back, so that a site
 # adapter can be written against the real thing, not a guess. Run it by hand from the
 # Actions tab ("Run workflow"), one address per line; the answers are in the log.
 on:

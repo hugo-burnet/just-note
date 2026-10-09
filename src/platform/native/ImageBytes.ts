@@ -1,4 +1,4 @@
-import { IMAGE_TYPES, MAX_IMAGE_BYTES } from '../../../proxy/limits.ts';
+import { IMAGE_TYPES, MAX_IMAGE_BYTES } from './limits.ts';
 import { TransportError } from '../../engine/index.ts';
 
 const ascii = (bytes: Uint8Array, from: number, text: string): boolean => [...text].every((letter, i) => bytes[from + i] === letter.charCodeAt(0));
@@ -15,7 +15,7 @@ export function sniff(bytes: Uint8Array): string {
 
 /**
  * A picture from the base64 the phone's network stack, or the WebView, hands across. Only the
- * raster formats the proxy lets through, and no more than it lets through. With `sniffing`, a
+ * raster formats, and no more than MAX_IMAGE_BYTES (see limits.ts). With `sniffing`, a
  * type that is missing or wrong is told from the bytes (a page that decrypted a picture
  * itself made the blob with no type); an answer from a site is believed or refused, not guessed at.
  */

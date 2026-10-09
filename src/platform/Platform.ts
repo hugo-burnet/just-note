@@ -41,15 +41,9 @@ export interface PageProbe {
   fetch(address: string, options?: FetchOptions): Promise<string>;
 }
 
-/** How the app reaches the sites, and whether that works right now. */
-export interface Connection extends Transport {
-  isHealthy(): Promise<boolean>;
-}
-
 /**
- * Everything the app takes from the machine it runs on. The browser provides it
- * today (see web/); Capacitor will provide its own, with a transport that needs
- * no proxy, and the engine and the screens will not notice.
+ * Everything the app takes from the machine it runs on: the phone, through Capacitor (see native/). Tests
+ * give it fakes, and the engine and the screens do not notice.
  */
 export interface Platform {
   readonly store: KeyValueStore;
@@ -57,13 +51,8 @@ export interface Platform {
   readonly clipboard: Clipboard;
   /** Where this platform's defaults differ from the engine's. */
   readonly defaults: Partial<SettingsValues>;
-  /** Whether the sites are reached through a proxy the user can point elsewhere (the browser), or directly (the installed app). */
-  readonly usesProxy: boolean;
-  /** null where there is no WebView of the app's own to pass an anti-bot check with (the browser). */
+  /** null where there is no WebView of the app's own to look at a page with (a test). */
   readonly probe: PageProbe | null;
-  /**
-   * `proxyBase` reads the setting each time, so a change applies at once. `dialog` is what the user is
-   * told while a WebView checks a site (only where there is one), in the language of the app.
-   */
-  connect(proxyBase: () => string, dialog: () => DialogLabels): Connection;
+  /** How the app reaches the sites. `dialog` is what the user is told while a WebView checks a site, in the language of the app. */
+  connect(dialog: () => DialogLabels): Transport;
 }

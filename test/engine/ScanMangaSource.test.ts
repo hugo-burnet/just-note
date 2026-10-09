@@ -205,6 +205,6 @@ test('getChapter says what is wrong when a chapter has no pictures, or when the 
     (error: unknown) => error instanceof SourceError && error.code === 'no_pages' && error.debug['pageTitle'] === 'Chapitre 3',
   );
   await assert.rejects(() => empty('<title>Just a moment...</title>').getChapter(chapterAddress(LANTERN, '3')), { code: 'blocked' });
-  // Through the proxy there is no such browser: the pictures cannot be had.
+  // With no WebView there is no such browser: the pictures cannot be had.
   await assert.rejects(() => scanmanga({}).source.getChapter(chapterAddress(LANTERN, '3')), { code: 'unsupported' });
 });

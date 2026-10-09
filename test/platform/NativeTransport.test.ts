@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { USER_AGENT } from '../../proxy/UpstreamClient.ts';
+import { USER_AGENT } from '../../src/platform/native/limits.ts';
 import { TransportError } from '../../src/engine/index.ts';
 import type { NativeRequest } from '../../src/platform/native/NativeHttp.ts';
 import { MAX_LIVE_IMAGES, NativeImages } from '../../src/platform/native/NativeImages.ts';
@@ -204,8 +204,4 @@ test('native transport: the oldest picture addresses are let go past the limit, 
   await settle();
   assert.deepEqual(blobs.revoked, [1, 2, 3, 4, 5].map((n) => `blob:test/${n}`));
   assert.equal(await transport.imageSource(`${PICTURE}?n=${total - 1}`), `blob:test/${total}`);
-});
-
-test('native transport: with no proxy to ask, it is healthy as long as the network is', async () => {
-  assert.equal(await setup(() => page('x')).transport.isHealthy(), true);
 });

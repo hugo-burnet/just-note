@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { HostPolicy } from '../../proxy/HostPolicy.ts';
+import { HostPolicy } from '../../src/platform/native/HostPolicy.ts';
 import { SITES } from '../../src/engine/index.ts';
 import { FakeTransport, LinkedomParser } from './helpers.ts';
 
@@ -144,7 +144,7 @@ test('sites: a source claims nothing that is not its own', () => {
   }
 });
 
-test('sites: the proxy allows everything a site reads, and sends the site\'s Referer', () => {
+test('sites: the app may reach everything a site reads, and sends the site\'s Referer', () => {
   for (const site of SITES) {
     const source = site.create(io);
     const sample = SAMPLES[site.id];

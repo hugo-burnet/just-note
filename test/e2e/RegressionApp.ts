@@ -1,11 +1,9 @@
 import { Library } from '../../src/engine/library/Library.ts';
 import { CacheApiStore } from '../../src/platform/native/ResponseStore.ts';
-import { CacheBudget } from '../../src/platform/web/CacheBudget.ts';
-import { ResponseCache } from '../../src/sw/ResponseCache.ts';
 import { NativeImages } from '../../src/platform/native/NativeImages.ts';
 import { NativeTransport } from '../../src/platform/native/NativeTransport.ts';
 import { SiteClient } from '../../src/platform/native/SiteClient.ts';
-import { LocalStorageStore } from '../../src/platform/web/LocalStorageStore.ts';
+import { LocalStorageStore } from '../../src/platform/webview/LocalStorageStore.ts';
 import { PagedMode } from '../../src/ui/views/reader/PagedMode.ts';
 import type { ReadingSurface, SurfaceOptions } from '../../src/ui/views/reader/ReadingSurface.ts';
 import { ScrollMode } from '../../src/ui/views/reader/ScrollMode.ts';
@@ -21,7 +19,7 @@ interface RegressionApp {
   reader: ReadingSurface | null;
   copied: string;
   showNativeBackup(): void;
-  cacheBudget(kind: 'native' | 'worker'): Promise<{ keys: string[]; bytes: number; readable: string; original: string }>;
+  cacheBudget(): Promise<{ keys: string[]; bytes: number; readable: string; original: string }>;
   openNative(mode: 'paged' | 'scroll', count: number): void;
 }
 
@@ -40,16 +38,16 @@ const regression: RegressionApp = {
   showNativeBackup() {
     const i18n = new I18n();
     const app: ConstructorParameters<typeof BackupPanel>[0] = {
-      library: this.library, i18n, usesProxy: false,
+      library: this.library, i18n,
       clipboard: { writeText: async (raw: string) => { this.copied = raw; return true; } },
       toasts: { show: () => {} }, sheets: { present: (options) => new Sheet(document.body, options) },
     };
     document.body.replaceChildren(new BackupPanel(app).root);
   },
-  async cacheBudget(kind) {
-    const name = `regression-${kind}`;
+  async cacheBudget() {
+    const name = 'regression-native';
     await caches.delete(name);
-    const store = kind === 'native' ? new CacheApiStore(name, 10, 9) : new ResponseCache(name, new CacheBudget(10, 9));
+    const store = new CacheApiStore(name, 10, 9);
     const urls = ['a', 'b', 'c'].map((key) => `https://fanfox.net/budget/${key}`);
     const original = new Response('3333', { headers: { 'content-length': '1' } });
     await Promise.all(urls.map((key, index) => store.put(key, index === 2 ? original : new Response('1111'))));

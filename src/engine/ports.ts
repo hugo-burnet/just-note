@@ -65,7 +65,7 @@ export interface Transport {
   imageProblem?(url: string): string | undefined;
   /**
    * Shows the page in a browser of the app's own, scrolled as a reader would, and collects the pictures
-   * its scripts built. Only where there is one (the installed app); the proxy cannot.
+   * its scripts built. Only where there is one (the installed app has its WebView).
    */
   render?(url: string, request: RenderRequest): Promise<RenderedPage>;
   /** Where chapters are downloaded to, where the platform can keep them. */

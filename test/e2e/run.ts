@@ -1,6 +1,6 @@
-// End-to-end check of the built app in Chromium, laid out like the real deployment
-// (see Stage.ts), with pretend FanFox and WEBTOON sites behind the proxy: no network,
-// made-up titles, generated images. Screenshots land in test-output/ for a human to look at.
+// End-to-end check of the APK's build in Chromium (see Stage.ts), with pretend sites
+// answering what it would ask of the phone's network: no real site, made-up titles,
+// generated images. Screenshots land in test-output/ for a human to look at.
 //   npm run test:e2e              everything
 //   npm run test:e2e -- fanfox    one flow
 // Needs Playwright's Chromium (npx playwright install chromium).
@@ -14,7 +14,6 @@ import { readLelScan } from './flows/lelscan.ts';
 import { nativeSources } from './flows/nativeSources.ts';
 import { offline } from './flows/offline.ts';
 import { regressions } from './flows/regressions.ts';
-import { update } from './flows/update.ts';
 import { readWebtoon } from './flows/webtoon.ts';
 import { Pictures } from './Pictures.ts';
 import { PretendFanFox } from './PretendFanFox.ts';
@@ -24,7 +23,6 @@ import { PretendWebtoon } from './PretendWebtoon.ts';
 import { Runner } from './Runner.ts';
 import { Stage } from './Stage.ts';
 
-// The offline flow has to come last: it takes the servers away.
 const FLOWS: ReadonlyArray<readonly [string, (context: Context) => Promise<void>]> = [
   ['fanfox', readFanFox],
   ['webtoon', readWebtoon],
@@ -34,7 +32,6 @@ const FLOWS: ReadonlyArray<readonly [string, (context: Context) => Promise<void>
   ['regressions', regressions],
   ['native-sources', nativeSources],
   ['backup', backupAndDesign],
-  ['update', update],
   ['offline', offline],
 ];
 
@@ -52,5 +49,5 @@ for (const [name, flow] of FLOWS) {
   if (!only || only === name) await flow({ browser, stage, web, runner });
 }
 await browser.close();
-await stage.goOffline();
+await stage.close();
 process.exit(runner.finish());

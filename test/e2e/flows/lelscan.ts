@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { devices } from 'playwright';
 import { chapterAddress, GARDEN, LELSCAN, SERIES, seriesAddress } from '../../pretend/lelscanPages.ts';
 import type { Context } from '../Context.ts';
-import { addByLink, counter, leaveReader, settle, waitCounter } from './helpers.ts';
+import { numberIn } from '../Pictures.ts';
+import { addByLink, counter, leaveReader, settle, waitCounter, waitShown } from './helpers.ts';
 
 /** Reading LelScan, French scans: a listing with no search of its own, and a chapter that is one page of HTML per image. */
 export async function readLelScan({ browser, stage, web, runner }: Context): Promise<void> {
@@ -11,11 +12,8 @@ export async function readLelScan({ browser, stage, web, runner }: Context): Pro
   const page = runner.watch(await phone.newPage());
   const { step, shot } = { step: runner.step.bind(runner), shot: runner.shot.bind(runner) };
   // The page being shown is the one whose file is named, and it is drawn.
-  const shown = (file: string): Promise<unknown> =>
-    page.waitForFunction((wanted) => {
-      const image = document.querySelector<HTMLImageElement>('.paged img.single');
-      return image !== null && image.naturalWidth > 0 && decodeURIComponent(image.currentSrc).includes(wanted);
-    }, file);
+  // The pretend site draws the picture its file names ("…/02.jpg" is picture 2, "00.jpg" picture 1): see Pictures.ts.
+  const shown = (file: string): Promise<unknown> => waitShown(page, Math.max(1, numberIn(file)));
 
   await step('Explorer lists the series of the site with their covers, and says the catalogue is in French', async () => {
     await page.goto(`${stage.appUrl}#/discover?src=lelscan`);

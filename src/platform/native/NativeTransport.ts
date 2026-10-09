@@ -1,16 +1,16 @@
-import { HostPolicy } from '../../../proxy/HostPolicy.ts';
-import { MAX_HTML_BYTES } from '../../../proxy/limits.ts';
+import { HostPolicy } from './HostPolicy.ts';
+import { MAX_HTML_BYTES } from './limits.ts';
 import { TransportError } from '../../engine/index.ts';
-import type { FetchedText, ImageResource, RenderedPage, RenderRequest, TextRequest } from '../../engine/index.ts';
-import type { Connection, DialogLabels } from '../Platform.ts';
-import { IMAGE_CACHE, MAX_IMAGES, MAX_PAGES, MAX_IMAGE_BYTES, MAX_PAGE_BYTES, PAGE_CACHE } from '../web/cacheNames.ts';
+import type { FetchedText, ImageResource, RenderedPage, RenderRequest, TextRequest, Transport } from '../../engine/index.ts';
+import type { DialogLabels } from '../Platform.ts';
+import { IMAGE_CACHE, MAX_IMAGES, MAX_PAGES, MAX_IMAGE_BYTES, MAX_PAGE_BYTES, PAGE_CACHE } from '../webview/cacheNames.ts';
 import { ChallengeGate } from './ChallengeGate.ts';
 import type { PageRenderer } from './ChallengeGate.ts';
 import { CredentialJar } from './CredentialJar.ts';
 import { imageFromBase64 } from './ImageBytes.ts';
 import type { NativeHttp } from './NativeHttp.ts';
 import { browserBlobUrls, NativeImages } from './NativeImages.ts';
-import { CacheShelf } from '../web/CacheShelf.ts';
+import { CacheShelf } from '../webview/CacheShelf.ts';
 import type { PageFetcher } from './PageFetcher.ts';
 import { CacheApiStore } from './ResponseStore.ts';
 import type { ResponseStore } from './ResponseStore.ts';
@@ -18,13 +18,13 @@ import { SiteClient } from './SiteClient.ts';
 import type { Sites } from './SiteClient.ts';
 
 /**
- * The installed app's way to reach the sites: straight from the phone, with no proxy. What
- * was read is kept (pages and pictures), as the service worker does on the web: the last
+ * The installed app's way to reach the sites: straight from the phone. What
+ * was read is kept (pages and pictures): the last
  * copy of a page stands in for a site that cannot be reached or that refuses the request.
  */
-export class NativeTransport implements Connection {
+export class NativeTransport implements Transport {
   /** Only with a WebView to show the page in (see PageRenderer). */
-  readonly render: Connection['render'];
+  readonly render: Transport['render'];
   private readonly client: Sites;
   private readonly pages: ResponseStore;
   private readonly images: NativeImages;
@@ -110,11 +110,6 @@ export class NativeTransport implements Connection {
     } catch {
       return undefined;
     }
-  }
-
-  /** There is no proxy to ask: the app is as healthy as its network. */
-  async isHealthy(): Promise<boolean> {
-    return typeof navigator === 'undefined' || navigator.onLine !== false;
   }
 }
 

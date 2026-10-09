@@ -2,8 +2,8 @@ import { SiteClient } from '../../src/platform/native/SiteClient.ts';
 import { NativeImages } from '../../src/platform/native/NativeImages.ts';
 import { NativeTransport } from '../../src/platform/native/NativeTransport.ts';
 import { CacheApiStore } from '../../src/platform/native/ResponseStore.ts';
-import { BrowserParser } from '../../src/platform/web/BrowserParser.ts';
-import { LocalStorageStore } from '../../src/platform/web/LocalStorageStore.ts';
+import { BrowserParser } from '../../src/platform/webview/BrowserParser.ts';
+import { LocalStorageStore } from '../../src/platform/webview/LocalStorageStore.ts';
 import { App } from '../../src/ui/App.ts';
 import * as scan from '../pretend/scanmangaPages.ts';
 import * as sushi from '../pretend/sushiscanPages.ts';
@@ -69,7 +69,7 @@ const transport = new NativeTransport(client, new CacheApiStore('jr-native-fixtu
 const outlet = document.getElementById('app')!;
 const toasts = document.getElementById('toasts')!;
 const app = new App({
-  store: new LocalStorageStore(), parser: new BrowserParser(), defaults: { lang: 'fr' }, usesProxy: false, probe: null,
+  store: new LocalStorageStore(), parser: new BrowserParser(), defaults: { lang: 'fr' }, probe: null,
   clipboard: { readText: async () => null, writeText: async () => true }, connect: () => transport,
 }, { outlet, toasts });
 window.nativeSources = { app, revoked: state.revoked, captured: state.captured,

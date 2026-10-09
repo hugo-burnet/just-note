@@ -18,7 +18,7 @@ export async function nativeSources({ browser, stage, runner }: Context): Promis
   const step = runner.step.bind(runner);
   try {
     // Start the native composition instead of the browser composition, retaining the production HTML and styles.
-    await page.route(/\/assets\/index-[^/]+\.js$/, (route) => route.abort());
+    await page.route(/\/test-app\.js$/, (route) => route.abort());
     await page.goto(stage.appUrl);
     await page.addScriptTag({ url: new URL('native-sources.js', stage.appUrl).href, type: 'module' });
     await page.waitForFunction(() => !!window.nativeSources);

@@ -12,30 +12,14 @@ export async function browseAndSettings({ browser, stage, runner }: Context): Pr
   const { step, shot } = { step: runner.step.bind(runner), shot: runner.shot.bind(runner) };
   const dock = (name: string) => page.locator(`nav.dock a[aria-label="${name}"]`);
 
-  await step('an empty proxy address saved by an older version does not hide the one the build brings', async () => {
+  await step('a proxy address saved by a version that had one is forgotten, and the rest stays', async () => {
     await page.goto(stage.appUrl);
-    await page.evaluate(() => localStorage.setItem('jr:settings', JSON.stringify({ proxyBase: '', theme: 'dark' })));
+    await page.evaluate(() => localStorage.setItem('jr:settings', JSON.stringify({ proxyBase: 'https://proxy.example', theme: 'dark' })));
     await page.goto(`${stage.appUrl}#/discover`);
     await page.reload();
     await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 3);
-  });
-
-  await step('a proxy that is not ours is named in the error, and emptying the box brings the default back', async () => {
-    const own = new URL(stage.appUrl).origin;
-    const input = page.locator('input[aria-label="Proxy address"]');
-    await page.goto(`${stage.appUrl}#/settings`);
-    assert.equal(await input.inputValue(), stage.proxyOrigin, 'the box shows the address in use');
-    await input.fill(own);
-    await input.press('Tab');
-    await page.goto(`${stage.appUrl}#/discover?src=webtoon`);
-    await page.locator('.error-panel').waitFor();
-    assert.ok((await page.locator('.error-panel').innerText()).includes(`the app asked ${own})`));
-    await page.goto(`${stage.appUrl}#/settings`);
-    await input.fill('');
-    await input.press('Tab');
-    assert.equal(await input.inputValue(), stage.proxyOrigin, 'an emptied box shows the default again');
-    await page.goto(`${stage.appUrl}#/discover?src=webtoon`);
-    await page.waitForFunction(() => document.querySelectorAll('.grid .card').length === 3);
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
+    assert.equal(await page.locator('input[aria-label="Proxy address"]').count(), 0);
   });
 
   await step('Discover lists what the source shows; searching narrows it down', async () => {
@@ -138,22 +122,6 @@ export async function browseAndSettings({ browser, stage, runner }: Context): Pr
     await page.reload();
     await chosen('Mode', 'Auto').waitFor();
     await chosen('Direction', 'Auto').waitFor();
-  });
-
-  await step('the proxy answers the connection test', async () => {
-    await page.getByRole('button', { name: 'Test connection' }).click();
-    await page.getByText('Connected', { exact: true }).waitFor();
-  });
-
-  await step('a proxy that does not answer is reported', async () => {
-    const input = page.locator('input[aria-label="Proxy address"]');
-    const original = await input.inputValue();
-    await input.fill('http://127.0.0.1:1');
-    await page.getByRole('button', { name: 'Test connection' }).click();
-    await page.getByText("Can't reach the proxy").waitFor();
-    await input.fill(original);
-    await page.getByRole('button', { name: 'Test connection' }).click();
-    await page.getByText('Connected', { exact: true }).waitFor();
   });
 
   await step('the light theme applies, and is kept after a reload', async () => {

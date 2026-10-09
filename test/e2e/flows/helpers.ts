@@ -42,10 +42,27 @@ export async function scrollToFrame(page: Page, index: number): Promise<void> {
 }
 
 /** Waits until the page shown in turned-page mode is the nth image of the chapter, and drawn. */
+/**
+ * Waits for the n-th picture of a chapter to be the one on screen. The app shows pictures as blob: addresses,
+ * which do not say which picture they are: the picture does, by its colour (see Pictures.ts, where picture n of a
+ * site starts at the hue of the site plus n × 47°, and the sites start at 20°, 120° and 200°).
+ */
 export const waitShown = async (page: Page, n: number): Promise<unknown> => {
   try { return await page.waitForFunction((wanted) => {
     const image = document.querySelector<HTMLImageElement>('.paged img.single');
-    return image !== null && image.naturalWidth > 0 && new RegExp(`/${wanted}\\.(png|jpe?g)`).test(decodeURIComponent(image.currentSrc));
+    if (!image || !image.complete || image.naturalWidth === 0) return false;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1;
+    const pen = canvas.getContext('2d');
+    if (!pen) return false;
+    pen.drawImage(image, 0, 0, 1, 1, 0, 0, 1, 1);
+    const [r = 0, g = 0, b = 0] = pen.getImageData(0, 0, 1, 1).data;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (max === min) return false;
+    const d = max - min;
+    const hue = (max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+    const start = (((hue - (((wanted - 1) % 5) + 1) * 47) % 360) + 360) % 360;
+    return [20, 120, 200].some((site) => Math.min(Math.abs(start - site), 360 - Math.abs(start - site)) < 3);
   }, n); } catch (error) {
     const state = await page.locator('.paged img.single').evaluate((el) => ({ src: (el as HTMLImageElement).currentSrc, width: (el as HTMLImageElement).naturalWidth }));
     throw new Error(`Page ${n} did not appear: ${JSON.stringify(state)}`, { cause: error });

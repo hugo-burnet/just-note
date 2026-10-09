@@ -165,12 +165,12 @@ export async function readFanFox({ browser, stage, web, runner }: Context): Prom
     assert.deepEqual(read, ['Ch.002']);
   });
 
-  await step('a link shared to the app opens straight away (and the older page layout works)', async () => {
-    const shared = `Great read ${fanfoxChapter('c003.5')} enjoy`;
-    await page.goto(`${stage.appUrl}?text=${encodeURIComponent(shared)}&title=Moonlight`);
+  await step('a chapter link pasted with words around it opens straight away (and the older page layout works)', async () => {
+    await page.goto(`${stage.appUrl}#/`);
+    await page.getByRole('button', { name: 'Add a series' }).click();
+    await addByLink(page, `Great read ${fanfoxChapter('c003.5')} enjoy`);
     await waitCounter(page, '1 / 2');
     assert.match(page.url(), /#\/read\?u=/);
-    assert.doesNotMatch(page.url(), /\?text=/);
     await page.locator('.paged img.single').waitFor();
     const asked = web.hitsFor('chapterfun.ashx');
     assert.equal(asked.length, 2);

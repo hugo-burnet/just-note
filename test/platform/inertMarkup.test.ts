@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { inertMarkup } from '../../src/platform/web/inertMarkup.ts';
+import { inertMarkup } from '../../src/platform/webview/inertMarkup.ts';
 
 test('foreign style attributes are retained as inert data, including mixed case and unquoted values', () => {
   assert.equal(inertMarkup('<div STYLE = "display:none" style=color:red>text</div>'), '<div data-jr-original-style = "display:none" data-jr-original-style=color:red>text</div>');

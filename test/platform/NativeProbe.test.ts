@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { USER_AGENT } from '../../proxy/UpstreamClient.ts';
+import { USER_AGENT } from '../../src/platform/native/limits.ts';
 import { TransportError } from '../../src/engine/index.ts';
 import type { NativeRequest, NativeResponse } from '../../src/platform/native/NativeHttp.ts';
 import { NativeProbe } from '../../src/platform/native/NativeProbe.ts';

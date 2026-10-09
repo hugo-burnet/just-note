@@ -2,17 +2,14 @@ export interface TransportErrorDetails {
   status?: number;
   upstreamStatus?: number;
   host?: string;
-  /** The address of the proxy that was asked, to tell the user where to look. */
-  proxy?: string;
 }
 
-/** The app could not get an answer, from the proxy or from the site through it. */
+/** The app could not get an answer from a site. */
 export class TransportError extends Error {
   readonly code: string;
   readonly status: number | undefined;
   readonly upstreamStatus: number | undefined;
   readonly host: string | undefined;
-  readonly proxy: string | undefined;
 
   constructor(code: string, message: string, details: TransportErrorDetails = {}) {
     super(message);
@@ -21,7 +18,6 @@ export class TransportError extends Error {
     this.status = details.status;
     this.upstreamStatus = details.upstreamStatus;
     this.host = details.host;
-    this.proxy = details.proxy;
   }
 }
 

@@ -1,7 +1,7 @@
 name: CI
 
-# Every push and pull request: types, unit tests, a production build, and the
-# end-to-end run in a real Chromium. Publishing is pages.yml's business.
+# Every push and pull request: types, unit tests, the build that goes in the APK, and the
+# end-to-end run in a real Chromium. Publishing the APK is apk.yml's business.
 on:
   push:
   pull_request:

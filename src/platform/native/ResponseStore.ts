@@ -1,4 +1,4 @@
-import { CacheBudget, withCacheLock } from '../web/CacheBudget.ts';
+import { CacheBudget, withCacheLock } from '../webview/CacheBudget.ts';
 
 /** A place where answers are kept by address, so that what was read stays readable offline. */
 export interface ResponseStore {
@@ -7,8 +7,7 @@ export interface ResponseStore {
 }
 
 /**
- * The WebView's Cache API, under the names the service worker uses on the web, so that
- * Settings → Data empties both alike. Past the limit the oldest answers go first
+ * The WebView's Cache API, under the names of cacheNames.ts, which Settings → Data empties. Past the limit the oldest answers go first
  * (Cache.keys() lists them in the order they were added). A cache that cannot be opened
  * or written (storage full, blocked) only costs the offline copy, never the reading.
  */

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
-import { LocalStorageStore } from '../../src/platform/web/LocalStorageStore.ts';
+import { LocalStorageStore } from '../../src/platform/webview/LocalStorageStore.ts';
 
 class Storage {
   readonly data = new Map<string, string>();

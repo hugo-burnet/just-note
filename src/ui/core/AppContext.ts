@@ -43,9 +43,7 @@ export interface AppContext {
   readonly settings: Settings;
   readonly transport: Transport;
   readonly clipboard: Clipboard;
-  /** false in the installed app, which reads the sites itself: there is no proxy to configure. */
-  readonly usesProxy: boolean;
-  /** Looks at any page from the phone, past an anti-bot check; null in a browser (see Platform). */
+  /** Looks at any page from the phone, past an anti-bot check; null with no WebView (a test; see Platform). */
   readonly probe: PageProbe | null;
   readonly i18n: I18n;
   readonly errors: ErrorPresenter;
@@ -57,6 +55,4 @@ export interface AppContext {
   seriesLanguage(): string;
   /** Opens a pasted or shared link; tells the user and returns false when no source knows it. */
   openLink(input: string): boolean;
-  /** Checks the proxy answers (settings screen). */
-  checkProxy(): Promise<boolean>;
 }

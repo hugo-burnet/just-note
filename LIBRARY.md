@@ -30,5 +30,5 @@ kept whole or not at all (its list of pictures, every picture, and the page of i
 that the series opens offline too), one chapter at a time (`Downloads`). It goes in a cache of
 its own (`jr-saved`, `CacheShelf`), which the reading budgets below never trim and *Clear the
 reading cache* does not touch: it stays until you remove it (in the series, or *Settings → Data*).
-The browser is asked to keep that storage (`navigator.storage.persist`). A downloaded chapter is
+The WebView is asked to keep that storage (`navigator.storage.persist`). A downloaded chapter is
 read from the device even online. Keep the app open while it downloads.

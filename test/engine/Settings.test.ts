@@ -10,24 +10,19 @@ test('starts from the defaults', () => {
 
 test('what the platform says differs from the engine is the default, what the user chose wins', () => {
   const store = new MemoryStore();
-  const settings = new Settings(store, { proxyBase: 'https://proxy.example' });
-  assert.equal(settings.get().proxyBase, 'https://proxy.example');
-  settings.set({ proxyBase: 'https://mine.example' });
-  assert.equal(settings.get().proxyBase, 'https://mine.example');
-  assert.equal(new Settings(store, { proxyBase: 'https://proxy.example' }).get().proxyBase, 'https://mine.example');
+  const settings = new Settings(store, { lang: 'fr' });
+  assert.equal(settings.get().lang, 'fr');
+  settings.set({ lang: 'en' });
+  assert.equal(settings.get().lang, 'en');
+  assert.equal(new Settings(store, { lang: 'fr' }).get().lang, 'en');
 });
 
-test('an empty proxy address is no choice: the default applies, even for one an older version saved', () => {
+test('the proxy address an older version saved is forgotten, and the rest of what it saved stays', () => {
   const store = new MemoryStore();
-  const settings = new Settings(store, { proxyBase: 'https://proxy.example' });
-  settings.set({ proxyBase: 'https://mine.example' });
-  settings.set({ proxyBase: '   ' });
-  assert.equal(settings.get().proxyBase, 'https://proxy.example', 'emptying the box brings the default back');
-
-  store.set('jr:settings', JSON.stringify({ proxyBase: '', theme: 'dark' }));
-  const reloaded = new Settings(store, { proxyBase: 'https://proxy.example' });
-  assert.equal(reloaded.get().proxyBase, 'https://proxy.example');
-  assert.equal(reloaded.get().theme, 'dark', 'the rest of what was saved stays');
+  store.set('jr:settings', JSON.stringify({ proxyBase: 'https://proxy.example', theme: 'dark' }));
+  const reloaded = new Settings(store);
+  assert.equal('proxyBase' in reloaded.get(), false);
+  assert.equal(reloaded.get().theme, 'dark');
 });
 
 test('reading is left to the site until the user chooses', () => {

@@ -19,8 +19,6 @@ export interface SettingsValues {
   direction: DirectionChoice;
   /** desc: newest first. */
   chapterOrder: ChapterOrder;
-  /** Where the proxy lives; empty means the same address as the app. */
-  proxyBase: string;
 }
 
 export const DEFAULT_SETTINGS: SettingsValues = {
@@ -30,7 +28,6 @@ export const DEFAULT_SETTINGS: SettingsValues = {
   mode: 'auto',
   direction: 'auto',
   chapterOrder: 'desc',
-  proxyBase: '',
 };
 
 export type SettingsListener = (values: SettingsValues) => void;
@@ -42,7 +39,7 @@ const DIRECTIONS: readonly DirectionChoice[] = ['auto', 'ltr', 'rtl'];
 
 /**
  * The user's preferences. `defaults` lets the platform tell where it differs
- * from the engine (the proxy address a build was made for, for instance); what
+ * from the engine (a test's language, for instance); what
  * the user changed always wins.
  */
 export class Settings {
@@ -86,14 +83,10 @@ export class Settings {
     }
   }
 
-  /**
-   * An empty proxy address is no choice at all: the default applies. (An earlier
-   * version saved one just by testing the connection, which hid the address that
-   * a build brings along; it is forgotten when loaded.)
-   */
-  private tidy(values: Partial<SettingsValues> & { rtl?: unknown }): Partial<SettingsValues> {
+  /** What an earlier version saved, made what this one reads; anything it no longer has (the proxy's address) forgotten. */
+  private tidy(values: Partial<SettingsValues> & { rtl?: unknown; proxyBase?: unknown }): Partial<SettingsValues> {
     const kept = { ...values };
-    if (typeof kept.proxyBase !== 'string' || kept.proxyBase.trim() === '') delete kept.proxyBase;
+    delete kept.proxyBase;
     // Before the direction could be left to the site it was a yes or no.
     if (typeof kept.rtl === 'boolean' && kept.direction === undefined) kept.direction = kept.rtl ? 'rtl' : 'ltr';
     delete kept.rtl;

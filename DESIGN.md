@@ -107,6 +107,6 @@ in an adapter.
   which creates elements and sets text; there is no `innerHTML` anywhere.
 - **No framework.** Screens are classes with an owner of listeners and timers
   (`Component`), so leaving a screen never leaves anything running. The whole app is
-  built with the same TypeScript and CSS tooling for web and native.
-- **Everything must also work in a WebView**: relative asset paths, hash addresses, no
-  dependency on a service worker for the app to function (it only adds offline use).
+  built with Vite, and Capacitor puts the result in the APK.
+- **It runs in a WebView**: relative asset paths, hash addresses, and what is kept offline
+  is kept by the app itself (the WebView's Cache API).
