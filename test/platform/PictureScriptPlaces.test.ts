@@ -22,6 +22,8 @@ test('places: the script goes from place to place, so a page metres long is not 
   assert.match(reader.notes[0] ?? '', /^pictures 3, places 3, page height 400000$/);
   assert.ok(reader.clock < 6_000, `${reader.clock} ms`);
   assert.equal(reader.progress.at(-1), 100);
+  // Each time it arrives at a place the page is told that it was scrolled, whether it moved or not.
+  assert.deepEqual(reader.events, ['scroll', 'scroll', 'scroll']);
 });
 
 test('places: a picture that is slow to come is waited for in its place', async () => {

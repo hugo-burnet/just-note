@@ -73,6 +73,8 @@ export class PretendReader {
   readonly notes: string[] = [];
   /** How far it said it had got, each time it said. */
   readonly progress: number[] = [];
+  /** The events the script sent to the page ("scroll"). */
+  readonly events: string[] = [];
   /** The places the page keeps for its pictures (what PLACES matches): there from the start, whatever has come in. */
   slots: PretendSlot[] = [];
   /** Places that are more than that: what the script describes in its report. */
@@ -150,6 +152,10 @@ export class PretendReader {
       scrollTo: (_x: number, y: number): void => {
         reader.scrolledTo = y;
         reader.reach();
+      },
+      dispatchEvent: (event: Event): boolean => {
+        reader.events.push(event.type);
+        return true;
       },
     };
   }

@@ -135,6 +135,8 @@ export function pictureScript(selector: string, slots = ''): string {
       progress(Math.floor((SCROLLED * (list.length - empty.length)) / list.length));
       if (!next) return gaveUp.length === 0;
       next.scrollIntoView(true);
+      // A page that is already there has not moved, which a loader that listens for scrolling would not notice.
+      window.dispatchEvent(new Event('scroll'));
       var until = Date.now() + HOP_MS;
       var count = pictures().filter(loaded).length;
       while (!filled(next) && Date.now() < until) {
