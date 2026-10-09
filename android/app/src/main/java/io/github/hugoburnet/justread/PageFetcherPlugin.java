@@ -135,7 +135,7 @@ public class PageFetcherPlugin extends Plugin {
         private static final long POLL_MS = 600;
         private static final long SETTLE_STEP_MS = 700;
         // Scrolling a chapter, and reading each of its pictures, is given this long once the page is ready.
-        private static final long SCRIPT_TIMEOUT_MS = 90000;
+        private static final long SCRIPT_TIMEOUT_MS = 120000;
         // A page that is only read for its pictures is kept out of sight (a spinner covers it) unless it is
         // slow, or turns out to be a check that someone has to answer.
         private static final long REVEAL_AFTER_MS = 15000;

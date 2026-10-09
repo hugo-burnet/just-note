@@ -46,8 +46,8 @@ test('render: the WebView is told what to collect and what to say, and the pictu
 
 test('render: the places the page keeps for its pictures are handed to the WebView, to know how many to wait for', async () => {
   const { transport, fetcher } = setup(() => ({ pictures: [captured()] }));
-  await transport.render?.(CHAPTER, { pictures: SELECTOR, slots: '.image-container[data-page]' });
-  assert.deepEqual(fetcher.asked[0]?.options, { ...DIALOG, pictures: SELECTOR, slots: '.image-container[data-page]' });
+  await transport.render?.(CHAPTER, { pictures: SELECTOR, slots: '.image-container.strip[data-page]' });
+  assert.deepEqual(fetcher.asked[0]?.options, { ...DIALOG, pictures: SELECTOR, slots: '.image-container.strip[data-page]' });
 });
 
 test('render: what is not a picture fails the chapter instead of being shown as one', async () => {

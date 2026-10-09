@@ -38,7 +38,7 @@ export interface FetchedText {
 export interface RenderRequest {
   /** A CSS selector for the pictures the page's scripts build: they are what is collected. */
   readonly pictures: string;
-  /** A CSS selector for the places the page keeps for them, if it has them before it has the pictures: how many there should be. */
+  /** A CSS selector for the places the page keeps for them, if it has them before it has the pictures: how many to wait for. */
   readonly slots?: string;
 }
 

@@ -24,7 +24,7 @@ export interface FetchedPage {
   readonly failures?: readonly string[];
   /** The pictures asked for with `FetchOptions.pictures`, in the order they are in the page. */
   readonly pictures?: readonly CapturedPicture[];
-  /** What the script that took them found, in a line (how many pictures, how many places for them). */
+  /** What the script that took them found, in a line (how many pictures, how many places for them, what the places are). */
   readonly note?: string;
 }
 

@@ -26,7 +26,7 @@ export interface FetchOptions extends DialogLabels {
    * the page is scrolled until they have all come in, and they are handed back with it.
    */
   readonly pictures?: string;
-  /** A CSS selector for the places the page keeps for those pictures, when it has them before it has the pictures: how many there should be. */
+  /** A CSS selector for the places the page keeps for those pictures, when it has them before it has the pictures: how many to wait for. */
   readonly slots?: string;
 }
 

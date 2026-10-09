@@ -27,9 +27,12 @@ export const BLOB_HOOK = `(function () {
  * page, to the plugin. It ends with `done` (and a line on what it found), or with `fail` and the reason.
  *
  * `slots` is a selector for the places the page keeps for its pictures, when it has them before it has
- * the pictures: there are as many pictures as places, and a chapter in which some did not come in time
- * fails instead of being short. Where there is no such selector, or it matches nothing, a picture that
- * has come is all there is to go by.
+ * the pictures: the script goes on waiting while the pictures are fewer than the places. A page may keep
+ * places for other things than pictures, so the wait has an end: places that promise more than ever came
+ * are given a few seconds, and then the pictures there are are taken (the line it ends with says so, and
+ * what the places are). Only a script that ran out of time on the way down, with fewer pictures than
+ * places, fails: what came is the top of a chapter, not the chapter. Where there is no such selector, or it
+ * matches nothing, a picture that has come is all there is to go by.
  *
  * The pictures are read from the blobs the hook kept, else asked for by their address, else drawn
  * on a canvas (a picture whose address has been let go of is still on screen).
@@ -42,13 +45,33 @@ export function pictureScript(selector: string, slots = ''): string {
   var SLOTS = ${JSON.stringify(slots)};
   var STEP_MS = 250;
   var QUIET_STEPS = 6;
+  var SHORT_STEPS = 32;
   var BUDGET_MS = 45000;
+  var BUDGET_MAX_MS = 65000;
   var NOTHING_MS = 12000;
 
   function sleep(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
   function pictures() { return Array.prototype.slice.call(document.querySelectorAll(SELECTOR)); }
   function loaded(img) { return img.complete && img.naturalWidth > 0; }
   function places() { return SLOTS ? document.querySelectorAll(SLOTS).length : 0; }
+  function describe(el) {
+    var tag = String(el.tagName || '').toLowerCase();
+    var classes = typeof el.className === 'string' ? el.className.trim().split(/\\s+/).filter(Boolean).slice(0, 4) : [];
+    return tag ? tag + (el.id ? '#' + el.id : '') + classes.map(function (name) { return '.' + name; }).join('') : '';
+  }
+  // What the places are, for a report: how many of each kind, where they sit, whether they show or hold a picture.
+  function kinds() {
+    var counts = {};
+    Array.prototype.forEach.call(document.querySelectorAll(SLOTS), function (el) {
+      var name = describe(el);
+      if (!name) return;
+      if (el.parentElement) name += ' in ' + describe(el.parentElement);
+      if (el.getClientRects && el.getClientRects().length === 0) name += ' hidden';
+      if (el.querySelector && el.querySelector('img')) name += ' with img';
+      counts[name] = (counts[name] || 0) + 1;
+    });
+    return Object.keys(counts).map(function (name) { return counts[name] + 'x ' + name; }).join(', ');
+  }
   // A reader may scroll inside a box of its own instead of the page: the nearest ancestor of a picture that does.
   function box() {
     var first = pictures()[0];
@@ -71,12 +94,19 @@ export function pictureScript(selector: string, slots = ''): string {
     window.scrollTo(0, y);
   }
 
+  // A long page takes long to scroll through, a screen at a time: the time allowed grows with it (up to a limit).
+  function budget(height, view) {
+    return Math.min(BUDGET_MAX_MS, BUDGET_MS + Math.ceil(height / (view * 0.8)) * STEP_MS);
+  }
+
+  // How it ended: 'ready' (the pictures are all there), 'short' (the places promise more than ever came),
+  // 'nothing' (no picture at all) or 'late' (out of time before the pictures were all there).
   async function scroll() {
     var started = Date.now();
     var y = 0;
     var quiet = 0;
     var last = '';
-    while (Date.now() - started < BUDGET_MS) {
+    while (Date.now() - started < budget(heightOf(), viewOf())) {
       var height = heightOf();
       var view = viewOf();
       if (y + view < height) {
@@ -89,13 +119,17 @@ export function pictureScript(selector: string, slots = ''): string {
       // At the bottom: wait for what is still coming in.
       scrollTo(height);
       var list = pictures();
-      var signature = list.length + '/' + list.filter(loaded).length + '/' + places() + '/' + height;
+      var wanted = places();
+      var ready = list.length > 0 && list.every(loaded);
+      var signature = list.length + '/' + list.filter(loaded).length + '/' + wanted + '/' + height;
       quiet = signature === last ? quiet + 1 : 0;
       last = signature;
-      if (list.length > 0 && list.every(loaded) && list.length >= places() && quiet >= QUIET_STEPS) return;
-      if (list.length === 0 && Date.now() - started > NOTHING_MS) return;
+      if (ready && list.length >= wanted && quiet >= QUIET_STEPS) return 'ready';
+      if (ready && quiet >= SHORT_STEPS) return 'short';
+      if (list.length === 0 && Date.now() - started > NOTHING_MS) return 'nothing';
       await sleep(STEP_MS);
     }
+    return 'late';
   }
 
   function base64Of(blob) {
@@ -126,13 +160,17 @@ export function pictureScript(selector: string, slots = ''): string {
   }
 
   async function main() {
-    await scroll();
+    var how = await scroll();
     var list = pictures();
     var wanted = places();
     var summary = 'pictures ' + list.length + ', places ' + wanted + ', page height ' + heightOf();
+    var what = wanted > 0 ? kinds() : '';
+    if (what) summary += ' (' + what + ')';
     // A chapter with a page missing is worse than none: say so instead of shifting the others.
     if (!list.every(loaded)) throw new Error('A picture did not load (' + list.filter(loaded).length + ' of ' + list.length + ').');
-    if (list.length < wanted) throw new Error('Only ' + list.length + ' of ' + wanted + ' pages came.');
+    if (list.length === 0 && wanted > 0) throw new Error('None of the ' + wanted + ' pages came.');
+    if (how === 'late' && list.length < wanted) throw new Error('Only ' + list.length + ' of ' + wanted + ' pages came in time.');
+    if (list.length < wanted) summary += ', fewer pictures than places';
     for (var i = 0; i < list.length; i++) {
       var blob = await blobOf(list[i]);
       bridge.add(token, blob.type || '', await base64Of(blob));

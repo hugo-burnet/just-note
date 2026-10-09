@@ -8,9 +8,11 @@ import { MAX_ITEMS, ScanMangaSeriesParser } from './ScanMangaSeriesParser.ts';
 import { ScanMangaUrls } from './ScanMangaUrls.ts';
 
 // The pages of a chapter are <img> elements the site's reader fills in with blob: addresses, each in a
-// div.image-container that is there (numbered, with the size of its picture) before the picture is.
+// div.image-container that is there (numbered, with the size of its picture) before the picture is. A
+// manga chapter has twice as many elements numbered `data-page` as pictures (44 for 22); the pictures sit
+// in the `strip` ones.
 const PAGE_PICTURES = 'img[src^="blob:"]';
-const PAGE_PLACES = '.image-container[data-page]';
+const PAGE_PLACES = '.image-container.strip[data-page]';
 
 /**
  * Scan-Manga (scan-manga.com): French scans, mostly manhwa and webtoons. Cloudflare checks its

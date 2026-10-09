@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 305 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 309 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -60,9 +60,12 @@ runs it sees everything you read and can alter what you are shown.
   (`PageFetcherPlugin.java`) passes its Cloudflare check; the phone's own network, sent the cookie and
   the User-Agent the WebView earned, is then answered 200 (so the WebView is needed once, not for each
   page); and the script that scrolls a chapter took its 22 pictures, valid JPEGs, from the page.
-  **Not verified: the same things inside the app** — the Scan-Manga module (written from those reports:
-  the home, a series, a chapter, the list of all the titles), reading a chapter through the WebView,
-  a chapter link pasted from the site, the clearance the WebView already held being reused.
+  Also in the app: the Scan-Manga lists (with the covers the site shows on them, which are small), a
+  series page (title, author, genre, synopsis, chapters), and a chapter link pasted into the library.
+  **Not verified: reading a chapter in the reader** (the chapter is read through the WebView, behind a
+  spinner; a manga chapter whose page numbers twice as many elements as it has pictures was turned
+  away by an earlier build, which this one waits for a few seconds and then reads), the clearance the
+  WebView already held being reused, and how long a chapter takes to open.
 - Some sites cannot be read from a web app at all: the ones that check their visitors
   with an anti-bot challenge (Cloudflare's *Just a moment…*) answer the proxy with a page
   that only a real browser can pass. Scan-Manga and SushiScan are two (their mobile
@@ -234,9 +237,11 @@ else asked for, else drawn. The plugin keeps them and the app takes them one at 
 are stored like any picture of the sites, under addresses of the site that never reach the
 network, and the list of a chapter is stored too, so a chapter read once opens again without
 the WebView. A source asks for this with `transport.render(url, { pictures: selector, slots })`
-(`slots` selects the places the page keeps for its pictures: a chapter that has fewer pictures than
-places fails instead of being short), which only the installed app has; a module that needs it says `nativeOnly` and is left out
-of the browser build.
+(`slots` selects the places the page keeps for its pictures, there before the pictures are: the script
+waits for as many pictures as places, but for a few seconds only when they stay fewer, as a page may
+number other things the same way; one that runs out of time with fewer pictures than places fails, as
+the top of a chapter is not the chapter), which only the installed app has; a module that needs it
+says `nativeOnly` and is left out of the browser build.
 
 A chapter link pasted from Scan-Manga does not name its series (its address has no room for the
 series' number), so the reader asks the source to complete it (`Source.complete`): the page of
@@ -248,7 +253,7 @@ Not done yet: sharing a link to the app, and its own launcher icon.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 305 unit tests
+npm run check        # types (app and worker) and the 309 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg
