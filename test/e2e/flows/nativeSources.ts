@@ -37,14 +37,14 @@ export async function nativeSources({ browser, stage, runner }: Context): Promis
       assert.equal(await page.locator('a.chapter').count(), 4);
       await page.locator('a.chapter').last().click();
       await page.waitForFunction(() => document.querySelector<HTMLImageElement>('.frame[data-index="0"] img')?.naturalWidth === 400);
-      assert.equal(await page.locator('.frame').count(), 3);
+      assert.equal(await page.locator('.part').first().locator('.frame').count(), 3);
       assert.match(await page.locator('.frame img').first().getAttribute('src') ?? '', /^blob:/);
     });
     await step('a long captured chapter can revisit its first page offline despite disk eviction', async () => {
       await page.evaluate(() => { window.nativeSources.captureCount = 140; });
       await page.goto(`${stage.appUrl}#/read?u=${encodeURIComponent(scan.chapterAddress(scan.SERIES[0]!, '3'))}`);
       await page.waitForFunction(() => document.querySelector<HTMLImageElement>('.frame[data-index="0"] img')?.naturalWidth === 400);
-      assert.equal(await page.locator('.frame').count(), 140);
+      assert.equal(await page.locator('.part').first().locator('.frame').count(), 140);
       for (let index = 0; index < 140; index += 2) {
         await page.evaluate((index) => document.querySelector(`.frame[data-index="${index}"]`)?.scrollIntoView(), index);
         await page.waitForFunction((index) => document.querySelector<HTMLImageElement>(`.frame[data-index="${index}"] img`)?.naturalWidth === 400, index);

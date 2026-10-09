@@ -46,6 +46,16 @@ export class Router {
     this.render();
   }
 
+  /**
+   * The screen moved on by itself (scrolling carried the reader into the next
+   * chapter): the address follows, so that a reload or a shared link lands there,
+   * but nothing is shown again.
+   */
+  follow(hash: string): void {
+    history.replaceState({ idx: this.index } satisfies HistoryState, '', hash);
+    this.currentHash = location.hash || '#/';
+  }
+
   /** For a screen that finds, while opening, that it has nothing to show. */
   redirect(hash: string): void {
     queueMicrotask(() => this.replace(hash));

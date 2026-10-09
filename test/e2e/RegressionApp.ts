@@ -82,12 +82,13 @@ const regression: RegressionApp = {
       revoke: (src) => { this.revoked.push(src); URL.revokeObjectURL(src); },
     });
     const options: SurfaceOptions = {
+      chapter: 'https://fanfox.net/manga/regression/c001/1.html',
       pages: Array.from({ length: count }, (_, index) => `https://fmcdn.mfcdn.net/regression/${index}.png`),
       startPage: 0,
       transport: new NativeTransport(client, store, images),
       rtl: false,
       retryLabel: 'Retry image',
-      handlers: { page: () => {}, turn: () => {}, toggleChrome: () => {}, hideChrome: () => {} },
+      handlers: { page: () => {}, nearEnd: () => {}, turn: () => {}, toggleChrome: () => {}, hideChrome: () => {} },
     };
     this.reader = mode === 'paged' ? new PagedMode(options) : new ScrollMode(options);
     const host = document.createElement('main');

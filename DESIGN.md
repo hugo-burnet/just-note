@@ -67,8 +67,11 @@ The reader is the product, so it is the most restrained screen.
   for a moment when a chapter opens, hide when you scroll or pinch, and come back with a
   tap in the middle.
 - **Two modes.** *Scroll* is a column, as webtoons want it: the page being read is the
-  one crossing a thin band in the middle of the screen; the chapter ends with a card
-  holding the next chapter. *Pages* is a book: tap an edge, swipe or use the arrow keys;
+  one crossing a thin band in the middle of the screen. The column does not stop at the
+  end of a chapter: as the end comes near, the next chapter is put under it, behind a
+  short divider that names it, and scrolling carries on into it (the title, the counter,
+  the address and the saved place follow). The latest chapter ends with a card
+  saying you are up to date. *Pages* is a book: tap an edge, swipe or use the arrow keys;
   the next page is decoded before it replaces the current one, so nothing flashes.
 - **Direction** (left to right or right to left) only exists for turned pages. A column
   always reads downwards, and its slider always runs from the left.

@@ -15,7 +15,7 @@ interface Target {
   readonly reading: ReadingStyle;
 }
 
-const refOf = (chapter: Chapter | undefined): ChapterRef | null => (chapter ? { url: chapter.url, key: chapter.key, title: chapter.title } : null);
+const refOf = (chapter: Chapter): ChapterRef => ({ url: chapter.url, key: chapter.key, title: chapter.title });
 
 /**
  * The reader, full screen and always dark. This screen finds the chapter and its
@@ -82,20 +82,23 @@ export class ReaderView extends View {
   }
 
   private reader(target: Target, pages: readonly string[], series: Series | null): ChapterReader {
-    const chapters = series?.chapters ?? [];
-    const at = chapters.findIndex((chapter) => chapter.url === target.url);
-    const title = chapters[at]?.title ?? target.key;
+    const chapters = (series?.chapters ?? []).map(refOf);
+    const title = chapters.find((chapter) => chapter.url === target.url)?.title ?? target.key;
     const seriesTitle = series?.title ?? this.app.registry.resolve(target.seriesUrl)?.source.name ?? '';
-    this.setTitle(seriesTitle ? `${title} – ${seriesTitle}` : title);
+    const name = (chapter: string): void => this.setTitle(seriesTitle ? `${chapter} – ${seriesTitle}` : chapter);
+    name(title);
     return new ChapterReader(this.app, {
       chapter: { url: target.url, key: target.key, title },
       seriesUrl: target.seriesUrl,
       seriesTitle,
       pages,
       startPage: this.startPage(target, pages.length),
-      previous: at > 0 ? refOf(chapters[at - 1]) : null,
-      next: at >= 0 ? refOf(chapters[at + 1]) : null,
+      chapters,
       natural: series?.reading ?? target.reading,
+      entered: (chapter) => {
+        name(chapter.title);
+        this.app.router.follow(Routes.read(chapter.url));
+      },
     });
   }
 

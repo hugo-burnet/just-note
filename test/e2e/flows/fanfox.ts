@@ -107,7 +107,7 @@ export async function readFanFox({ browser, stage, web, runner }: Context): Prom
     await chooseReading(page, 'Mode', 'Scroll');
     await dismissSheet(page);
     await page.locator('.reader .frame').first().waitFor();
-    assert.equal(await page.locator('.reader .frame').count(), 4);
+    assert.equal(await page.locator('.reader .part').first().locator('.frame').count(), 4);
     await waitCounter(page, '3 / 4');
     await scrollToFrame(page, 2);
     await settle(page);

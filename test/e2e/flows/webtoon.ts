@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { devices } from 'playwright';
 import type { Context } from '../Context.ts';
-import { EPISODE_COUNT, SERIES_URL } from '../PretendWebtoon.ts';
+import { EPISODE_COUNT, episodeUrl, SERIES_URL } from '../PretendWebtoon.ts';
 import { addByLink, chooseReading, counter, dismissSheet, leaveReader, openReadingOptions, settle, waitCounter, waitShown } from './helpers.ts';
 
 /** Reading WEBTOON: a series whose list of episodes comes in pages, and episodes read as one long column. */
@@ -31,7 +31,7 @@ export async function readWebtoon({ browser, stage, web, runner }: Context): Pro
   await step('an episode opens as a column of images, fetched from their real address', async () => {
     await page.locator('a.chapter', { hasText: /^\s*1\s*Episode 1:/ }).click();
     await page.locator('.reader .frame').first().waitFor();
-    assert.equal(await page.locator('.reader .frame').count(), 4);
+    assert.equal(await page.locator('.reader .part').first().locator('.frame').count(), 4);
     await page.waitForFunction(() => (document.querySelector<HTMLImageElement>('.reader .frame img')?.naturalWidth ?? 0) > 0);
     assert.equal(web.hitsFor('bg_transparency').length, 0, 'the blank placeholder is never fetched');
     assert.equal(web.hitsFor('ep1/1.jpg')[0]?.referer, 'https://www.webtoons.com/');
@@ -48,7 +48,7 @@ export async function readWebtoon({ browser, stage, web, runner }: Context): Pro
     await openReadingOptions(page);
     await chooseReading(page, 'Direction', 'Right to left');
     await dismissSheet(page);
-    assert.equal(await page.locator('.reader .frame').count(), 4, 'still a column');
+    assert.equal(await page.locator('.reader .part').first().locator('.frame').count(), 4, 'still a column');
     assert.equal(await page.locator('.slider').getAttribute('dir'), 'ltr');
   });
 
@@ -75,18 +75,21 @@ export async function readWebtoon({ browser, stage, web, runner }: Context): Pro
     await waitCounter(page, '2 / 4');
   });
 
-  await step('at the end of an episode the next one is a tap away', async () => {
-    await page.evaluate(() => {
-      const stage = document.querySelector('.stage');
-      if (stage) stage.scrollTop = stage.scrollHeight;
-    });
-    await page.locator('.end-card').waitFor();
-    assert.match(await page.locator('.end-card h2').innerText(), /You finished Episode 1/);
+  await step('at the end of an episode the next one follows in the column, and scrolling goes on into it', async () => {
+    // To the end of the episode, not of the column: the next one may already be under it.
+    await page.evaluate(() => document.querySelector('.reader .end-card')?.scrollIntoView({ block: 'center' }));
+    await page.locator('.end-card[data-state="joined"]').first().waitFor();
+    const divider = page.locator('.end-card').first();
+    assert.match(await divider.locator('h2').innerText(), /You finished Episode 1/);
+    assert.match(await divider.locator('.end-next').innerText(), /^Episode 2/);
+    await divider.evaluate((card) => card.scrollIntoView({ block: 'center' }));
     await settle(page);
     await shot(page, '22-webtoon-end');
-    await page.locator('.end-card .btn-primary').click();
+    await page.evaluate(() => document.querySelectorAll('.reader .part')[1]?.querySelector('.frame')?.scrollIntoView());
     await page.waitForFunction(() => document.querySelector('.reader-title strong')?.textContent?.startsWith('Episode 2') === true);
     await waitCounter(page, '1 / 4');
+    assert.equal(decodeURIComponent(new URL(page.url()).hash.replace(/^#\/read\?u=/, '')), episodeUrl(2), 'the address follows the episode');
+    assert.match(await page.title(), /^Episode 2/);
   });
 
   await step('the episode that was finished is ticked, and Back leaves the series, not the previous episode', async () => {

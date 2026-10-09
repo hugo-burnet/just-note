@@ -3,8 +3,10 @@ import { Component } from '../../core/Component.ts';
 
 /** What a surface tells the reader about what the user did. */
 export interface SurfaceHandlers {
-  /** Scrolling moved the reader onto another page. */
-  page(index: number): void;
+  /** Scrolling moved the reader onto another page, of the chapter at this address. */
+  page(index: number, chapter: string): void;
+  /** What is shown is about to run out: a surface that can grow asks for the next chapter. */
+  nearEnd(): void;
   /** The user asked to turn the page: a tap on an edge, a swipe. */
   turn(direction: Direction): void;
   /** A tap in the middle: show or hide the controls. */
@@ -14,12 +16,14 @@ export interface SurfaceHandlers {
 }
 
 export interface SurfaceOptions {
+  /** The address of the chapter the pages belong to. */
+  readonly chapter: string;
   readonly pages: readonly string[];
   readonly startPage: number;
   readonly transport: Transport;
   readonly rtl: boolean;
   readonly retryLabel: string;
-  /** Shown after the last page, in the surface that scrolls. */
+  /** Shown after the last page, in the surface that scrolls (and between chapters there). */
   readonly ending?: HTMLElement;
   readonly handlers: SurfaceHandlers;
 }
