@@ -1,7 +1,7 @@
 import { SourceError } from '../../errors.ts';
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../model.ts';
 import type { ReadingStyle } from '../../reader/ReadingStyle.ts';
-import { clean, looksBlocked } from '../../text.ts';
+import { absolute, clean, looksBlocked } from '../../text.ts';
 import { Source } from '../Source.ts';
 import { ScanMangaSeriesParser } from './ScanMangaSeriesParser.ts';
 import { ScanMangaUrls } from './ScanMangaUrls.ts';
@@ -51,6 +51,23 @@ export class ScanMangaSource extends Source {
       throw new SourceError('blocked', 'The site asked for a human check.', { url, htmlLength: text.length });
     }
     return query ? ScanMangaSeriesParser.matching(items, query) : items;
+  }
+
+  /** A chapter link pasted from the site does not name its series: the page does, in the way back it offers. */
+  override async complete(target: SourceTarget): Promise<SourceTarget | null> {
+    if (target.kind !== 'chapter' || target.seriesUrl) return target;
+    const { doc } = await this.load(ScanMangaUrls.page(target.url));
+    const slug = ScanMangaUrls.slugOf(target.url);
+    const links = [doc.querySelector('a.lelHgHistoryBack'), ...doc.querySelectorAll('a[href]')];
+    for (const link of links) {
+      const series = ScanMangaUrls.resolve(absolute(link?.getAttribute('href'), target.url) ?? '');
+      // The way back first; failing it, any link to the series that has the chapter's name.
+      if (series?.kind === 'series' && (link === links[0] || ScanMangaUrls.slugOf(series.url) === slug)) {
+        const url = ScanMangaUrls.chapter(target.url, series.url);
+        return url ? ScanMangaUrls.resolve(url) : null;
+      }
+    }
+    return null;
   }
 
   async getChapter(url: string): Promise<ChapterPages> {

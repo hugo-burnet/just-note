@@ -97,3 +97,37 @@ test('a link no source understands is a clear error', async () => {
   await assert.rejects(() => catalog.chapter('https://elsewhere.test/x'), { code: 'unsupported' });
   await assert.rejects(() => catalog.list('https://elsewhere.test/x'), { code: 'unsupported' });
 });
+
+/** A site whose chapter links do not name their series: the page does. */
+class CompletingSource extends StubSource {
+  asked = 0;
+
+  override resolve(input: string): SourceTarget | null {
+    if (!input.startsWith('https://completing.test/')) return null;
+    return input.includes('/c/') ? { kind: 'chapter', url: input, key: 'c1' } : { kind: 'series', url: input };
+  }
+
+  override async complete(target: SourceTarget): Promise<SourceTarget | null> {
+    this.asked++;
+    return target.url.endsWith('/lost') ? null : { ...target, seriesUrl: 'https://completing.test/series/9' };
+  }
+}
+
+test('resolve gives a link whole: a chapter that does not name its series is completed, once for a few minutes', async () => {
+  const source = new CompletingSource(makeIO({}).io);
+  const catalog = new Catalog(new SourceRegistry([source]), new Library(new MemoryStore()));
+  const link = await catalog.resolve('https://completing.test/c/1');
+  assert.equal(link?.seriesUrl, 'https://completing.test/series/9');
+  assert.equal(link?.source, source);
+  await catalog.resolve('https://completing.test/c/1');
+  assert.equal(source.asked, 1);
+});
+
+test('resolve leaves alone what is whole, what nobody knows, and says so when a chapter cannot be completed', async () => {
+  const source = new CompletingSource(makeIO({}).io);
+  const catalog = new Catalog(new SourceRegistry([source]), new Library(new MemoryStore()));
+  assert.equal((await catalog.resolve('https://completing.test/series/1'))?.kind, 'series');
+  assert.equal(await catalog.resolve('https://elsewhere.test/'), null);
+  assert.equal(await catalog.resolve('https://completing.test/c/lost'), null);
+  assert.equal(source.asked, 1, 'only the chapter was asked about');
+});

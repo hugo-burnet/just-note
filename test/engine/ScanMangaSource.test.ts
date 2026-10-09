@@ -105,6 +105,33 @@ test('a listing that is a check page says so', async () => {
   await assert.rejects(() => source.getList(`${SCANMANGA}/?po`), { code: 'blocked' });
 });
 
+test('complete finds the series of a chapter link pasted from the site, in the way back its page offers', async () => {
+  const page = `${SCANMANGA}${chapterPath(LANTERN, '2-5')}`;
+  const back = `<html><body><a class="lelHgHistoryBack" href="/13001/Lantern-Keeper.html"></a><a href="/13002-45678/Ember-Courier-The-Last-Mile.html">next</a></body></html>`;
+  const { source, transport } = scanmanga({ [page]: back });
+  const target = source.resolve(page);
+  assert.deepEqual(target, { kind: 'chapter', url: page, key: 'c2.5' });
+  assert.deepEqual(await source.complete(target ?? { kind: 'list', url: '' }), source.resolve(chapterAddress(LANTERN, '2-5')));
+  assert.deepEqual(transport.asked.map((asked) => asked.url), [page], 'the page is asked for without a mark');
+});
+
+test('complete falls back on a link to the series that has the chapter\'s name, and gives up without one', async () => {
+  const page = `${SCANMANGA}${chapterPath(EMBER, '1')}`;
+  const noBack = `<html><body><a href="/13001/Lantern-Keeper.html">other</a><a href="https://www.scan-manga.com/13002-45678/Ember-Courier-The-Last-Mile.html">series</a></body></html>`;
+  const found = await scanmanga({ [page]: noBack }).source.complete({ kind: 'chapter', url: page, key: 'c1' });
+  assert.equal(found?.seriesUrl, seriesAddress(EMBER));
+  assert.equal(found?.url, chapterAddress(EMBER, '1'));
+  const lost = await scanmanga({ [page]: '<html><body><a href="/Teams.html">teams</a></body></html>' }).source.complete({ kind: 'chapter', url: page, key: 'c1' });
+  assert.equal(lost, null);
+});
+
+test('complete leaves a target that is whole as it is, without asking the site', async () => {
+  const { source, transport } = scanmanga({});
+  const whole = source.resolve(chapterAddress(LANTERN, '1'));
+  assert.equal(await source.complete(whole ?? { kind: 'list', url: '' }), whole);
+  assert.equal(transport.asked.length, 0);
+});
+
 test('getChapter shows the page in a browser of the app\'s own, without the mark, and gives the pictures it built', async () => {
   const pictures = ['one', 'two', 'three'].map((name) => `${SCANMANGA}/__page/130013/${name}`);
   const transport = new RenderingTransport({}, (url) => ({ text: '<html>', url, pictures }));

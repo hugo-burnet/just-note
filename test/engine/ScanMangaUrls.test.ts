@@ -23,12 +23,13 @@ test('a chapter carries its series, which its own address does not name', () => 
   assert.equal(ScanMangaUrls.resolve(www)?.url, chapterAddress(LANTERN, '3'));
 });
 
-test('a chapter link without its series (pasted from the site) is a link to the site', () => {
+test('a chapter link without its series (pasted from the site) is a chapter whose series is still to be found', () => {
   const plain = `${SCANMANGA}${chapterPath(LANTERN, '3')}`;
-  assert.deepEqual(ScanMangaUrls.resolve(plain), { kind: 'list', url: plain });
-  // And a mark that names no series is no mark.
-  assert.equal(ScanMangaUrls.resolve(`${plain}#t`)?.kind, 'list');
-  assert.equal(ScanMangaUrls.resolve(`${plain}#%E0%A4%A`)?.kind, 'list');
+  assert.deepEqual(ScanMangaUrls.resolve(plain), { kind: 'chapter', url: plain, key: 'c3' });
+  // A mark that names no series is no mark; the one the site itself may put on a link is dropped.
+  for (const marked of [`${plain}#t`, `${plain}#%E0%A4%A`, plain.replace('m.scan', 'www.scan')]) {
+    assert.deepEqual(ScanMangaUrls.resolve(marked), { kind: 'chapter', url: plain, key: 'c3' }, marked);
+  }
 });
 
 test('everything else of the site is a listing, with its query; what is not the site is nothing', () => {

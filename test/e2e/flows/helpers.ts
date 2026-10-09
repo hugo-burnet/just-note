@@ -1,4 +1,4 @@
-import type { Page } from 'playwright';
+import type { Locator, Page } from 'playwright';
 
 /** The reader's page counter ("3 / 4"). Read from the text: the controls may be out of sight. */
 export const counter = (page: Page): Promise<string> => page.locator('.reader-count').evaluate((el) => el.textContent?.trim() ?? '');
@@ -58,9 +58,15 @@ export async function openReadingOptions(page: Page): Promise<void> {
 export const chooseReading = (page: Page, group: 'Mode' | 'Direction', label: string): Promise<void> =>
   page.getByRole('radiogroup', { name: group }).getByRole('radio', { name: label, exact: true }).click();
 
-/** Opens the "add by link" sheet from the library and submits `link` in it. */
+/**
+ * The field of the "add by link" sheet that is open. A sheet that has just been closed takes 300 ms to
+ * go, and another may be opened meanwhile: only the one that is open is meant.
+ */
+export const linkField = (page: Page): Locator => page.locator('.sheet-host[data-open="true"] input[name=link]');
+
+/** Submits `link` in the "add by link" sheet, which is open. */
 export async function addByLink(page: Page, link: string): Promise<void> {
-  await page.locator('input[name=link]').fill(link);
+  await linkField(page).fill(link);
   await page.keyboard.press('Enter');
 }
 

@@ -29,8 +29,8 @@ export class ScanMangaUrls {
    *
    * A chapter's address does not name its series (the series has a number the chapter does
    * not repeat), so the address this source gives a chapter carries it after a `#`, which the
-   * site never sees. A chapter link pasted from the site has no such mark: it cannot be opened
-   * from here, and is taken for a link to the site.
+   * site never sees. A chapter link pasted from the site has no such mark: it is a chapter
+   * whose series is still to be found (see ScanMangaSource.complete).
    */
   static resolve(input: string): SourceTarget | null {
     let url: URL;
@@ -43,8 +43,7 @@ export class ScanMangaUrls {
 
     const chapter = ScanMangaUrls.chapterAt(url.pathname, markOf(url));
     if (chapter) return chapter;
-    // A chapter whose series is not known cannot be opened, and is no series: it is the site.
-    if (!CHAPTER_PATH.test(url.pathname) && SERIES_PATH.test(url.pathname)) return { kind: 'series', url: ORIGIN + url.pathname };
+    if (SERIES_PATH.test(url.pathname) && !CHAPTER_PATH.test(url.pathname)) return { kind: 'series', url: ORIGIN + url.pathname };
     // The home page, the list of series, a ranking... anything else of the site.
     return { kind: 'list', url: ORIGIN + url.pathname + url.search };
   }
@@ -64,13 +63,14 @@ export class ScanMangaUrls {
     }
   }
 
+  /** A chapter, with its series when `seriesPath` names one; without it, the address is the page's own. */
   private static chapterAt(pathname: string, seriesPath: string): SourceTarget | null {
     const match = CHAPTER_PATH.exec(pathname);
-    const parent = ScanMangaUrls.seriesAt(seriesPath);
-    if (!match || !parent) return null;
+    if (!match) return null;
     const number = (match[3] ?? '').replace('-', '.');
-    const kind = (match[2] ?? 'c').charAt(0).toLowerCase();
-    return { kind: 'chapter', url: `${ORIGIN}${pathname}#${seriesPath}`, key: `${kind}${number}`, seriesUrl: parent };
+    const key = `${(match[2] ?? 'c').charAt(0).toLowerCase()}${number}`;
+    const parent = ScanMangaUrls.seriesAt(seriesPath);
+    return parent ? { kind: 'chapter', url: `${ORIGIN}${pathname}#${seriesPath}`, key, seriesUrl: parent } : { kind: 'chapter', url: ORIGIN + pathname, key };
   }
 
   /** What is asked of the site for a chapter: its address without the mark the series is carried in. */

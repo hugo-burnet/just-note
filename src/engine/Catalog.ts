@@ -1,9 +1,9 @@
 import { SourceError } from './errors.ts';
 import type { Library } from './library/Library.ts';
 import { Memo } from './Memo.ts';
-import type { ChapterPages, Series, SeriesSummary } from './model.ts';
+import type { ChapterPages, Series, SeriesSummary, SourceTarget } from './model.ts';
 import type { Source } from './source/Source.ts';
-import type { SourceRegistry } from './source/SourceRegistry.ts';
+import type { ResolvedLink, SourceRegistry } from './source/SourceRegistry.ts';
 
 const TTL_MS = 5 * 60_000;
 
@@ -18,6 +18,7 @@ export class Catalog {
   private readonly seriesMemo: Memo<Series>;
   private readonly chapterMemo: Memo<ChapterPages>;
   private readonly listMemo: Memo<SeriesSummary[]>;
+  private readonly completeMemo: Memo<SourceTarget | null>;
 
   constructor(registry: SourceRegistry, library: Library, now: () => number = Date.now) {
     this.registry = registry;
@@ -25,6 +26,15 @@ export class Catalog {
     this.seriesMemo = new Memo(TTL_MS, now);
     this.chapterMemo = new Memo(TTL_MS, now);
     this.listMemo = new Memo(TTL_MS, now);
+    this.completeMemo = new Memo(TTL_MS, now);
+  }
+
+  /** What a link points at, whole: a chapter that does not name its series is looked up. Null when no site knows the link. */
+  async resolve(input: string): Promise<ResolvedLink | null> {
+    const link = this.registry.resolve(input);
+    if (!link || link.kind !== 'chapter' || link.seriesUrl) return link;
+    const whole = await this.completeMemo.get(link.url, () => link.source.complete(link));
+    return whole ? { ...whole, source: link.source } : null;
   }
 
   async series(url: string, options: { fresh?: boolean } = {}): Promise<Series> {

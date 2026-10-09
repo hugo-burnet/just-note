@@ -33,6 +33,14 @@ export abstract class Source {
   /** What a link points at on this site, in canonical form; null when it is not ours. */
   abstract resolve(input: string): SourceTarget | null;
 
+  /**
+   * A chapter whose address does not say which series it belongs to (a link pasted from the site) is
+   * completed from the site; null when it cannot be. Every other target is already whole.
+   */
+  async complete(target: SourceTarget): Promise<SourceTarget | null> {
+    return target;
+  }
+
   /** The language the site is browsed in when `wanted` is asked for: that one if the site has it, else its default. */
   languageFor(wanted?: string): string {
     return wanted !== undefined && this.languages.includes(wanted) ? wanted : (this.languages[0] ?? 'en');

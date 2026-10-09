@@ -233,9 +233,12 @@ the WebView. A source asks for this with `transport.render(url, { pictures: sele
 which only the installed app has; a module that needs it says `nativeOnly` and is left out
 of the browser build.
 
-Not done yet: sharing a link to the app, its own launcher icon, and opening a chapter link
-pasted from Scan-Manga (its address does not name its series, so the app gives chapters an
-address that does; a pasted one opens the site's listing instead).
+A chapter link pasted from Scan-Manga does not name its series (its address has no room for the
+series' number), so the reader asks the source to complete it (`Source.complete`): the page of
+the chapter has a way back to its series. The addresses the app itself gives its chapters carry
+the series after a `#`, which the site never sees.
+
+Not done yet: sharing a link to the app, and its own launcher icon.
 
 ## Tests
 
