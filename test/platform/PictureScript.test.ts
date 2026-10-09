@@ -42,9 +42,16 @@ class PretendReader {
   readonly fetched: string[] = [];
   readonly selectors: string[] = [];
   readonly pictures: PretendPicture[];
+  /** A reader that scrolls inside a box of its own: how tall it is, and where it has been scrolled to. */
+  inner: { scrollHeight: number; clientHeight: number; scrollTop: number; overflow: string } | undefined;
 
   constructor(pictures: PretendPicture[]) {
     this.pictures = pictures;
+  }
+
+  /** How far down the reader has been scrolled, wherever it scrolls. */
+  get at(): number {
+    return this.inner ? this.inner.scrollTop : this.scrolledTo;
   }
 
   get window() {
@@ -63,11 +70,16 @@ class PretendReader {
       __justReadBlobs: this.blobs,
       scrollTo: (_x: number, y: number): void => {
         reader.scrolledTo = y;
-        for (const one of reader.pictures) {
-          if (one.loadAt <= y + SCREEN && !one.complete) Object.assign(one, { complete: true, naturalWidth: 800, naturalHeight: 1200 });
-        }
+        reader.reach();
       },
     };
+  }
+
+  /** What the scrolling has brought into view is loaded (the reader's own box counts, the page does not when it has one). */
+  reach(): void {
+    for (const one of this.pictures) {
+      if (one.loadAt <= this.at + SCREEN && !one.complete) Object.assign(one, { complete: true, naturalWidth: 800, naturalHeight: 1200 });
+    }
   }
 
   get document() {
@@ -77,7 +89,7 @@ class PretendReader {
       body: { scrollHeight: 6000 },
       querySelectorAll: (selector: string): PretendPicture[] => {
         reader.selectors.push(selector);
-        return reader.pictures.filter((one) => one.insertAt <= reader.scrolledTo + SCREEN);
+        return reader.pictures.filter((one) => one.insertAt <= reader.at + SCREEN).map((one) => Object.assign(one, { parentElement: reader.parentOf() }));
       },
       createElement: () => ({
         width: 0,
@@ -85,6 +97,28 @@ class PretendReader {
         getContext: () => ({ drawImage: () => undefined }),
         toBlob: (callback: (blob: Blob) => void, type: string) => callback(new Blob(['drawn'], { type })),
       }),
+    };
+  }
+
+  /** The element a picture sits in: the reader's own box, whose scrollTop is the way to move it, or nothing. */
+  parentOf(): unknown {
+    const reader = this;
+    const inner = this.inner;
+    if (!inner) return null;
+    return {
+      get scrollHeight(): number {
+        return inner.scrollHeight;
+      },
+      clientHeight: inner.clientHeight,
+      get scrollTop(): number {
+        return inner.scrollTop;
+      },
+      set scrollTop(value: number) {
+        inner.scrollTop = value;
+        reader.reach();
+      },
+      parentElement: null,
+      overflowY: inner.overflow,
     };
   }
 
@@ -115,13 +149,15 @@ class PretendReader {
       reader.clock += ms;
       setImmediate(callback);
     };
-    new Function('window', 'document', 'fetch', 'FileReader', 'setTimeout', 'Date', script)(
+    const style = (element: { overflowY?: string }): { overflowY: string } => ({ overflowY: element.overflowY ?? 'visible' });
+    new Function('window', 'document', 'fetch', 'FileReader', 'setTimeout', 'Date', 'getComputedStyle', script)(
       this.window,
       this.document,
       this.fetchFunction,
       this.FileReaderClass,
       sleep,
       { now: () => reader.clock },
+      style,
     );
     while (this.outcome.length === 0) await new Promise((resolve) => setImmediate(resolve));
   }
@@ -137,6 +173,16 @@ test('script: pictures that come in as the page is scrolled are all there, in th
   assert.deepEqual(reader.heard.map((one) => one.bytes), ['page 1', 'page 2', 'page 3', 'page 4']);
   assert.ok(reader.heard.every((one) => one.type === 'image/jpeg'));
   assert.ok(reader.selectors.every((selector) => selector === SELECTOR), 'the selector is the one given, quotes and all');
+});
+
+test('script: a reader that scrolls inside a box of its own is scrolled there, not just the page', async () => {
+  const reader = new PretendReader([picture(1, 0), picture(2, 2000), picture(3, 4000)]);
+  reader.inner = { scrollHeight: 6000, clientHeight: SCREEN, scrollTop: 0, overflow: 'auto' };
+  for (const n of [1, 2, 3]) reader.blobs.set(`blob:https://m.example.test/${n}`, blobOf(`page ${n}`));
+  await reader.run(pictureScript(SELECTOR));
+  assert.deepEqual(reader.outcome, [`done ${TOKEN}`]);
+  assert.deepEqual(reader.heard.map((one) => one.bytes), ['page 1', 'page 2', 'page 3']);
+  assert.ok(reader.inner.scrollTop >= 4000, `the box was scrolled to ${reader.inner.scrollTop}`);
 });
 
 test('script: a picture the hook did not keep is asked for by its address, and when the page let go of that too, it is drawn', async () => {

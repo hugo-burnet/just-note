@@ -42,8 +42,26 @@ export function pictureScript(selector: string): string {
   function sleep(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
   function pictures() { return Array.prototype.slice.call(document.querySelectorAll(SELECTOR)); }
   function loaded(img) { return img.complete && img.naturalWidth > 0; }
+  // A reader may scroll inside a box of its own instead of the page: the nearest ancestor of a picture that does.
+  function box() {
+    var first = pictures()[0];
+    for (var el = first && first.parentElement; el && el !== document.body; el = el.parentElement) {
+      if (el.scrollHeight > el.clientHeight + 50 && /auto|scroll/.test(getComputedStyle(el).overflowY)) return el;
+    }
+    return null;
+  }
   function heightOf() {
-    return Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0);
+    var inner = box();
+    return inner ? inner.scrollHeight : Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0);
+  }
+  function viewOf() {
+    var inner = box();
+    return inner ? inner.clientHeight : window.innerHeight || 600;
+  }
+  function scrollTo(y) {
+    var inner = box();
+    if (inner) inner.scrollTop = y;
+    window.scrollTo(0, y);
   }
 
   async function scroll() {
@@ -53,16 +71,16 @@ export function pictureScript(selector: string): string {
     var last = '';
     while (Date.now() - started < BUDGET_MS) {
       var height = heightOf();
-      var view = window.innerHeight || 600;
+      var view = viewOf();
       if (y + view < height) {
         y = Math.min(y + Math.round(view * 0.8), height);
-        window.scrollTo(0, y);
+        scrollTo(y);
         await sleep(STEP_MS);
         quiet = 0;
         continue;
       }
       // At the bottom: wait for what is still coming in.
-      window.scrollTo(0, height);
+      scrollTo(height);
       var list = pictures();
       var signature = list.length + '/' + list.filter(loaded).length + '/' + height;
       quiet = signature === last ? quiet + 1 : 0;

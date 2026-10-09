@@ -43,7 +43,7 @@ runs it sees everything you read and can alter what you are shown.
 
 ## Status: read this first
 
-- **Verified:** 278 unit tests, and an end-to-end run in a real Chromium against
+- **Verified:** 287 unit tests, and an end-to-end run in a real Chromium against
   *pretend* FanFox, WEBTOON and LelScan sites served by the test itself (made-up
   titles, generated images). It covers a phone and a desktop screen, both themes, both
   languages, both reading modes, a link shared to the app, and the installed app
@@ -243,7 +243,7 @@ Not done yet: sharing a link to the app, and its own launcher icon.
 ## Tests
 
 ```sh
-npm run check        # types (app and worker) and the 278 unit tests
+npm run check        # types (app and worker) and the 287 unit tests
 npm run test:e2e     # real Chromium (npx playwright install chromium); screenshots in test-output/
 npm run test:e2e -- webtoon     # one flow: fanfox, webtoon, browse, desktop, offline
 npm run icons        # regenerate the PNG icons from public/icons/icon.svg
