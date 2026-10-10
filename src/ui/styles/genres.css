@@ -67,8 +67,7 @@
 
 /* The pages that could not be read, and the way to try them again. */
 .genre-retry {
-  margin-inline-start: var(--s-2);
-  padding: var(--s-1) var(--s-2);
+  padding: var(--s-1) 0;
   border: 0;
   background: none;
   color: var(--accent);

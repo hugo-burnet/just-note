@@ -163,7 +163,7 @@ export class DiscoverView extends View {
     const status = h('p', { class: 'genre-hint', 'aria-live': 'polite' });
     const unreadText = h('span');
     const retry = h('button', { class: 'genre-retry pressable', type: 'button' }, i18n.t('discover.genresRetry'));
-    const unread = h('p', { class: 'genre-hint genre-unread', hidden: true, 'aria-live': 'polite' }, unreadText, retry);
+    const unread = h('p', { class: 'genre-hint genre-unread', hidden: true, 'aria-live': 'polite' }, unreadText, ' ', retry);
     const nothing = h('p', { class: 'genre-empty', hidden: true }, i18n.t('discover.genresNone'));
     const bar = new GenreBar({ i18n, filter, onChange: () => draw() });
     this.shown.push(bar);
