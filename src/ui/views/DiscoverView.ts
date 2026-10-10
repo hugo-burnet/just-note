@@ -1,3 +1,4 @@
+import { ListingGenres } from '../../engine/index.ts';
 import type { SeriesSummary, Source } from '../../engine/index.ts';
 import { EmptyState } from '../components/EmptyState.ts';
 import { ErrorPanel } from '../components/ErrorPanel.ts';
@@ -136,43 +137,14 @@ export class DiscoverView extends View {
    * Filtering the results by genre. A listing does not say the genres of its series, their pages do: they are
    * read (a few at a time, and kept) when the filter is asked for, or at once when one is already chosen. Until
    * its genres are known, a series passes a filter that only leaves genres out, and not one that keeps some.
-   * Each site has its own: it names its genres its own way.
+   * The pages that could not be read are said, with a way to try them again: a series whose genres are unknown
+   * is not in the filter, and the person looking at it has to know why. Each site has its own filter: it names
+   * its genres its own way.
    */
   private genreFilter(source: Source, items: readonly SeriesSummary[], cards: readonly HTMLElement[]): HTMLElement {
     const { i18n, catalog } = this.app;
     const filter = this.app.discoverGenres(source.id);
-    const known = new Map<string, readonly string[]>();
-    let started = false;
-    let answered = 0;
     let drawing = false;
-    const start = h('button', { class: 'chip chip-button genre-start pressable', type: 'button' }, icon('sort', 14), i18n.t('discover.genres'));
-    const status = h('p', { class: 'genre-hint', 'aria-live': 'polite' });
-    const nothing = h('p', { class: 'genre-empty', hidden: true }, i18n.t('discover.genresNone'));
-    const bar = new GenreBar({ i18n, filter, onChange: () => draw() });
-    this.shown.push(bar);
-
-    const draw = (): void => {
-      const said = items.map((item) => ({ genres: known.get(item.url) }));
-      bar.paint(said.filter((one) => one.genres !== undefined));
-      let passing = 0;
-      said.forEach((one, index) => {
-        const card = cards[index];
-        const pass = filter.matches(one);
-        if (card) card.hidden = !pass;
-        if (pass) passing++;
-      });
-      start.hidden = started;
-      const reading = started && answered < items.length;
-      status.textContent = reading
-        ? i18n.t('discover.genresReading', { done: answered, total: items.length })
-        : filter.active
-          ? i18n.t('library.filtered', { shown: passing, total: items.length })
-          : started
-            ? i18n.t('library.genresHint')
-            : '';
-      status.hidden = status.textContent === '';
-      nothing.hidden = reading || passing > 0;
-    };
     // Many answers come in a burst: the results are filtered again once per frame.
     const later = (): void => {
       if (drawing) return;
@@ -182,21 +154,55 @@ export class DiscoverView extends View {
         if (!this.isDestroyed) draw();
       });
     };
+    const genres = new ListingGenres(
+      items.map((item) => item.url),
+      (url) => catalog.genres(url, () => !this.isDestroyed),
+      later,
+    );
+    const start = h('button', { class: 'chip chip-button genre-start pressable', type: 'button' }, icon('sort', 14), i18n.t('discover.genres'));
+    const status = h('p', { class: 'genre-hint', 'aria-live': 'polite' });
+    const unreadText = h('span');
+    const retry = h('button', { class: 'genre-retry pressable', type: 'button' }, i18n.t('discover.genresRetry'));
+    const unread = h('p', { class: 'genre-hint genre-unread', hidden: true, 'aria-live': 'polite' }, unreadText, retry);
+    const nothing = h('p', { class: 'genre-empty', hidden: true }, i18n.t('discover.genresNone'));
+    const bar = new GenreBar({ i18n, filter, onChange: () => draw() });
+    this.shown.push(bar);
+
+    const draw = (): void => {
+      const said = items.map((item) => ({ genres: genres.of(item.url) }));
+      bar.paint(said.filter((one) => one.genres !== undefined));
+      let passing = 0;
+      said.forEach((one, index) => {
+        const card = cards[index];
+        const pass = filter.matches(one);
+        if (card) card.hidden = !pass;
+        if (pass) passing++;
+      });
+      start.hidden = genres.started;
+      const { reading } = genres;
+      status.textContent = reading
+        ? i18n.t('discover.genresReading', { done: genres.answered, total: genres.total })
+        : filter.active
+          ? i18n.t('library.filtered', { shown: passing, total: items.length })
+          : !genres.started
+            ? ''
+            : bar.root.hidden
+              ? i18n.t('discover.genresNoneSaid')
+              : i18n.t('library.genresHint');
+      status.hidden = status.textContent === '';
+      unreadText.textContent = i18n.plural('discover.genresUnread', genres.unread);
+      unread.hidden = reading || genres.unread === 0;
+      nothing.hidden = reading || passing > 0;
+    };
     const begin = (): void => {
-      started = true;
-      for (const item of items) {
-        void catalog.genres(item.url, () => !this.isDestroyed).then((genres) => {
-          answered++;
-          if (genres) known.set(item.url, genres);
-          later();
-        });
-      }
+      genres.start();
       draw();
     };
     this.listen(start, 'click', begin);
+    this.listen(retry, 'click', begin);
     if (filter.active && items.length > 0) begin();
     else draw();
-    return h('div', { class: 'discover-genres' }, h('div', { class: 'genre-tools' }, start, bar.root), status, nothing);
+    return h('div', { class: 'discover-genres' }, h('div', { class: 'genre-tools' }, start, bar.root), status, unread, nothing);
   }
 
   override destroy(): void {

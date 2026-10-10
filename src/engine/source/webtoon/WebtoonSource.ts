@@ -4,6 +4,7 @@ import type { SourceIO } from '../../ports.ts';
 import type { ReadingStyle } from '../../reader/ReadingStyle.ts';
 import { looksBlocked } from '../../text.ts';
 import { Source } from '../Source.ts';
+import type { Glance } from '../Source.ts';
 import { WebtoonEpisodes } from './WebtoonEpisodes.ts';
 import { looksAgeGated, WebtoonSeriesParser } from './WebtoonSeriesParser.ts';
 import { WebtoonUrls } from './WebtoonUrls.ts';
@@ -46,6 +47,11 @@ export class WebtoonSource extends Source {
     const first = await this.load(url);
     const chapters = await this.episodes.collect(first.doc, url);
     return this.series.parseSeries(first.doc, first.text, url, chapters);
+  }
+
+  /** The first page of the series only: its episodes are ten a page, a dozen requests or more for a long one. */
+  override glance(url: string): Promise<Glance> {
+    return this.glanceWith(url, (doc) => this.series.parseGlance(doc, url));
   }
 
   async getList(url: string): Promise<SeriesSummary[]> {

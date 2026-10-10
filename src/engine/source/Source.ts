@@ -1,6 +1,8 @@
+import { SourceError } from '../errors.ts';
 import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../model.ts';
 import type { ReadingStyle } from '../reader/ReadingStyle.ts';
 import type { DomDocument, HtmlParser, SourceIO, TextRequest, Transport } from '../ports.ts';
+import { looksBlocked } from '../text.ts';
 
 export interface ChapterOptions {
   readonly background?: boolean;
@@ -85,12 +87,27 @@ export abstract class Source {
   abstract getList(url: string): Promise<SeriesSummary[]>;
 
   /**
-   * What the page of a series says of it at a glance, for a listing: its cover and its genres, from one reading
-   * of the page. A source overrides it to ask for less than the whole series.
+   * What the first page of a series says of it, for a listing: its cover and its genres, from one reading of
+   * the page. Never its chapters: a series with none yet, or whose list cannot be made out, still has its
+   * genres, and a site that lists its chapters over several pages (WEBTOON, ten at a time) is not walked for
+   * a word. A source overrides it to ask for less than the whole series, through `glanceWith`.
    */
   async glance(url: string): Promise<Glance> {
     const { cover, genres } = await this.getSeries(url);
     return { cover, genres };
+  }
+
+  /**
+   * The first page of a series, read for a glance and made out by `parse`. It is one of the many a listing asks
+   * for, and none is worth a place among the pages kept to be read again offline (`cache: false`). A page that
+   * names neither a cover nor a genre is not the page of a series (an anti-bot check, an error page: both are
+   * answered 200 all the same): what it "says" is no answer, or a series would be kept as one that has no genres.
+   */
+  protected async glanceWith(url: string, parse: (doc: DomDocument) => Glance): Promise<Glance> {
+    const { doc, text } = await this.load(url, { cache: false });
+    const seen = parse(doc);
+    if (seen.cover || seen.genres.length > 0) return seen;
+    throw new SourceError(looksBlocked(text) ? 'blocked' : 'no_series', 'The page of the series says neither its cover nor its genres.', { url, htmlLength: text.length });
   }
 
   /** `options.background`: it is read ahead, nobody is waiting (only a source that has to open a browser for it cares). */

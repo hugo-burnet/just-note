@@ -2,6 +2,7 @@ import { SourceError } from '../../errors.ts';
 import type { Chapter, Series, SeriesSummary } from '../../model.ts';
 import type { DomDocument, DomNode } from '../../ports.ts';
 import { absolute, clean, looksBlocked } from '../../text.ts';
+import type { Glance } from '../Source.ts';
 import { WebtoonUrls } from './WebtoonUrls.ts';
 
 interface Card {
@@ -70,17 +71,23 @@ export class WebtoonSeriesParser {
       clean(this.meta(doc, 'og:title')).replace(SITE_SUFFIX, '') ||
       clean(doc.querySelector('h1.subj, .detail_header h1')?.textContent) ||
       clean(doc.querySelector('title')?.textContent).replace(SITE_SUFFIX, '');
-    const genre = clean(doc.querySelector('.detail_header .genre, h2.genre')?.textContent);
+    const { cover, genres } = this.parseGlance(doc, url);
     return {
       url,
       title: title || url,
-      cover: absolute(this.meta(doc, 'og:image'), url),
+      cover,
       author: this.author(doc),
       status: clean(doc.querySelector('.day_info')?.textContent),
-      genres: genre ? [genre] : [],
+      genres,
       description: clean(doc.querySelector('p.summary')?.textContent) || clean(this.meta(doc, 'og:description')),
       chapters,
     };
+  }
+
+  /** What the first page of a series says of it before its episodes: its cover and its genre (see Source.glance). */
+  parseGlance(doc: DomDocument, url: string): Glance {
+    const genre = clean(doc.querySelector('.detail_header .genre, h2.genre')?.textContent);
+    return { cover: absolute(this.meta(doc, 'og:image'), url), genres: genre ? [genre] : [] };
   }
 
   /** Series found on a listing page (home, a genre, search results). */

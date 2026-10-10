@@ -2,6 +2,7 @@ import { SourceError } from '../../errors.ts';
 import type { Chapter, Series, SeriesSummary } from '../../model.ts';
 import type { DomDocument, DomNode } from '../../ports.ts';
 import { absolute, clean, looksBlocked } from '../../text.ts';
+import type { Glance } from '../Source.ts';
 import { FanFoxUrls } from './FanFoxUrls.ts';
 
 interface Card {
@@ -22,17 +23,23 @@ export class FanFoxSeriesParser {
         pageTitle: clean(doc.querySelector('title')?.textContent),
       });
     }
-    const coverSrc = doc.querySelector('img.detail-info-cover-img')?.getAttribute('src') || this.meta(doc, 'og:image');
+    const { cover, genres } = this.parseGlance(doc, url);
     return {
       url,
       title: this.title(doc) || url,
-      cover: absolute(coverSrc, url),
+      cover,
       author: this.texts(doc, '.detail-info-right-say a').join(', '),
       status: clean(doc.querySelector('.detail-info-right-title-tip')?.textContent),
-      genres: this.texts(doc, '.detail-info-right-tag-list a'),
+      genres,
       description: this.description(doc),
       chapters,
     };
+  }
+
+  /** What the page says of a series before its chapters: its cover and its genres (see Source.glance). */
+  parseGlance(doc: DomDocument, url: string): Glance {
+    const coverSrc = doc.querySelector('img.detail-info-cover-img')?.getAttribute('src') || this.meta(doc, 'og:image');
+    return { cover: absolute(coverSrc, url), genres: this.texts(doc, '.detail-info-right-tag-list a') };
   }
 
   /** Series found on a listing page (home, directory, search results). */

@@ -237,29 +237,32 @@ test('a downloaded chapter is read from the device, and a series whose site cann
   await assert.rejects(() => catalog.series('https://stub.test/series/2', { fresh: true }), /boom/);
 });
 
-/** A site whose listings have good covers: the page of a series is read whole, as it may well be opened next. */
-class WholePagesSource extends StubSource {
+/** A site whose listings have good covers: only the genres of its pages are wanted, never the series whole. */
+class GoodCoversSource extends StubSource {
   override readonly betterCovers = false;
 }
 
 test('the genres of a series of a listing are read from its page once, kept, and do not put it in the library', async () => {
-  const source = new WholePagesSource(makeIO({}).io);
+  const source = new GoodCoversSource(makeIO({}).io);
   const store = new MemoryStore();
   const library = new Library(store);
   const catalog = new Catalog(new SourceRegistry([source]), library, () => 0, undefined, undefined, new GenreShelf(store));
-  assert.deepEqual(await catalog.genres(URL_1), []);
-  assert.deepEqual(await catalog.genres(URL_1), []);
-  assert.equal(source.calls.series, 1);
+  assert.deepEqual(await catalog.genres(URL_1), ['Seinen']);
+  assert.deepEqual(await catalog.genres(URL_1), ['Seinen']);
+  assert.deepEqual(source.coversAsked, [URL_1]);
+  assert.equal(source.calls.series, 0, 'its chapters are not what a listing is read for');
   assert.equal(library.get(URL_1), null);
   // Kept from one start to the next.
   const again = new Catalog(new SourceRegistry([source]), library, () => 0, undefined, undefined, new GenreShelf(store));
-  assert.deepEqual(await again.genres(URL_1), []);
-  assert.equal(source.calls.series, 1);
+  assert.deepEqual(await again.genres(URL_1), ['Seinen']);
+  assert.equal(source.coversAsked.length, 1);
   // A page that cannot be read gives nothing, and one no longer wanted is not read.
-  source.failNext = true;
+  source.coverAnswer = async () => {
+    throw new Error('blocked');
+  };
   assert.equal(await catalog.genres('https://stub.test/series/2'), null);
   assert.equal(await catalog.genres('https://stub.test/series/3', () => false), null);
-  assert.equal(source.calls.series, 2);
+  assert.deepEqual(source.coversAsked, [URL_1, 'https://stub.test/series/2']);
 });
 
 test('where the covers of a listing are poor, its page is read once for the cover and the genres alike', async () => {

@@ -20,6 +20,12 @@ const COVERS_AT_ONCE = 3;
 // The same for the genres of the series of a listing (their pages say them; listings do not).
 const GENRES_AT_ONCE = 3;
 
+/** The page of a series being read for its cover or its genres, and whether each of those who asked for it still wants it. */
+interface Reading {
+  readonly result: Promise<Glance | null>;
+  readonly wanted: Set<() => boolean>;
+}
+
 /**
  * What the views ask for: series, chapters, listings. Looking at a series puts
  * it in the library, even when the answer comes from memory: a series removed a
@@ -38,7 +44,7 @@ export class Catalog {
   private readonly genreShelf: GenreShelf | undefined;
   private readonly genreLimit = new Limiter(GENRES_AT_ONCE);
   /** The pages of series of listings being read for their cover or their genres: one reading for both. */
-  private readonly glancing = new Map<string, Promise<Glance | null>>();
+  private readonly glancing = new Map<string, Reading>();
 
   /**
    * `covers` and `genres`: where the covers and the genres found for listings are kept from one start to the next.
@@ -75,7 +81,8 @@ export class Catalog {
   /**
    * The genres of a series of a listing, which only its page says: what is known of it (kept, or in the library),
    * else its page, a few at a time, and only for a series still wanted when its turn comes. Null when they
-   * cannot be had. It never puts the series in the library.
+   * cannot be had (the page could not be read, or is not a series' page): nothing is kept of that, and the next
+   * ask is a new try. It never puts the series in the library.
    */
   genres(url: string, wanted: () => boolean = () => true): Promise<readonly string[] | null> {
     const known = this.genreShelf?.get(url) ?? this.library.get(url)?.genres;
@@ -104,27 +111,42 @@ export class Catalog {
   }
 
   /**
-   * The page of a series of a listing, read once for its cover and its genres alike (a site behind an anti-bot
-   * check answers slowly: one reading, not two), and what it says kept. Where the listing's covers are poor, the
-   * page is only glanced at, as most of those series are never opened; elsewhere it is read whole, and opening the
-   * series afterwards is instant.
+   * The first page of a series of a listing, read once for its cover and its genres alike (a site behind an
+   * anti-bot check answers slowly: one reading, not two), and what it says kept. Never the series whole: a
+   * listing does not ask for its chapters, and a series whose chapters cannot be made out has its genres all
+   * the same. Asked for by more than one (its card for the cover, the filter for the genres), the page is read
+   * when its turn comes if any of them still wants it: a card scrolled out of sight does not cancel the filter.
    */
   private glance(url: string, wanted: () => boolean, limit: Limiter): Promise<Glance | null> {
-    const pending = this.glancing.get(url);
-    if (pending) return pending;
-    const asked = limit
-      .run(async (): Promise<Glance | null> => {
-        if (!wanted()) return null;
-        const source = this.sourceFor(url);
-        const { cover, genres } = source.betterCovers ? await source.glance(url) : await this.seriesMemo.get(url, () => this.readSeries(url));
-        if (cover && source.betterCovers) this.shelf?.set(url, cover);
-        this.genreShelf?.set(url, genres);
-        return { cover, genres };
-      })
+    const reading = this.glancing.get(url);
+    if (reading) {
+      reading.wanted.add(wanted);
+      return reading.result;
+    }
+    const asked = new Set([wanted]);
+    // Only this reading is forgotten: a new one may have taken its place.
+    const forget = (): void => {
+      if (this.glancing.get(url)?.wanted === asked) this.glancing.delete(url);
+    };
+    // Not started in this very turn: whoever asks next in it is one of those the reading is for.
+    const result = Promise.resolve()
+      .then(() =>
+        limit.run(async (): Promise<Glance | null> => {
+          if (![...asked].some((one) => one())) {
+            forget();
+            return null;
+          }
+          const source = this.sourceFor(url);
+          const seen = await source.glance(url);
+          if (seen.cover && source.betterCovers) this.shelf?.set(url, seen.cover);
+          this.genreShelf?.set(url, seen.genres);
+          return seen;
+        }),
+      )
       .catch(() => null)
-      .finally(() => this.glancing.delete(url));
-    this.glancing.set(url, asked);
-    return asked;
+      .finally(forget);
+    this.glancing.set(url, { result, wanted: asked });
+    return result;
   }
 
   list(url: string): Promise<SeriesSummary[]> {

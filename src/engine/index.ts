@@ -11,6 +11,8 @@ export { Downloads } from './library/Downloads.ts';
 export { GenreFilter, genreKey } from './library/GenreFilter.ts';
 export type { GenreChoice, ShelfGenre, WithGenres } from './library/GenreFilter.ts';
 export { GenreShelf } from './library/GenreShelf.ts';
+export { ListingGenres } from './library/ListingGenres.ts';
+export type { GenreReader } from './library/ListingGenres.ts';
 export type { DownloadState, SavedChapter } from './library/Downloads.ts';
 export { inBackground } from './source/inBackground.ts';
 export type { LibraryEntry, ReadingPosition } from './library/Library.ts';

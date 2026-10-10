@@ -92,6 +92,10 @@ export const fr: Readonly<Record<MessageKey, string>> = {
   'discover.genres': 'Filtrer par genre',
   'discover.genresReading': 'Lecture des genres… {done} sur {total}',
   'discover.genresNone': 'Aucun résultat ne correspond à ces genres.',
+  'discover.genresNoneSaid': 'Ces pages ne disent pas leurs genres.',
+  'discover.genresUnread.one': 'Les genres de {n} résultat n’ont pas pu être lus.',
+  'discover.genresUnread.other': 'Les genres de {n} résultats n’ont pas pu être lus.',
+  'discover.genresRetry': 'Réessayer',
 
   'series.start': 'Commencer',
   'series.continue': 'Reprendre · {chapter}',

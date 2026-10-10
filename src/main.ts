@@ -13,6 +13,7 @@ import './ui/styles/reader-chrome.css';
 import './ui/styles/reader-states.css';
 import './ui/styles/states.css';
 import './ui/styles/experience.css';
+import './ui/styles/genres.css';
 import './ui/styles/settings.css';
 
 import { NativePlatform } from './platform/native/NativePlatform.ts';

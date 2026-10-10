@@ -51,11 +51,8 @@ export class ScanMangaSource extends Source {
     return this.series.parseSeries(doc, text, url);
   }
 
-  /** Of the many series a listing shows, none is worth keeping the page of, as it is asked for only for the cover and the genres. */
-  override async glance(url: string): Promise<Glance> {
-    const { doc, text } = await this.load(url, { cache: false });
-    const { cover, genres } = this.series.parseSeries(doc, text, url);
-    return { cover, genres };
+  override glance(url: string): Promise<Glance> {
+    return this.glanceWith(url, (doc) => this.series.parseGlance(doc, url));
   }
 
   async getList(url: string): Promise<SeriesSummary[]> {

@@ -25,6 +25,15 @@ of another); when one is chosen, the genres of the next results are read at once
 known, a series passes a filter that only leaves genres out, and not one that keeps some. LelScan's pages
 say no genres: its results have nothing to filter by (`Source.genres`).
 
+What is read of a series is the first page of it and its cover and genres alone (`Source.glance`), never its
+chapters: a series with none yet, or whose list cannot be made out, still has its genres, and a long WEBTOON
+is one request and not a dozen. A page that could not be had (the site did not answer, an anti-bot check, a
+page that is not a series') is not a series without genres: it is said under the chips (*The genres of 2
+results could not be read*), with *Try again*, which reads those and only those (`ListingGenres`). A
+series whose page says no genre is only remembered until the app is closed, not kept (`GenreShelf`): that
+answer is as likely a page that was not made out as a series that has none, and it is read again next time.
+A listing whose pages all say no genre says so (*These pages do not say their genres*).
+
 **Downloads, to read with no network.** In a series, the ⤓ button beside *Continue* downloads
 the next 5 or 10 unread chapters, or all of them, from where you are; each chapter also has its
 own button, which shows a ring while it comes in and turns into a mark once kept. A chapter is

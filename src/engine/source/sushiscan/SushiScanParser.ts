@@ -3,6 +3,7 @@ import type { Chapter, Series, SeriesSummary } from '../../model.ts';
 import type { DomDocument, DomNode } from '../../ports.ts';
 import type { ReadingStyle } from '../../reader/ReadingStyle.ts';
 import { absolute, clean, looksBlocked, secure } from '../../text.ts';
+import type { Glance } from '../Source.ts';
 import { SushiScanUrls } from './SushiScanUrls.ts';
 
 /** A page of results never has to show more than this. */
@@ -43,19 +44,28 @@ export class SushiScanParser {
       });
     }
     const facts = this.facts(doc);
-    const cover = absolute(this.meta(doc, 'og:image') || doc.querySelector('.thumb img')?.getAttribute('src'), url);
+    const { cover, genres } = this.parseGlance(doc, url);
     const author = [facts.get('auteur'), facts.get('artiste')].filter((name, index, all): name is string => Boolean(name) && all.indexOf(name) === index).join(', ');
     const reading = readingOf(facts.get('type') ?? '');
     return {
       url,
       title: clean(doc.querySelector('h1.entry-title')?.textContent) || this.meta(doc, 'og:title').replace(TITLE_SUFFIX, '') || titled(SushiScanUrls.slugOf(url)) || url,
-      cover: cover ? secure(cover) : null,
+      cover,
       author,
       status: facts.get('statut') ?? '',
-      genres: [...doc.querySelectorAll('.seriestugenre a')].map((link) => clean(link.textContent)).filter(Boolean),
+      genres,
       description: clean(doc.querySelector('.entry-content-single')?.textContent) || this.meta(doc, 'og:description').replace(TITLE_SUFFIX, ''),
       chapters,
       ...(reading ? { reading } : {}),
+    };
+  }
+
+  /** What the page says of a series before its chapters: its cover and its genres (see Source.glance). */
+  parseGlance(doc: DomDocument, url: string): Glance {
+    const cover = absolute(this.meta(doc, 'og:image') || doc.querySelector('.thumb img')?.getAttribute('src'), url);
+    return {
+      cover: cover ? secure(cover) : null,
+      genres: [...doc.querySelectorAll('.seriestugenre a')].map((link) => clean(link.textContent)).filter(Boolean),
     };
   }
 

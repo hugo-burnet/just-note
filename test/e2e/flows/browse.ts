@@ -44,6 +44,12 @@ export async function browseAndSettings({ browser, stage, runner }: Context): Pr
     await page.getByRole('button', { name: 'Filter by genre' }).click();
     // Only Moonlight Courier has a page on the pretend site: its genres are the only ones known.
     await page.locator('.genre-chip', { hasText: 'Adventure' }).waitFor();
+    // The two others could not be read: it is said, with a way to try again, which leaves what is known alone.
+    const unread = page.getByText('The genres of 2 results could not be read.');
+    await unread.waitFor();
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await unread.waitFor();
+    assert.equal(await page.locator('.genre-chip', { hasText: 'Adventure' }).count(), 1);
     await page.locator('.genre-chip', { hasText: 'Adventure' }).click();
     await page.waitForFunction(() => document.querySelectorAll('.grid .card:not([hidden])').length === 1);
     assert.equal(await page.locator('.grid .card:not([hidden]) .card-title').innerText(), 'Moonlight Courier');

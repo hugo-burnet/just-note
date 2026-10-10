@@ -91,6 +91,10 @@ export const en = {
   'discover.genres': 'Filter by genre',
   'discover.genresReading': 'Reading the genres… {done} of {total}',
   'discover.genresNone': 'No result matches these genres.',
+  'discover.genresNoneSaid': 'These pages do not say their genres.',
+  'discover.genresUnread.one': 'The genres of {n} result could not be read.',
+  'discover.genresUnread.other': 'The genres of {n} results could not be read.',
+  'discover.genresRetry': 'Try again',
 
   'series.start': 'Start reading',
   'series.continue': 'Continue · {chapter}',

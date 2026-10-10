@@ -3,6 +3,7 @@ import type { ChapterPages, Series, SeriesSummary, SourceTarget } from '../../mo
 import type { ReadingStyle } from '../../reader/ReadingStyle.ts';
 import { clean, looksBlocked } from '../../text.ts';
 import { Source } from '../Source.ts';
+import type { Glance } from '../Source.ts';
 import { DemonicScansParser } from './DemonicScansParser.ts';
 import { DemonicScansUrls } from './DemonicScansUrls.ts';
 
@@ -35,6 +36,10 @@ export class DemonicScansSource extends Source {
   async getSeries(url: string): Promise<Series> {
     const { doc, text } = await this.load(url);
     return this.site.parseSeries(doc, text, url);
+  }
+
+  override glance(url: string): Promise<Glance> {
+    return this.glanceWith(url, (doc) => this.site.parseGlance(doc, url));
   }
 
   async getList(url: string): Promise<SeriesSummary[]> {

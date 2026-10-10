@@ -2,6 +2,7 @@ import { SourceError } from '../../errors.ts';
 import type { Chapter, Series, SeriesSummary } from '../../model.ts';
 import type { DomDocument, DomNode } from '../../ports.ts';
 import { absolute, clean, looksBlocked, secure } from '../../text.ts';
+import type { Glance } from '../Source.ts';
 import { DemonicScansUrls } from './DemonicScansUrls.ts';
 
 /** At most this many series from one listing: a page of the site has a few dozen. */
@@ -50,15 +51,24 @@ export class DemonicScansParser {
       });
     }
     const facts = this.facts(doc);
+    const { cover, genres } = this.parseGlance(doc, url);
     return {
       url,
       title: ownText(doc.querySelector('h1.big-fat-titles')) || this.meta(doc, 'og:title') || DemonicScansUrls.nameOf(url),
-      cover: picture(doc.querySelector('#manga-page'), url) ?? (absolute(this.meta(doc, 'og:image'), url) || null),
+      cover,
       author: facts.get('author') ?? '',
       status: facts.get('status') ?? '',
-      genres: [...doc.querySelectorAll('.genres-list > li')].map((li) => clean(li.textContent)).filter(Boolean),
+      genres,
       description: clean(doc.querySelector('#manga-info-rightColumn .white-font')?.textContent) || this.meta(doc, 'og:description'),
       chapters,
+    };
+  }
+
+  /** What the page says of a series before its chapters: its cover and its genres (see Source.glance). */
+  parseGlance(doc: DomDocument, url: string): Glance {
+    return {
+      cover: picture(doc.querySelector('#manga-page'), url) ?? (absolute(this.meta(doc, 'og:image'), url) || null),
+      genres: [...doc.querySelectorAll('.genres-list > li')].map((li) => clean(li.textContent)).filter(Boolean),
     };
   }
 

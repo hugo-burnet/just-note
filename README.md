@@ -109,6 +109,12 @@ npm run apk          # build, copy into android/, and make the APK
   volumes are listed (they are in a list of their own, which is read since), and a volume's page finds its 193
   pictures. **But the pictures themselves were not shown** (each frame said *Retry*): the phone could not have them
   from `c.sushiscan.net`, for a reason the next report, which says it, is to give.
+- **Filtering Discover by genre** reads the first page of each result (its cover and genres, never its chapters)
+  and is checked in Chromium and on pretend pages shaped like each site's, series with chapters and without.
+  **Not verified on a phone**: what each real site's series page says of its genres (the machine this was written
+  on could not reach them). If a site's results do not all get their genres, the app says how many could not be
+  read, with *Try again*; and *Settings → Diagnostic* on a series page of that site has a section
+  (*the first mention of a genre*) that shows where the page lists them. See [LIBRARY.md](LIBRARY.md).
 - **Downloads and new chapters** are checked in Chromium (see *Tests*): a chapter never read is
   downloaded with its button, the network is cut, and every page of it opens; the shelf
   marks the series as downloaded and with new chapters. **Not verified on a phone**: there the

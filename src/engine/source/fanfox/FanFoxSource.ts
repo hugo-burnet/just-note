@@ -4,6 +4,7 @@ import type { SourceIO } from '../../ports.ts';
 import type { ReadingStyle } from '../../reader/ReadingStyle.ts';
 import { looksBlocked } from '../../text.ts';
 import { Source } from '../Source.ts';
+import type { Glance } from '../Source.ts';
 import { FanFoxChapterReader } from './FanFoxChapterReader.ts';
 import { FanFoxSeriesParser } from './FanFoxSeriesParser.ts';
 import { FanFoxUrls } from './FanFoxUrls.ts';
@@ -40,6 +41,10 @@ export class FanFoxSource extends Source {
   async getSeries(url: string): Promise<Series> {
     const { doc, text } = await this.load(url);
     return this.series.parseSeries(doc, text, url);
+  }
+
+  override glance(url: string): Promise<Glance> {
+    return this.glanceWith(url, (doc) => this.series.parseGlance(doc, url));
   }
 
   async getList(url: string): Promise<SeriesSummary[]> {

@@ -2,6 +2,7 @@ import { SourceError } from '../../errors.ts';
 import type { Chapter, Series, SeriesSummary } from '../../model.ts';
 import type { DomDocument, DomNode } from '../../ports.ts';
 import { absolute, clean, looksBlocked, secure } from '../../text.ts';
+import type { Glance } from '../Source.ts';
 import { ScanMangaUrls } from './ScanMangaUrls.ts';
 
 /** Words reduced to what they sound like: no accents, no capitals, no punctuation. */
@@ -47,19 +48,33 @@ export class ScanMangaSeriesParser {
         pageTitle: clean(doc.querySelector('title')?.textContent),
       });
     }
-    const about = ABOUT.exec(this.meta(doc, 'og:title'));
-    const cover = absolute(this.meta(doc, 'og:image'), url);
+    const { cover, genres } = this.parseGlance(doc, url);
     return {
       url,
       title: this.title(doc) || titled(ScanMangaUrls.slugOf(url)) || url,
-      cover: cover ? secure(cover) : null,
-      author: about?.[4] ?? '',
+      cover,
+      author: this.about(doc)?.[4] ?? '',
       status: '',
-      // Both are filtered by: the kind (Manga, Manhwa, Webtoon...) as much as the genre.
-      genres: [...new Set([about?.[1], about?.[2]].map((one) => clean(one)).filter(Boolean))],
+      genres,
       description: this.description(doc),
       chapters,
     };
+  }
+
+  /** What the page says of a series before its chapters: its cover and its genres (see Source.glance). */
+  parseGlance(doc: DomDocument, url: string): Glance {
+    const about = this.about(doc);
+    const cover = absolute(this.meta(doc, 'og:image'), url);
+    return {
+      cover: cover ? secure(cover) : null,
+      // Both are filtered by: the kind (Manga, Manhwa, Webtoon...) as much as the genre.
+      genres: [...new Set([about?.[1], about?.[2]].map((one) => clean(one)).filter(Boolean))],
+    };
+  }
+
+  /** The kind, the genre, the year and the author, as the title of the page writes them. */
+  private about(doc: DomDocument): RegExpExecArray | null {
+    return ABOUT.exec(this.meta(doc, 'og:title'));
   }
 
   /**
